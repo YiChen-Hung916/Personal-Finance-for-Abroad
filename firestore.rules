@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore { match /databases/{database}/documents {
+  function signedIn(){ return request.auth != null; }
+  function profile(){ return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+  function authorized(){ return signedIn() && profile().data.active == true; }
+  function owner(){ return authorized() && profile().data.role == 'owner'; }
+  match /users/{uid} { allow read: if authorized() && (request.auth.uid == uid || owner()); allow write: if owner(); }
+  match /receipts/{rid} {
+    allow create, update, delete: if owner();
+    allow read: if owner() || (authorized() && resource.data.confirmationUserId == request.auth.uid);
+    match /items/{iid} { allow read: if owner() || authorized(); allow write: if owner(); }
+    match /confirmations/{cid} { allow read: if owner() || (authorized() && request.auth.uid == cid); allow create, update: if authorized() && request.auth.uid == cid; }
+  }
+  match /{document=**} { allow read, write: if owner(); }
+}}
