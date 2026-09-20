@@ -393,6 +393,7 @@ async function receiptForm() {
   }
 
   let cards = [];
+  let cardLoadError = '';
 
   try {
     const cardsSnapshot =
@@ -405,14 +406,19 @@ async function receiptForm() {
       }))
       .filter(card => card.active === true);
 
+     console.log('Active cards loaded for receipt:', cards);
+
   } catch (error) {
     console.error(
       'Failed to load cards for receipt:',
       error
     );
+
+    cardLoadError = error.message;
   }
 
-  const cardOptions = cards
+const cardOptions = cards.length
+  ? cards
   .map(card => `
     <option value="${card.id}">
       ${escapeHtml(card.nickname || '')}
@@ -420,8 +426,9 @@ async function receiptForm() {
       ${escapeHtml(card.network || '')}
       · •••• ${escapeHtml(card.last4 || '')}
     </option>
-  `)
-  .join('');
+    `)
+    .join('');
+  : '';
 
   
   page.innerHTML = `
@@ -460,8 +467,59 @@ async function receiptForm() {
         </label>
 
         <label class="field">
-          Timezone
-          <input value="America/New_York">
+          ${lang === 'zh-TW' ? '時區' : 'Timezone'}
+
+          <select id="receiptTimezone">
+            <optgroup label="${lang === 'zh-TW' ? '北美' : 'North America'}">
+              <option value="America/New_York" selected>
+                Eastern Time — New York / Pittsburgh
+              </option>
+
+              <option value="America/Chicago">
+                Central Time — Chicago
+              </option>
+
+              <option value="America/Denver">
+                Mountain Time — Denver
+              </option>
+
+              <option value="America/Los_Angeles">
+                Pacific Time — Los Angeles
+              </option>
+            </optgroup>
+
+            <optgroup label="${lang === 'zh-TW' ? '亞洲' : 'Asia'}">
+              <option value="Asia/Taipei">
+                Taiwan — Taipei
+              </option>
+
+              <option value="Asia/Tokyo">
+                Japan — Tokyo
+              </option>
+
+              <option value="Asia/Seoul">
+                South Korea — Seoul
+              </option>
+
+              <option value="Asia/Hong_Kong">
+                Hong Kong
+              </option>
+
+              <option value="Asia/Singapore">
+                Singapore
+              </option>
+            </optgroup>
+
+            <optgroup label="${lang === 'zh-TW' ? '歐洲' : 'Europe'}">
+              <option value="Europe/London">
+                United Kingdom — London
+              </option>
+
+              <option value="Europe/Paris">
+                Central Europe — Paris
+              </option>
+            </optgroup>
+          </select>
         </label>
       </div>
 
@@ -472,16 +530,38 @@ async function receiptForm() {
         </label>
 
         <label class="field">
-          ${lang === 'zh-TW' ? '信用卡' : 'Card'}
+  ${lang === 'zh-TW' ? '信用卡' : 'Card'}
 
-          <select id="receiptCard">
-            <option value="">
-              ${lang === 'zh-TW' ? '請選擇信用卡…' : 'Select card…'}
-            </option>
+  <select id="receiptCard">
+    <option value="">
+      ${
+        cards.length
+          ? (lang === 'zh-TW'
+              ? '請選擇信用卡…'
+              : 'Select card…')
+          : (lang === 'zh-TW'
+              ? '目前沒有可用的信用卡'
+              : 'No active cards available')
+      }
+    </option>
 
-            ${cardOptions}
-          </select>
-        </label>
+    ${cardOptions}
+  </select>
+
+  ${
+    cardLoadError
+      ? `
+        <small class="muted">
+          ${
+            lang === 'zh-TW'
+              ? `信用卡載入失敗：${escapeHtml(cardLoadError)}`
+              : `Failed to load cards: ${escapeHtml(cardLoadError)}`
+          }
+        </small>
+      `
+      : ''
+  }
+</label>
       </div>
 
       <div id="items"></div>
