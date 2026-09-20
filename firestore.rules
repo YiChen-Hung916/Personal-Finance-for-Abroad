@@ -69,6 +69,21 @@ service cloud.firestore {
     }
 
 
+// ==================================================
+// Cards
+// ==================================================
+
+match /cards/{cardId} {
+
+  // All authorized users may read card information.
+  // This is needed later when reviewing receipts.
+  allow read: if authorized();
+
+  // Only owners may manage cards.
+  allow create, update, delete: if owner();
+}
+
+
     // =========================
     // RECEIPTS
     // =========================
