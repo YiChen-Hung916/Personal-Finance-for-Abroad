@@ -565,6 +565,824 @@ function addItem() {
 
 
 // ======================================================
+// Cards
+// ======================================================
+
+async function cardsPage() {
+
+  if (currentRole !== 'owner') {
+    page.innerHTML = `
+      <section class="panel">
+        <h1>Access Denied</h1>
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '只有 Owner 可以管理信用卡。'
+              : 'Only owners can manage cards.'
+          }
+        </p>
+      </section>
+    `;
+    return;
+  }
+
+  page.innerHTML = `
+    <section class="panel">
+
+      <div class="actions">
+        <h1>
+          ${lang === 'zh-TW' ? '信用卡' : 'Cards'}
+        </h1>
+
+        <button id="newCardBtn" class="primary">
+          ＋ ${lang === 'zh-TW' ? '新增信用卡' : 'Add Card'}
+        </button>
+      </div>
+
+      <div id="cardList">
+        <p class="muted">
+          ${lang === 'zh-TW' ? '載入中…' : 'Loading…'}
+        </p>
+      </div>
+
+    </section>
+  `;
+
+  document.querySelector('#newCardBtn').onclick =
+    showNewCardForm;
+
+  await loadCards();
+}
+
+
+async function loadCards() {
+
+  const cardList =
+    document.querySelector('#cardList');
+
+  try {
+
+    const q = query(
+      collection(db, 'cards'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      cardList.innerHTML = `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前尚未新增信用卡。'
+              : 'No cards have been added yet.'
+          }
+        </p>
+      `;
+
+      return;
+    }
+
+    cardList.innerHTML = snapshot.docs
+      .map(cardDoc => {
+
+        const card = cardDoc.data();
+
+        return `
+          <div class="item">
+
+            <h3>
+              ${escapeHtml(card.nickname || '')}
+            </h3>
+
+            <p>
+              ${escapeHtml(card.issuer || '')}
+              ·
+              ${escapeHtml(card.network || '')}
+            </p>
+
+            <p>
+              •••• ${escapeHtml(card.last4 || '')}
+            </p>
+
+            <p class="muted">
+              ${
+                card.active === true
+                  ? (lang === 'zh-TW' ? '使用中' : 'Active')
+                  : (lang === 'zh-TW' ? '已封存' : 'Archived')
+              }
+            </p>
+
+            <button
+              class="editCardBtn"
+              data-id="${cardDoc.id}"
+            >
+              ${lang === 'zh-TW' ? '編輯' : 'Edit'}
+            </button>
+
+          </div>
+        `;
+      })
+      .join('');
+
+    document
+      .querySelectorAll('.editCardBtn')
+      .forEach(button => {
+
+        button.onclick = () => {
+          editCard(button.dataset.id);
+        };
+
+      });
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load cards:',
+      error
+    );
+
+    cardList.innerHTML = `
+      <p class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '無法載入信用卡資料。'
+            : 'Unable to load cards.'
+        }
+      </p>
+    `;
+  }
+}
+
+
+// ======================================================
+// New Card
+// ======================================================
+
+async function showNewCardForm() {
+
+  let users = [];
+
+  try {
+
+    const snapshot =
+      await getDocs(collection(db, 'users'));
+
+    users = snapshot.docs
+      .map(userDoc => ({
+        id: userDoc.id,
+        ...userDoc.data()
+      }))
+      .filter(user =>
+        user.active === true &&
+        (
+          user.role === 'owner' ||
+          user.role === 'authorizedUser'
+        )
+      );
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load users:',
+      error
+    );
+
+  }
+
+  const confirmerOptions = users
+    .map(user => {
+
+      const name =
+        user.displayName ||
+        user.id;
+
+      return `
+        <option value="${user.id}">
+          ${escapeHtml(name)}
+        </option>
+      `;
+    })
+    .join('');
+
+  page.innerHTML = `
+    <section class="panel">
+
+      <h1>
+        ${lang === 'zh-TW'
+          ? '新增信用卡'
+          : 'Add Card'}
+      </h1>
+
+      <div class="row">
+
+        <label class="field">
+          ${lang === 'zh-TW'
+            ? '卡片暱稱'
+            : 'Card nickname'}
+
+          <input
+            id="cardNickname"
+            placeholder="US Daily"
+          >
+        </label>
+
+        <label class="field">
+          ${lang === 'zh-TW'
+            ? '發卡銀行'
+            : 'Issuer'}
+
+          <input
+            id="cardIssuer"
+            placeholder="Chase"
+          >
+        </label>
+
+      </div>
+
+
+      <div class="row">
+
+        <label class="field">
+          ${lang === 'zh-TW'
+            ? '卡別'
+            : 'Network'}
+
+          <select id="cardNetwork">
+            <option value="Visa">Visa</option>
+            <option value="Mastercard">Mastercard</option>
+            <option value="JCB">JCB</option>
+            <option value="American Express">
+              American Express
+            </option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+
+
+        <label class="field">
+          ${lang === 'zh-TW'
+            ? '卡號末四碼'
+            : 'Last 4 digits'}
+
+          <input
+            id="cardLast4"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="1234"
+          >
+        </label>
+
+      </div>
+
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '交易確認人'
+            : 'Confirmation user'
+        }
+
+        <select id="confirmationUser">
+          <option value="">
+            ${
+              lang === 'zh-TW'
+                ? '請選擇…'
+                : 'Select…'
+            }
+          </option>
+
+          ${confirmerOptions}
+
+        </select>
+
+      </label>
+
+
+      <p id="cardFormMessage" class="muted"></p>
+
+
+      <div class="actions">
+
+        <button id="cancelCard">
+          ${
+            lang === 'zh-TW'
+              ? '取消'
+              : 'Cancel'
+          }
+        </button>
+
+        <button
+          id="saveCard"
+          class="primary"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '儲存'
+              : 'Save'
+          }
+        </button>
+
+      </div>
+
+    </section>
+  `;
+
+
+  document.querySelector('#cancelCard').onclick =
+    cardsPage;
+
+  document.querySelector('#saveCard').onclick =
+    saveNewCard;
+}
+
+
+async function saveNewCard() {
+
+  const nickname =
+    document
+      .querySelector('#cardNickname')
+      .value
+      .trim();
+
+  const issuer =
+    document
+      .querySelector('#cardIssuer')
+      .value
+      .trim();
+
+  const network =
+    document
+      .querySelector('#cardNetwork')
+      .value;
+
+  const last4 =
+    document
+      .querySelector('#cardLast4')
+      .value
+      .trim();
+
+  const confirmationUserId =
+    document
+      .querySelector('#confirmationUser')
+      .value;
+
+  const message =
+    document.querySelector('#cardFormMessage');
+
+
+  if (!nickname) {
+    message.textContent =
+      lang === 'zh-TW'
+        ? '請輸入卡片暱稱。'
+        : 'Please enter a card nickname.';
+
+    return;
+  }
+
+
+  if (!issuer) {
+    message.textContent =
+      lang === 'zh-TW'
+        ? '請輸入發卡銀行。'
+        : 'Please enter the issuer.';
+
+    return;
+  }
+
+
+  if (!/^\d{4}$/.test(last4)) {
+    message.textContent =
+      lang === 'zh-TW'
+        ? '末四碼必須是 4 位數字。'
+        : 'Last 4 digits must contain exactly four numbers.';
+
+    return;
+  }
+
+
+  if (!confirmationUserId) {
+    message.textContent =
+      lang === 'zh-TW'
+        ? '請選擇交易確認人。'
+        : 'Please select a confirmation user.';
+
+    return;
+  }
+
+
+  message.textContent =
+    lang === 'zh-TW'
+      ? '正在儲存…'
+      : 'Saving…';
+
+
+  try {
+
+    await addDoc(
+      collection(db, 'cards'),
+      {
+        nickname,
+        issuer,
+        network,
+        last4,
+        confirmationUserId,
+
+        active: true,
+
+        createdAt: serverTimestamp(),
+        createdBy: currentUser.uid,
+
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser.uid
+      }
+    );
+
+
+    await cardsPage();
+
+  } catch (error) {
+
+    console.error(
+      'Failed to save card:',
+      error
+    );
+
+    message.textContent =
+      lang === 'zh-TW'
+        ? '儲存失敗。'
+        : 'Unable to save card.';
+  }
+}
+
+
+// ======================================================
+// Edit Card
+// ======================================================
+
+async function editCard(cardId) {
+
+  try {
+
+    const cardRef =
+      doc(db, 'cards', cardId);
+
+    const snapshot =
+      await getDoc(cardRef);
+
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const card = snapshot.data();
+
+
+    const usersSnapshot =
+      await getDocs(collection(db, 'users'));
+
+    const users =
+      usersSnapshot.docs
+        .map(userDoc => ({
+          id: userDoc.id,
+          ...userDoc.data()
+        }))
+        .filter(user =>
+          user.active === true &&
+          (
+            user.role === 'owner' ||
+            user.role === 'authorizedUser'
+          )
+        );
+
+
+    const confirmerOptions =
+      users.map(user => {
+
+        const name =
+          user.displayName ||
+          user.id;
+
+        const selected =
+          user.id === card.confirmationUserId
+            ? 'selected'
+            : '';
+
+        return `
+          <option
+            value="${user.id}"
+            ${selected}
+          >
+            ${escapeHtml(name)}
+          </option>
+        `;
+      })
+      .join('');
+
+
+    page.innerHTML = `
+      <section class="panel">
+
+        <h1>
+          ${
+            lang === 'zh-TW'
+              ? '編輯信用卡'
+              : 'Edit Card'
+          }
+        </h1>
+
+
+        <div class="row">
+
+          <label class="field">
+
+            ${
+              lang === 'zh-TW'
+                ? '卡片暱稱'
+                : 'Card nickname'
+            }
+
+            <input
+              id="cardNickname"
+              value="${escapeHtml(card.nickname || '')}"
+            >
+
+          </label>
+
+
+          <label class="field">
+
+            ${
+              lang === 'zh-TW'
+                ? '發卡銀行'
+                : 'Issuer'
+            }
+
+            <input
+              id="cardIssuer"
+              value="${escapeHtml(card.issuer || '')}"
+            >
+
+          </label>
+
+        </div>
+
+
+        <div class="row">
+
+          <label class="field">
+
+            ${
+              lang === 'zh-TW'
+                ? '卡別'
+                : 'Network'
+            }
+
+            <select id="cardNetwork">
+
+              ${[
+                'Visa',
+                'Mastercard',
+                'JCB',
+                'American Express',
+                'Other'
+              ].map(network => `
+                <option
+                  value="${network}"
+                  ${
+                    card.network === network
+                      ? 'selected'
+                      : ''
+                  }
+                >
+                  ${network}
+                </option>
+              `).join('')}
+
+            </select>
+
+          </label>
+
+
+          <label class="field">
+
+            ${
+              lang === 'zh-TW'
+                ? '卡號末四碼'
+                : 'Last 4 digits'
+            }
+
+            <input
+              id="cardLast4"
+              maxlength="4"
+              inputmode="numeric"
+              value="${escapeHtml(card.last4 || '')}"
+            >
+
+          </label>
+
+        </div>
+
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '交易確認人'
+              : 'Confirmation user'
+          }
+
+          <select id="confirmationUser">
+            ${confirmerOptions}
+          </select>
+
+        </label>
+
+
+        <label class="field">
+
+          <input
+            type="checkbox"
+            id="cardActive"
+            ${card.active === true ? 'checked' : ''}
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '使用中'
+              : 'Active'
+          }
+
+        </label>
+
+
+        <p
+          id="cardFormMessage"
+          class="muted"
+        ></p>
+
+
+        <div class="actions">
+
+          <button id="cancelCard">
+            ${
+              lang === 'zh-TW'
+                ? '取消'
+                : 'Cancel'
+            }
+          </button>
+
+          <button
+            id="saveCard"
+            class="primary"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '儲存變更'
+                : 'Save Changes'
+            }
+          </button>
+
+        </div>
+
+      </section>
+    `;
+
+
+    document.querySelector('#cancelCard').onclick =
+      cardsPage;
+
+
+    document.querySelector('#saveCard').onclick =
+      async () => {
+
+        const nickname =
+          document
+            .querySelector('#cardNickname')
+            .value
+            .trim();
+
+        const issuer =
+          document
+            .querySelector('#cardIssuer')
+            .value
+            .trim();
+
+        const network =
+          document
+            .querySelector('#cardNetwork')
+            .value;
+
+        const last4 =
+          document
+            .querySelector('#cardLast4')
+            .value
+            .trim();
+
+        const confirmationUserId =
+          document
+            .querySelector('#confirmationUser')
+            .value;
+
+        const active =
+          document
+            .querySelector('#cardActive')
+            .checked;
+
+        const message =
+          document
+            .querySelector('#cardFormMessage');
+
+
+        if (!nickname || !issuer) {
+          message.textContent =
+            lang === 'zh-TW'
+              ? '請填寫卡片暱稱與發卡銀行。'
+              : 'Please enter nickname and issuer.';
+
+          return;
+        }
+
+
+        if (!/^\d{4}$/.test(last4)) {
+          message.textContent =
+            lang === 'zh-TW'
+              ? '末四碼必須是 4 位數字。'
+              : 'Last 4 digits must contain exactly four numbers.';
+
+          return;
+        }
+
+
+        if (!confirmationUserId) {
+          message.textContent =
+            lang === 'zh-TW'
+              ? '請選擇交易確認人。'
+              : 'Please select a confirmation user.';
+
+          return;
+        }
+
+
+        try {
+
+          await updateDoc(
+            cardRef,
+            {
+              nickname,
+              issuer,
+              network,
+              last4,
+              confirmationUserId,
+              active,
+
+              updatedAt: serverTimestamp(),
+              updatedBy: currentUser.uid
+            }
+          );
+
+          await cardsPage();
+
+        } catch (error) {
+
+          console.error(
+            'Failed to update card:',
+            error
+          );
+
+          message.textContent =
+            lang === 'zh-TW'
+              ? '更新失敗。'
+              : 'Unable to update card.';
+        }
+      };
+
+  } catch (error) {
+
+    console.error(
+      'Failed to open card:',
+      error
+    );
+  }
+}
+
+
+// ======================================================
+// HTML escaping
+// ======================================================
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+
+// ======================================================
 // Placeholder
 // ======================================================
 
