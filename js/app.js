@@ -15,8 +15,15 @@ import {
 
 import {
   getFirestore,
+  collection,
   doc,
-  getDoc
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  serverTimestamp,
+  query,
+  orderBy
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 
