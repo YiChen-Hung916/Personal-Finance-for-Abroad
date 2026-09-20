@@ -566,7 +566,7 @@ for (const card of cards) {
 
       <div id="items"></div>
 
-      <button id="addItem">
+      <button id="addItem" class="add-item-btn">
         ＋ Add Item
       </button>
 
@@ -636,6 +636,22 @@ function addItem() {
   d.innerHTML = `
     <div class="row">
       <label class="field">
+        Category
+        <select class="itemCategory">
+          <option value="">Select category...</option>
+          <option value="Beverages">Beverages</option>
+          <option value="Food">Food</option>
+          <option value="Snacks">Snacks</option>
+          <option value="Household">Household</option>
+          <option value="Personal Care">Personal Care</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+    </div>
+    
+      <label class="field">
         Product
         <input class="itemProduct">
       </label>
@@ -644,13 +660,7 @@ function addItem() {
         Brand
         <input class="itemBrand">
       </label>
-
-      <label class="field">
-        Category
-        <input class="itemCategory">
-      </label>
-    </div>
-
+      
     <div class="row">
       <label class="field">
         Units per package
@@ -675,12 +685,21 @@ function addItem() {
         Unit
         <select class="itemUnit">
           <option value="">—</option>
-          <option>mL</option>
-          <option>L</option>
-          <option>g</option>
-          <option>kg</option>
-          <option>fl oz</option>
-          <option>gal</option>
+          <optgroup label="Volume">
+            <option value="mL">mL</option>
+            <option value="L">L</option>
+            <option value="fl_oz">fl oz</option>
+            <option value="gal">gal</option>
+          </optgroup>
+
+          <optgroup label="Weight">
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+          </optgroup>
+
+          <optgroup label="Count">
+            <option value="each">each</option>
+          </optgroup>
         </select>
       </label>
     </div>
