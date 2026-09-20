@@ -1416,6 +1416,8 @@ function route() {
     dashboard();
   } else if (r === 'new-receipt') {
     receiptForm();
+  } else if (r === 'cards') {
+    cardsPage();
   } else {
     placeholder(r.replaceAll('-', ' '));
   }
