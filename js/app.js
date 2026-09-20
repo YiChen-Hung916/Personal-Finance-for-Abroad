@@ -373,7 +373,7 @@ function dashboard() {
 // Receipt Form
 // ======================================================
 
-function receiptForm() {
+async function receiptForm() {
   // Extra frontend protection.
   // Firestore Rules remain the real security boundary.
   if (currentRole !== 'owner') {
@@ -392,6 +392,38 @@ function receiptForm() {
     return;
   }
 
+  let cards = [];
+
+  try {
+    const cardsSnapshot =
+      await getDocs(collection(db, 'cards'));
+
+    cards = cardsSnapshot.docs
+      .map(cardDoc => ({
+        id: cardDoc.id,
+        ...cardDoc.data()
+      }))
+      .filter(card => card.active === true);
+
+  } catch (error) {
+    console.error(
+      'Failed to load cards for receipt:',
+      error
+    );
+  }
+
+  const cardOptions = cards
+  .map(card => `
+    <option value="${card.id}">
+      ${escapeHtml(card.nickname || '')}
+      · ${escapeHtml(card.issuer || '')}
+      ${escapeHtml(card.network || '')}
+      · •••• ${escapeHtml(card.last4 || '')}
+    </option>
+  `)
+  .join('');
+
+  
   page.innerHTML = `
     <section class="panel">
       <h1>${t('newReceipt', lang)}</h1>
@@ -440,9 +472,14 @@ function receiptForm() {
         </label>
 
         <label class="field">
-          Card
-          <select>
-            <option>Select card…</option>
+          ${lang === 'zh-TW' ? '信用卡' : 'Card'}
+
+          <select id="receiptCard">
+            <option value="">
+              ${lang === 'zh-TW' ? '請選擇信用卡…' : 'Select card…'}
+            </option>
+
+            ${cardOptions}
           </select>
         </label>
       </div>
