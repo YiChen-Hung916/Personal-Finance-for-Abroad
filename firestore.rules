@@ -1,15 +1,134 @@
 rules_version = '2';
-service cloud.firestore { match /databases/{database}/documents {
-  function signedIn(){ return request.auth != null; }
-  function profile(){ return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
-  function authorized(){ return signedIn() && profile().data.active == true; }
-  function owner(){ return authorized() && profile().data.role == 'owner'; }
-  match /users/{uid} { allow read: if authorized() && (request.auth.uid == uid || owner()); allow write: if owner(); }
-  match /receipts/{rid} {
-    allow create, update, delete: if owner();
-    allow read: if owner() || (authorized() && resource.data.confirmationUserId == request.auth.uid);
-    match /items/{iid} { allow read: if owner() || authorized(); allow write: if owner(); }
-    match /confirmations/{cid} { allow read: if owner() || (authorized() && request.auth.uid == cid); allow create, update: if authorized() && request.auth.uid == cid; }
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // Helper functions
+    // =========================
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userExists() {
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        );
+    }
+
+    function currentUser() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function authorized() {
+      return userExists()
+        && currentUser().data.active == true
+        && (
+          currentUser().data.role == "owner" ||
+          currentUser().data.role == "authorizedUser"
+        );
+    }
+
+    function owner() {
+      return authorized()
+        && currentUser().data.role == "owner";
+    }
+
+    // Is this receipt assigned to the current user?
+    function assignedToMe(receiptId) {
+      return authorized()
+        && get(
+          /databases/$(database)/documents/receipts/$(receiptId)
+        ).data.confirmationUserId == request.auth.uid;
+    }
+
+
+    // =========================
+    // Users
+    // =========================
+
+    match /users/{uid} {
+
+      // User can read own profile.
+      // Owner can read all profiles.
+      allow read: if authorized()
+                  && (
+                    request.auth.uid == uid ||
+                    owner()
+                  );
+
+      // Only owners manage users.
+      allow create, update, delete: if owner();
+    }
+
+
+    // =========================
+    // Receipts
+    // =========================
+
+    match /receipts/{rid} {
+
+      // ALL authorized users may view receipts.
+      allow read: if authorized();
+
+      // Only owners may create/edit/delete receipts.
+      allow create, update, delete: if owner();
+
+
+      // =========================
+      // Receipt Items
+      // =========================
+
+      match /items/{iid} {
+
+        // ALL authorized users may view receipt items.
+        allow read: if authorized();
+
+        // Only owners modify items.
+        allow create, update, delete: if owner();
+      }
+
+
+      // =========================
+      // Confirmations
+      // =========================
+
+      match /confirmations/{cid} {
+
+        // Owner can see every confirmation.
+        //
+        // Authorized users can see their own confirmation
+        // only when the receipt is assigned to them.
+        allow read: if owner()
+                    || (
+                      authorized()
+                      && request.auth.uid == cid
+                      && assignedToMe(rid)
+                    );
+
+        // Only the designated confirmer may
+        // create/update their confirmation.
+        allow create, update: if authorized()
+                              && request.auth.uid == cid
+                              && assignedToMe(rid);
+
+        // Only owner can delete confirmation records.
+        allow delete: if owner();
+      }
+    }
+
+
+    // =========================
+    // Other collections
+    // =========================
+
+    // Temporary rule while other modules are being built.
+    match /{document=**} {
+      allow read, write: if owner();
+    }
   }
-  match /{document=**} { allow read, write: if owner(); }
-}}
+}
