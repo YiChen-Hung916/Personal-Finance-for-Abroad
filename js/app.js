@@ -438,19 +438,19 @@ for (const card of cards) {
       <div class="row">
         <label class="field">
           Store
-          <input placeholder="Target">
+          <input id="receiptStore" placeholder="Target">
         </label>
 
         <label class="field">
           Branch
-          <input placeholder="East Liberty">
+          <input id="receiptBranch" placeholder="East Liberty">
         </label>
 
         <label class="field">
           Purchase type
-          <select>
-            <option>In-store</option>
-            <option>Online</option>
+          <select id="receiptPurchaseType">
+            <option value="inStore">In-store</option>
+            <option value="online">Online</option>
           </select>
         </label>
       </div>
@@ -458,12 +458,12 @@ for (const card of cards) {
       <div class="row">
         <label class="field">
           Date
-          <input type="date">
+          <input id="receiptDate" type="date">
         </label>
 
         <label class="field">
           Time
-          <input type="time">
+          <input id="receiptTime" type="time">
         </label>
 
         <label class="field">
@@ -526,7 +526,7 @@ for (const card of cards) {
       <div class="row">
         <label class="field">
           Currency
-          <input value="USD">
+          <input id="receiptCurrency" value="USD">
         </label>
 
         <label class="field">
@@ -573,28 +573,57 @@ for (const card of cards) {
       <div class="row">
         <label class="field">
           Receipt discount
-          <input type="number" step="0.01">
+          <input
+            id="receiptDiscount"
+            type="number"
+            step="0.01"
+            value="0"
+          >
         </label>
 
         <label class="field">
           Tax
-          <input type="number" step="0.01">
+          <input
+            id="receiptTax"
+            type="number"
+            step="0.01"
+            value="0"
+          >
         </label>
 
         <label class="field">
           Tip / Other fees
-          <input type="number" step="0.01">
+          <input
+            id="receiptFees"
+            type="number"
+            step="0.01"
+            value="0"
+          >
         </label>
       </div>
 
       <div class="actions">
-        <button>Save Draft</button>
-        <button class="primary">Submit</button>
+        <button id="saveReceiptDraft">
+          Save Draft
+        </button>
+
+        <button
+          id="submitReceipt"
+          class="primary"
+        >
+          Submit
+        </button>
       </div>
     </section>
   `;
 
   document.querySelector('#addItem').onclick = addItem;
+  
+  document.querySelector('#saveReceiptDraft').onclick =
+  () => saveReceipt('draft');
+
+  document.querySelector('#submitReceipt').onclick =
+  () => saveReceipt('pending');
 
   addItem();
 }
@@ -608,34 +637,43 @@ function addItem() {
     <div class="row">
       <label class="field">
         Product
-        <input>
+        <input class="itemProduct">
       </label>
 
       <label class="field">
         Brand
-        <input>
+        <input class="itemBrand">
       </label>
 
       <label class="field">
         Category
-        <input>
+        <input class="itemCategory">
       </label>
     </div>
 
     <div class="row">
       <label class="field">
         Units per package
-        <input type="number" min="1" value="1">
+        <input
+          class="itemUnitsPerPackage"
+          type="number"
+          min="1"
+          value="1"
+        >
       </label>
 
       <label class="field">
         Capacity (optional)
-        <input type="number" step="any">
+        <input 
+          class="itemCapacity"
+          type="number"
+          step="any"
+        >
       </label>
 
       <label class="field">
         Unit
-        <select>
+        <select class="itemUnit">
           <option value="">—</option>
           <option>mL</option>
           <option>L</option>
@@ -650,17 +688,22 @@ function addItem() {
     <div class="row">
       <label class="field">
         Purchase quantity (packages)
-        <input type="number" min="1" value="1">
+        <input
+          class="itemQuantity"
+          type="number"
+          min="1"
+          value="1"
+        >
       </label>
 
       <label class="field">
         Price per package
-        <input type="number" step="0.01">
+        <input class="itemPrice "type="number" step="0.01">
       </label>
 
       <label class="field">
         Discount
-        <select>
+        <select class="itemDiscountType">
           <option>None</option>
           <option>Sale</option>
           <option>Coupon</option>
@@ -678,6 +721,255 @@ function addItem() {
   `;
 
   document.querySelector('#items').appendChild(d);
+}
+
+
+async function saveReceipt(status) {
+  if (currentRole !== 'owner' || !currentUser) {
+    return;
+  }
+
+  const store =
+    document.querySelector('#receiptStore').value.trim();
+
+  const branch =
+    document.querySelector('#receiptBranch').value.trim();
+
+  const purchaseType =
+    document.querySelector('#receiptPurchaseType').value;
+
+  const purchaseDate =
+    document.querySelector('#receiptDate').value;
+
+  const purchaseTime =
+    document.querySelector('#receiptTime').value;
+
+  const timezone =
+    document.querySelector('#receiptTimezone').value;
+
+  const currency =
+    document.querySelector('#receiptCurrency')
+      .value
+      .trim()
+      .toUpperCase();
+
+  const cardId =
+    document.querySelector('#receiptCard').value;
+
+  if (!store || !purchaseDate || !cardId) {
+    alert(
+      lang === 'zh-TW'
+        ? '請至少填寫商店、日期並選擇信用卡。'
+        : 'Please enter a store, date, and card.'
+    );
+
+    return;
+  }
+
+  // Get the selected card again from Firestore.
+  const cardSnapshot =
+    await getDoc(doc(db, 'cards', cardId));
+
+  if (!cardSnapshot.exists()) {
+    alert(
+      lang === 'zh-TW'
+        ? '找不到所選信用卡。'
+        : 'Selected card could not be found.'
+    );
+
+    return;
+  }
+
+  const card = cardSnapshot.data();
+
+  if (card.active !== true) {
+    alert(
+      lang === 'zh-TW'
+        ? '這張信用卡目前已停用。'
+        : 'This card is currently inactive.'
+    );
+
+    return;
+  }
+
+  const itemElements =
+    document.querySelectorAll('#items .item');
+
+  const items = [];
+
+  itemElements.forEach(item => {
+    const product =
+      item.querySelector('.itemProduct')
+        .value
+        .trim();
+
+    const brand =
+      item.querySelector('.itemBrand')
+        .value
+        .trim();
+
+    const category =
+      item.querySelector('.itemCategory')
+        .value
+        .trim();
+
+    const unitsPerPackage =
+      Number(
+        item.querySelector('.itemUnitsPerPackage').value
+      ) || 1;
+
+    const capacity =
+      Number(
+        item.querySelector('.itemCapacity').value
+      ) || null;
+
+    const unit =
+      item.querySelector('.itemUnit').value;
+
+    const quantity =
+      Number(
+        item.querySelector('.itemQuantity').value
+      ) || 1;
+
+    const pricePerPackage =
+      Number(
+        item.querySelector('.itemPrice').value
+      ) || 0;
+
+    const discountType =
+      item.querySelector('.itemDiscountType').value;
+
+    items.push({
+      product,
+      brand,
+      category,
+      unitsPerPackage,
+      capacity,
+      unit,
+      quantity,
+      pricePerPackage,
+      discountType
+    });
+  });
+
+  const receiptDiscount =
+    Number(
+      document.querySelector('#receiptDiscount').value
+    ) || 0;
+
+  const tax =
+    Number(
+      document.querySelector('#receiptTax').value
+    ) || 0;
+
+  const fees =
+    Number(
+      document.querySelector('#receiptFees').value
+    ) || 0;
+
+  const itemsSubtotal =
+    items.reduce(
+      (sum, item) =>
+        sum +
+        item.quantity * item.pricePerPackage,
+      0
+    );
+
+  const total =
+    itemsSubtotal -
+    receiptDiscount +
+    tax +
+    fees;
+
+  try {
+    const receiptRef =
+      await addDoc(
+        collection(db, 'receipts'),
+        {
+          store,
+          branch,
+          purchaseType,
+
+          purchaseDate,
+          purchaseTime,
+          timezone,
+
+          currency,
+
+          cardId,
+
+          // Snapshot the confirmer at creation time.
+          confirmationUserId:
+            card.confirmationUserId,
+
+          itemsSubtotal,
+          receiptDiscount,
+          tax,
+          fees,
+          total,
+
+          status,
+
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid,
+
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUser.uid,
+
+          submittedAt:
+            status === 'pending'
+              ? serverTimestamp()
+              : null
+        }
+      );
+
+    for (const item of items) {
+      await addDoc(
+        collection(
+          db,
+          'receipts',
+          receiptRef.id,
+          'items'
+        ),
+        {
+          ...item,
+
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid
+        }
+      );
+    }
+
+    alert(
+      status === 'draft'
+        ? (
+            lang === 'zh-TW'
+              ? '草稿已儲存。'
+              : 'Draft saved.'
+          )
+        : (
+            lang === 'zh-TW'
+              ? '收據已送出等待確認。'
+              : 'Receipt submitted for confirmation.'
+          )
+    );
+
+    location.hash = '#dashboard';
+
+  } catch (error) {
+    console.error(
+      'Failed to save receipt:',
+      error
+    );
+
+    alert(
+      `${
+        lang === 'zh-TW'
+          ? '儲存收據失敗'
+          : 'Failed to save receipt'
+      }: ${error.message}`
+    );
+  }
 }
 
 
