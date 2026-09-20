@@ -53,18 +53,19 @@ service cloud.firestore {
 
     match /users/{uid} {
 
-      // User can read own profile.
-      // Owner can read all profiles.
-      allow read: if authorized()
-                  && (
-                    request.auth.uid == uid ||
-                    owner()
-                  );
+      // A signed-in user must be able to read their own
+      // profile so the app can determine their role.
+      //
+      // Owners can read all user profiles.
+      allow read: if signedIn()
+              && (
+                request.auth.uid == uid ||
+                owner()
+              );
 
-      // Only owners manage users.
+      // Only an existing owner can manage user profiles.
       allow create, update, delete: if owner();
-    }
-
+  }
 
     // =========================
     // Receipts
