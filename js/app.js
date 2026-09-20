@@ -417,18 +417,18 @@ async function receiptForm() {
     cardLoadError = error.message;
   }
 
-const cardOptions = cards.length
-  ? cards
-  .map(card => `
+let cardOptions = '';
+
+for (const card of cards) {
+  cardOptions += `
     <option value="${card.id}">
       ${escapeHtml(card.nickname || '')}
       · ${escapeHtml(card.issuer || '')}
       ${escapeHtml(card.network || '')}
       · •••• ${escapeHtml(card.last4 || '')}
     </option>
-    `)
-    .join('') 
-  : '';
+  `;
+}
 
   
   page.innerHTML = `
