@@ -12,13 +12,21 @@ import {
   onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from 'https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js';
+
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const googleProvider = new GoogleAuthProvider();
+const db = getFirestore(firebaseApp);
 let lang=localStorage.getItem('ff-lang')||'zh-TW';
 const login=document.querySelector('#loginView'),app=document.querySelector('#appView'),page=document.querySelector('#page'),drawer=document.querySelector('#drawer');
 let currentUser = null;
-let currentRole = 'owner'; // 暫時只用於第一次取得 UID
+let currentRole = null;
+let currentProfile = null;
 function money(v,c='USD'){return `${c} ${Number(v).toFixed(2)}`}
 function menu(role){const owner=role==='owner'; return `<a href="#dashboard">${t('dashboard',lang)}</a>${owner?`<a href="#new-receipt">＋ ${t('newReceipt',lang)}</a><a href="#pending">${t('pendingAll',lang)}</a><a href="#my-confirmations">${t('myConfirm',lang)}</a><a href="#history">${t('history',lang)}</a><a href="#promotions">${t('promos',lang)}</a><hr><a href="#management">Stores / Products / Cards & Accounts / Users</a>`:`<a href="#my-confirmations">${t('myConfirm',lang)}</a><a href="#related">My Related Receipts</a><a href="#transfer">＋ Record Transfer</a><a href="#unmatched">Report Unmatched Transaction</a><a href="#history">${t('history',lang)}</a>`}`}
 function dashboard(){page.innerHTML=`<div class="actions"><button onclick="location.hash='#new-receipt'">＋ ${t('newReceipt',lang)}</button></div><section class="panel"><h2>${t('myConfirm',lang)}</h2><div class="activity"><span>Sep 17</span><span>Target</span><span>USD 42.87 · Pending</span></div><a href="#my-confirmations">${t('viewAll',lang)}</a></section><section class="panel"><h2>${t('waiting',lang)}</h2><p><b>Mom</b> · 3 pending · oldest 10 days</p><p><b>Dad</b> · 1 pending · oldest 2 days</p><a href="#pending">${t('viewAll',lang)}</a></section><section class="panel"><h2>Refunds</h2><div class="activity"><span>Sep 15</span><span>Target</span><span>USD 24.99 · Pending</span></div></section><section class="panel"><h2>Transfers</h2><div class="activity"><span>Sep 16</span><span>Family → Checking</span><span>USD 1,000 · Received</span></div></section><section class="panel"><h2>${t('recent',lang)}</h2>${['Trader Joe’s','Amazon','Target','Giant Eagle','Costco'].map((x,i)=>`<div class="activity"><span>Sep ${18-i}</span><span>${x}</span><span>Confirmed</span></div>`).join('')}<a href="#history">${t('viewAll',lang)}</a></section>`}
