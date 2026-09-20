@@ -427,7 +427,7 @@ const cardOptions = cards.length
       · •••• ${escapeHtml(card.last4 || '')}
     </option>
     `)
-    .join('');
+    .join('')
   : '';
 
   
