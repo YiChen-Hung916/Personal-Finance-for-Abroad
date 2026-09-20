@@ -1,1 +1,47 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Family Finance</title><link rel="stylesheet" href="css/style.css"></head><body><div id="app"><main class="shell"><section id="loginView" class="card auth"><h1>Family Finance</h1><p data-i18n="auth.private">私人家庭財務核對系統</p><button id="googleLogin" class="primary" data-i18n="auth.google">使用 Google 登入</button><p id="authMessage" class="muted"></p></section><section id="appView" hidden><header><strong>Family Finance</strong><div><button id="langBtn">EN</button><button id="menuBtn" aria-label="Menu">☰</button></div></header><nav id="drawer" class="drawer" hidden></nav><div id="page"></div></section></main></div><script type="module" src="js/app.js"></script></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal Finance for Abroad</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div id="app">
+    <main class="shell">
+
+      <!-- Login -->
+      <section id="loginView" class="card auth">
+        <h1>Personal Finance for Abroad</h1>
+        <p>私人家庭財務核對系統</p>
+
+        <button id="googleLogin" class="primary">
+          使用 Google 登入
+        </button>
+
+        <p id="authMessage" class="muted"></p>
+      </section>
+
+      <!-- App -->
+      <section id="appView" hidden>
+        <header>
+          <strong>Personal Finance for Abroad</strong>
+
+          <div>
+            <button id="langBtn">EN</button>
+            <button id="menuBtn" aria-label="Menu">☰</button>
+          </div>
+        </header>
+
+        <nav id="drawer" class="drawer" hidden></nav>
+
+        <div id="page"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
