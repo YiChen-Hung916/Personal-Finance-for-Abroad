@@ -155,8 +155,12 @@ function menu(role) {
 
       <hr>
 
+      <a href="#cards">
+        Cards & Accounts
+      </a>
+      
       <a href="#management">
-        Stores / Products / Cards & Accounts / Users
+        Stores / Products / Users
       </a>
     `
     : `
