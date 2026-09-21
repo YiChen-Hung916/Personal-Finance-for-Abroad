@@ -429,7 +429,56 @@ for (const card of cards) {
     </option>
   `;
 }
+const paymentMethodSelect =
+  document.querySelector(
+    '#receiptPaymentMethod'
+  );
 
+const cardSection =
+  document.querySelector(
+    '#receiptCardSection'
+  );
+
+
+function updatePaymentMethodUI() {
+
+  const isCard =
+    paymentMethodSelect.value === 'card';
+
+  cardSection.style.display =
+    isCard
+      ? ''
+      : 'none';
+}
+
+
+paymentMethodSelect.addEventListener(
+  'change',
+  updatePaymentMethodUI
+);
+
+
+updatePaymentMethodUI();
+
+  [
+  '#receiptDiscount',
+  '#receiptTax',
+  '#receiptFees'
+].forEach(selector => {
+
+  const element =
+    document.querySelector(selector);
+
+  if (element) {
+    element.addEventListener(
+      'input',
+      updateReceiptTotal
+    );
+  }
+
+});
+
+ updateReceiptTotal(); 
   
   page.innerHTML = `
     <section class="panel">
@@ -521,47 +570,6 @@ for (const card of cards) {
             </optgroup>
           </select>
         </label>
-      </div>
-
-      <div class="row">
-        <label class="field">
-          Currency
-          <input id="receiptCurrency" value="USD">
-        </label>
-
-        <label class="field">
-  ${lang === 'zh-TW' ? '信用卡' : 'Card'}
-
-  <select id="receiptCard">
-    <option value="">
-      ${
-        cards.length
-          ? (lang === 'zh-TW'
-              ? '請選擇信用卡…'
-              : 'Select card…')
-          : (lang === 'zh-TW'
-              ? '目前沒有可用的信用卡'
-              : 'No active cards available')
-      }
-    </option>
-
-    ${cardOptions}
-  </select>
-
-  ${
-    cardLoadError
-      ? `
-        <small class="muted">
-          ${
-            lang === 'zh-TW'
-              ? `信用卡載入失敗：${escapeHtml(cardLoadError)}`
-              : `Failed to load cards: ${escapeHtml(cardLoadError)}`
-          }
-        </small>
-      `
-      : ''
-  }
-</label>
       </div>
 
       <div id="items"></div>
@@ -811,6 +819,376 @@ function addItem() {
     </label>
   `;
 
+      <div class="row">
+        <label class="field">
+          Currency
+          <input id="receiptCurrency" value="USD">
+        </label>
+
+        <label class="field">
+  ${lang === 'zh-TW' ? '信用卡' : 'Card'}
+
+  <select id="receiptCard">
+    <option value="">
+      ${
+        cards.length
+          ? (lang === 'zh-TW'
+              ? '請選擇信用卡…'
+              : 'Select card…')
+          : (lang === 'zh-TW'
+              ? '目前沒有可用的信用卡'
+              : 'No active cards available')
+      }
+    </option>
+
+    ${cardOptions}
+  </select>
+
+  ${
+    cardLoadError
+      ? `
+        <small class="muted">
+          ${
+            lang === 'zh-TW'
+              ? `信用卡載入失敗：${escapeHtml(cardLoadError)}`
+              : `Failed to load cards: ${escapeHtml(cardLoadError)}`
+          }
+        </small>
+      `
+      : ''
+  }
+</label>
+      </div>
+
+  <div class="row receipt-payment-summary">
+
+  <label class="field">
+    ${
+      lang === 'zh-TW'
+        ? '發票總額'
+        : 'Receipt Total'
+    }
+
+    <input
+      id="receiptTotal"
+      type="text"
+      value="0.00"
+      readonly
+    >
+  </label>
+
+
+  <label class="field">
+    ${
+      lang === 'zh-TW'
+        ? '幣值'
+        : 'Currency'
+    }
+
+    <select id="receiptCurrency">
+      <option value="USD">USD</option>
+      <option value="TWD">TWD</option>
+      <option value="JPY">JPY</option>
+      <option value="EUR">EUR</option>
+      <option value="GBP">GBP</option>
+    </select>
+  </label>
+
+
+  <label class="field">
+    ${
+      lang === 'zh-TW'
+        ? '付款方式'
+        : 'Payment Method'
+    }
+
+    <select id="receiptPaymentMethod">
+
+      <option value="card">
+        ${
+          lang === 'zh-TW'
+            ? '信用卡'
+            : 'Card'
+        }
+      </option>
+
+      <option value="cash">
+        ${
+          lang === 'zh-TW'
+            ? '付現'
+            : 'Cash'
+        }
+      </option>
+
+    </select>
+  </label>
+
+</div>
+  
+  
+function calculateItemTotal(item) {
+
+  const quantity =
+    Number(
+      item.querySelector('.itemQuantity')?.value
+    ) || 0;
+
+  const price =
+    Number(
+      item.querySelector('.itemPrice')?.value
+    ) || 0;
+
+  const hasDiscount =
+    item.querySelector('.itemHasDiscount')
+      ?.checked === true;
+
+ const discountedTotalInput =
+  item.querySelector(
+    '.itemDiscountedTotal'
+  )?.value;
+
+const hasDiscountedTotal =
+  discountedTotalInput !== '' &&
+  discountedTotalInput != null;
+
+const discountedTotal =
+  hasDiscountedTotal
+    ? Number(discountedTotalInput)
+    : null;
+if (
+  hasDiscount &&
+  hasDiscountedTotal
+) {
+  finalTotal = discountedTotal;
+}
+
+  const originalSubtotal =
+    quantity * price;
+
+
+  let finalTotal =
+    originalSubtotal;
+
+
+  if (
+    hasDiscount &&
+    discountedTotal >= 0
+  ) {
+    finalTotal =
+      discountedTotal;
+  }
+
+
+  let effectiveRate = 1;
+
+  if (originalSubtotal > 0) {
+    effectiveRate =
+      finalTotal / originalSubtotal;
+  }
+
+
+  return {
+    originalSubtotal,
+    finalTotal,
+    effectiveRate
+  };
+}
+
+  function updateReceiptTotal() {
+
+  const itemElements =
+    document.querySelectorAll(
+      '#items .item'
+    );
+
+  let itemsTotal = 0;
+
+
+itemElements.forEach(item => {
+
+  const product =
+    item.querySelector('.itemProduct')
+      .value
+      .trim();
+
+  const brand =
+    item.querySelector('.itemBrand')
+      .value
+      .trim();
+
+  const category =
+    item.querySelector('.itemCategory')
+      .value;
+
+  const unitsPerPackage =
+    Number(
+      item.querySelector(
+        '.itemUnitsPerPackage'
+      ).value
+    ) || 1;
+
+  const capacity =
+    Number(
+      item.querySelector(
+        '.itemCapacity'
+      ).value
+    ) || null;
+
+  const unit =
+    item.querySelector('.itemUnit').value;
+
+  const quantity =
+    Number(
+      item.querySelector(
+        '.itemQuantity'
+      ).value
+    ) || 1;
+
+  const originalPricePerPackage =
+    Number(
+      item.querySelector(
+        '.itemPrice'
+      ).value
+    ) || 0;
+
+  const hasDiscount =
+    item.querySelector(
+      '.itemHasDiscount'
+    ).checked;
+
+  const discountedTotal =
+    hasDiscount
+      ? Number(
+          item.querySelector(
+            '.itemDiscountedTotal'
+          ).value
+        )
+      : null;
+
+  const promotionNote =
+    hasDiscount
+      ? item.querySelector(
+          '.itemPromotionNote'
+        ).value.trim()
+      : '';
+
+  const result =
+    calculateItemTotal(item);
+
+
+  items.push({
+
+    product,
+    brand,
+    category,
+
+    unitsPerPackage,
+    capacity,
+    unit,
+
+    quantity,
+
+    originalPricePerPackage,
+
+    originalSubtotal:
+      result.originalSubtotal,
+
+    hasDiscount,
+
+    discountedTotal,
+
+    effectiveDiscountRate:
+      result.effectiveRate,
+
+    promotionNote,
+
+    finalTotal:
+      result.finalTotal
+
+  });
+
+});
+
+
+    if (finalPriceField) {
+      finalPriceField.value =
+        result.finalTotal.toFixed(2);
+    }
+
+
+    if (discountField) {
+
+      if (
+        result.originalSubtotal <= 0 ||
+        result.effectiveRate >= 0.9999
+      ) {
+
+        discountField.value = '—';
+
+      } else {
+
+        const zhe =
+          result.effectiveRate * 10;
+
+        discountField.value =
+          lang === 'zh-TW'
+            ? `${Number(zhe.toFixed(2))}折`
+            : `${(
+                result.effectiveRate * 100
+              ).toFixed(1)}% of original`;
+      }
+    }
+
+
+    itemsTotal +=
+      result.finalTotal;
+  });
+
+
+  const receiptDiscount =
+    Number(
+      document.querySelector(
+        '#receiptDiscount'
+      )?.value
+    ) || 0;
+
+  const tax =
+    Number(
+      document.querySelector(
+        '#receiptTax'
+      )?.value
+    ) || 0;
+
+  const fees =
+    Number(
+      document.querySelector(
+        '#receiptFees'
+      )?.value
+    ) || 0;
+
+
+  const receiptTotal =
+    Math.max(
+      itemsTotal -
+      receiptDiscount +
+      tax +
+      fees,
+      0
+    );
+
+
+  const receiptTotalField =
+    document.querySelector(
+      '#receiptTotal'
+    );
+
+  if (receiptTotalField) {
+    receiptTotalField.value =
+      receiptTotal.toFixed(2);
+  }
+}
+  
+  
   document.querySelector('#items').appendChild(d);
   const discountCheckbox =
   d.querySelector('.itemHasDiscount');
@@ -888,21 +1266,81 @@ async function saveReceipt(status) {
       .toUpperCase();
 
   const cardId =
-    document.querySelector('#receiptCard').value;
+  paymentMethod === 'card'
+    ? document.querySelector(
+        '#receiptCard'
+      ).value
+    
 
-  if (!store || !purchaseDate || !cardId) {
+  if (!store || !purchaseDate) {
+
+  alert(
+    lang === 'zh-TW'
+      ? '請至少填寫商店與日期。'
+      : 'Please enter a store and date.'
+  );
+
+  return;
+}
+
+
+if (
+  paymentMethod === 'card' &&
+  !cardId
+) {
+
+  alert(
+    lang === 'zh-TW'
+      ? '請選擇信用卡。'
+      : 'Please select a card.'
+  );
+
+  return;
+}
+
+  // Get the selected card again from Firestore.
+ let confirmationUserId = null;
+
+
+if (paymentMethod === 'card') {
+
+  const cardSnapshot =
+    await getDoc(
+      doc(db, 'cards', cardId)
+    );
+
+
+  if (!cardSnapshot.exists()) {
+
     alert(
       lang === 'zh-TW'
-        ? '請至少填寫商店、日期並選擇信用卡。'
-        : 'Please enter a store, date, and card.'
+        ? '找不到所選信用卡。'
+        : 'Selected card could not be found.'
     );
 
     return;
   }
 
-  // Get the selected card again from Firestore.
-  const cardSnapshot =
-    await getDoc(doc(db, 'cards', cardId));
+
+  const card =
+    cardSnapshot.data();
+
+
+  if (card.active !== true) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '這張信用卡目前已停用。'
+        : 'This card is currently inactive.'
+    );
+
+    return;
+  }
+
+
+  confirmationUserId =
+    card.confirmationUserId;
+}
 
   if (!cardSnapshot.exists()) {
     alert(
@@ -1002,12 +1440,11 @@ async function saveReceipt(status) {
     ) || 0;
 
   const itemsSubtotal =
-    items.reduce(
-      (sum, item) =>
-        sum +
-        item.quantity * item.pricePerPackage,
-      0
-    );
+  items.reduce(
+    (sum, item) =>
+      sum + item.finalTotal,
+    0
+  );
 
   const total =
     itemsSubtotal -
@@ -1029,6 +1466,7 @@ async function saveReceipt(status) {
           timezone,
 
           currency,
+          paymentMethod, nhy
 
           cardId,
 
