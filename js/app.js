@@ -716,22 +716,94 @@ function addItem() {
       </label>
 
       <label class="field">
-        Price per package
-        <input class="itemPrice "type="number" step="0.01">
-      </label>
+        Original price per package
+        <input
+          class="itemPrice"
+           type="number"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+        >
 
-      <label class="field">
-        Discount
-        <select class="itemDiscountType">
-          <option>None</option>
-          <option>Sale</option>
-          <option>Coupon</option>
-          <option>Member Price</option>
-          <option>Clearance</option>
-          <option>Other</option>
-        </select>
       </label>
     </div>
+
+    <div class="row">
+
+  <label class="field">
+    <input
+      class="itemHasDiscount"
+      type="checkbox"
+    >
+    Discount / Promotion
+  </label>
+
+</div>
+
+ <div
+  class="itemDiscountSection"
+  style="display:none;"
+>
+
+  <div class="row">
+
+    <label class="field">
+      Discounted Total
+      <input
+        class="itemDiscountedTotal"
+        type="number"
+        min="0"
+        step="0.01"
+        placeholder="Actual total paid for this item"
+      >
+    </label>
+
+    <label class="field">
+      Promotion Note
+      <input
+        class="itemPromotionNote"
+        type="text"
+        placeholder="e.g. Buy 1 get 1 free"
+      >
+    </label>
+
+  </div>
+
+</div>
+
+<div class="row">
+
+  <label class="field">
+    Original Subtotal
+    <input
+      class="itemOriginalSubtotal"
+      type="text"
+      value="0.00"
+      readonly
+    >
+  </label>
+
+  <label class="field">
+    Item Final Price
+    <input
+      class="itemFinalPrice"
+      type="text"
+      value="0.00"
+      readonly
+    >
+  </label>
+
+  <label class="field">
+    Effective Discount
+    <input
+      class="itemEffectiveDiscount"
+      type="text"
+      value="—"
+      readonly
+    >
+  </label>
+
+</div>
 
     <label class="field">
       Photos (optional)
@@ -740,6 +812,49 @@ function addItem() {
   `;
 
   document.querySelector('#items').appendChild(d);
+  const discountCheckbox =
+  d.querySelector('.itemHasDiscount');
+
+const discountSection =
+  d.querySelector('.itemDiscountSection');
+
+discountCheckbox.addEventListener(
+  'change',
+  () => {
+
+    discountSection.style.display =
+      discountCheckbox.checked
+        ? 'block'
+        : 'none';
+
+    if (!discountCheckbox.checked) {
+      d.querySelector(
+        '.itemDiscountedTotal'
+      ).value = '';
+
+      d.querySelector(
+        '.itemPromotionNote'
+      ).value = '';
+    }
+
+    updateReceiptTotal();
+  }
+);
+  d.querySelectorAll('input, select')
+  .forEach(element => {
+
+    element.addEventListener(
+      'input',
+      updateReceiptTotal
+    );
+
+    element.addEventListener(
+      'change',
+      updateReceiptTotal
+    );
+  });
+
+updateReceiptTotal();
 }
 
 
