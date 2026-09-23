@@ -1963,16 +1963,30 @@ async function saveReceipt(status) {
   // Basic receipt fields
   // ------------------------------------------------------
 
-  const store =
-    document.querySelector(
-      '#receiptStore'
-    ).value.trim();
+  const storeInput =
+  document.querySelector(
+    '#receiptStore'
+  ).value;
+
+
+const storeKey =
+  normalizeNameKey(
+    storeInput
+  );
+
+
+const store =
+  formatDisplayName(
+    storeInput
+  );
 
 
   const branch =
-    document.querySelector(
-      '#receiptBranch'
-    ).value.trim();
+  document.querySelector(
+    '#receiptBranch'
+  ).value
+    .trim()
+    .replace(/\s+/g, ' ');
 
 
   const purchaseType =
@@ -2144,16 +2158,44 @@ async function saveReceipt(status) {
 
   itemElements.forEach(item => {
 
-    const product =
-      item.querySelector(
-        '.itemProduct'
-      ).value.trim();
+    const productInput =
+  item.querySelector(
+    '.itemProduct'
+  ).value;
 
 
-    const brand =
-      item.querySelector(
-        '.itemBrand'
-      ).value.trim();
+const product =
+  formatDisplayName(
+    productInput
+  );
+
+
+const productKey =
+  normalizeNameKey(
+    productInput
+  );
+
+
+const brandInput =
+  item.querySelector(
+    '.itemBrand'
+  ).value;
+
+
+const brand =
+  brandInput
+    ? formatDisplayName(
+        brandInput
+      )
+    : '';
+
+
+const brandKey =
+  brandInput
+    ? normalizeNameKey(
+        brandInput
+      )
+    : '';
 
 
     const category =
@@ -2242,7 +2284,9 @@ async function saveReceipt(status) {
     items.push({
 
       product,
+      productKey,
       brand,
+      brandKey,
       category,
 
       unitsPerPackage,
@@ -2277,17 +2321,52 @@ async function saveReceipt(status) {
   // ------------------------------------------------------
 
   const meaningfulItems =
-    items.filter(item =>
+  items.filter(item =>
 
-      item.product ||
+    item.product ||
+    item.brand ||
+    item.category ||
+    item.originalPricePerPackage > 0
 
-      item.brand ||
+  );
 
-      item.category ||
 
-      item.originalPricePerPackage > 0
+if (meaningfulItems.length === 0) {
 
-    );
+  alert(
+    lang === 'zh-TW'
+      ? '請至少輸入一個品項。'
+      : 'Please enter at least one item.'
+  );
+
+  return;
+}
+
+
+// ------------------------------------------------------
+// Required item validation
+// ------------------------------------------------------
+
+const invalidItem =
+  meaningfulItems.some(item =>
+
+    !item.product ||
+    item.quantity <= 0 ||
+    item.originalPricePerPackage < 0
+
+  );
+
+
+if (invalidItem) {
+
+  alert(
+    lang === 'zh-TW'
+      ? '每個品項都必須填寫產品名稱、購買數量與每包原價。'
+      : 'Each item requires a product name, purchase quantity, and original price.'
+  );
+
+  return;
+}
 
 
   if (meaningfulItems.length === 0) {
@@ -2430,6 +2509,7 @@ async function saveReceipt(status) {
         {
 
           store,
+          storeKey,
           branch,
           purchaseType,
 
@@ -2569,7 +2649,11 @@ async function saveReceipt(status) {
           storeName:
             store,
 
+          storeKey:
+            StoreKey,
 
+          // Branch is only context.
+          // It does NOT define merchant identity.
           branch:
             branch || '',
 
