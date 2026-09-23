@@ -374,12 +374,13 @@ function dashboard() {
 // ======================================================
 
 async function receiptForm() {
-  // Extra frontend protection.
-  // Firestore Rules remain the real security boundary.
+
+  // Only owner can create receipts
   if (currentRole !== 'owner') {
     page.innerHTML = `
       <section class="panel">
         <h1>Access Denied</h1>
+
         <p class="muted">
           ${
             lang === 'zh-TW'
@@ -389,26 +390,36 @@ async function receiptForm() {
         </p>
       </section>
     `;
+
     return;
   }
+
+
+  // ------------------------------------------------------
+  // Load active cards
+  // ------------------------------------------------------
 
   let cards = [];
   let cardLoadError = '';
 
   try {
+
     const cardsSnapshot =
-      await getDocs(collection(db, 'cards'));
+      await getDocs(
+        collection(db, 'cards')
+      );
 
     cards = cardsSnapshot.docs
       .map(cardDoc => ({
         id: cardDoc.id,
         ...cardDoc.data()
       }))
-      .filter(card => card.active === true);
-
-     console.log('Active cards loaded for receipt:', cards);
+      .filter(
+        card => card.active === true
+      );
 
   } catch (error) {
+
     console.error(
       'Failed to load cards for receipt:',
       error
@@ -417,110 +428,170 @@ async function receiptForm() {
     cardLoadError = error.message;
   }
 
-let cardOptions = '';
 
-for (const card of cards) {
-  cardOptions += `
-    <option value="${card.id}">
-      ${escapeHtml(card.nickname || '')}
-      · ${escapeHtml(card.issuer || '')}
-      ${escapeHtml(card.network || '')}
-      · •••• ${escapeHtml(card.last4 || '')}
-    </option>
-  `;
-}
-const paymentMethodSelect =
-  document.querySelector(
-    '#receiptPaymentMethod'
-  );
+  // ------------------------------------------------------
+  // Build card options
+  // ------------------------------------------------------
 
-const cardSection =
-  document.querySelector(
-    '#receiptCardSection'
-  );
+  let cardOptions = '';
 
+  for (const card of cards) {
 
-function updatePaymentMethodUI() {
-
-  const isCard =
-    paymentMethodSelect.value === 'card';
-
-  cardSection.style.display =
-    isCard
-      ? ''
-      : 'none';
-}
-
-
-paymentMethodSelect.addEventListener(
-  'change',
-  updatePaymentMethodUI
-);
-
-
-updatePaymentMethodUI();
-
-  [
-  '#receiptDiscount',
-  '#receiptTax',
-  '#receiptFees'
-].forEach(selector => {
-
-  const element =
-    document.querySelector(selector);
-
-  if (element) {
-    element.addEventListener(
-      'input',
-      updateReceiptTotal
-    );
+    cardOptions += `
+      <option value="${card.id}">
+        ${escapeHtml(card.nickname || '')}
+        · ${escapeHtml(card.issuer || '')}
+        ${escapeHtml(card.network || '')}
+        · •••• ${escapeHtml(card.last4 || '')}
+      </option>
+    `;
   }
 
-});
 
- updateReceiptTotal(); 
-  
+  // ------------------------------------------------------
+  // Render form FIRST
+  // ------------------------------------------------------
+
   page.innerHTML = `
+
     <section class="panel">
-      <h1>${t('newReceipt', lang)}</h1>
+
+      <h1>
+        ${t('newReceipt', lang)}
+      </h1>
+
+
+      <!-- ============================================== -->
+      <!-- Store -->
+      <!-- ============================================== -->
 
       <div class="row">
-        <label class="field">
-          Store
-          <input id="receiptStore" placeholder="Target">
-        </label>
 
         <label class="field">
-          Branch
-          <input id="receiptBranch" placeholder="East Liberty">
+
+          ${
+            lang === 'zh-TW'
+              ? '商店'
+              : 'Store'
+          }
+
+          <input
+            id="receiptStore"
+            placeholder="Target"
+          >
+
         </label>
 
+
         <label class="field">
-          Purchase type
+
+          ${
+            lang === 'zh-TW'
+              ? '分店'
+              : 'Branch'
+          }
+
+          <input
+            id="receiptBranch"
+            placeholder="East Liberty"
+          >
+
+        </label>
+
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '購買方式'
+              : 'Purchase Type'
+          }
+
           <select id="receiptPurchaseType">
-            <option value="inStore">In-store</option>
-            <option value="online">Online</option>
+
+            <option value="inStore">
+              ${
+                lang === 'zh-TW'
+                  ? '實體店'
+                  : 'In-store'
+              }
+            </option>
+
+            <option value="online">
+              ${
+                lang === 'zh-TW'
+                  ? '網路'
+                  : 'Online'
+              }
+            </option>
+
           </select>
+
         </label>
+
       </div>
 
+
+      <!-- ============================================== -->
+      <!-- Date / Time / Timezone -->
+      <!-- ============================================== -->
+
       <div class="row">
-        <label class="field">
-          Date
-          <input id="receiptDate" type="date">
-        </label>
 
         <label class="field">
-          Time
-          <input id="receiptTime" type="time">
+
+          ${
+            lang === 'zh-TW'
+              ? '日期'
+              : 'Date'
+          }
+
+          <input
+            id="receiptDate"
+            type="date"
+          >
+
         </label>
 
+
         <label class="field">
-          ${lang === 'zh-TW' ? '時區' : 'Timezone'}
+
+          ${
+            lang === 'zh-TW'
+              ? '時間'
+              : 'Time'
+          }
+
+          <input
+            id="receiptTime"
+            type="time"
+          >
+
+        </label>
+
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '時區'
+              : 'Timezone'
+          }
 
           <select id="receiptTimezone">
-            <optgroup label="${lang === 'zh-TW' ? '北美' : 'North America'}">
-              <option value="America/New_York" selected>
+
+            <optgroup
+              label="${
+                lang === 'zh-TW'
+                  ? '北美'
+                  : 'North America'
+              }"
+            >
+
+              <option
+                value="America/New_York"
+                selected
+              >
                 Eastern Time — New York / Pittsburgh
               </option>
 
@@ -535,9 +606,18 @@ updatePaymentMethodUI();
               <option value="America/Los_Angeles">
                 Pacific Time — Los Angeles
               </option>
+
             </optgroup>
 
-            <optgroup label="${lang === 'zh-TW' ? '亞洲' : 'Asia'}">
+
+            <optgroup
+              label="${
+                lang === 'zh-TW'
+                  ? '亞洲'
+                  : 'Asia'
+              }"
+            >
+
               <option value="Asia/Taipei">
                 Taiwan — Taipei
               </option>
@@ -557,9 +637,18 @@ updatePaymentMethodUI();
               <option value="Asia/Singapore">
                 Singapore
               </option>
+
             </optgroup>
 
-            <optgroup label="${lang === 'zh-TW' ? '歐洲' : 'Europe'}">
+
+            <optgroup
+              label="${
+                lang === 'zh-TW'
+                  ? '歐洲'
+                  : 'Europe'
+              }"
+            >
+
               <option value="Europe/London">
                 United Kingdom — London
               </option>
@@ -567,423 +656,1079 @@ updatePaymentMethodUI();
               <option value="Europe/Paris">
                 Central Europe — Paris
               </option>
+
             </optgroup>
+
           </select>
+
         </label>
+
       </div>
+
+
+      <!-- ============================================== -->
+      <!-- Receipt Currency -->
+      <!-- This stays near the top because it is the -->
+      <!-- currency printed on the receipt/items. -->
+      <!-- ============================================== -->
+
+      <div class="row">
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '收據幣值'
+              : 'Receipt Currency'
+          }
+
+          <select id="receiptCurrency">
+
+            <option value="USD">
+              USD
+            </option>
+
+            <option value="TWD">
+              TWD
+            </option>
+
+            <option value="JPY">
+              JPY
+            </option>
+
+            <option value="EUR">
+              EUR
+            </option>
+
+            <option value="GBP">
+              GBP
+            </option>
+
+            <option value="CAD">
+              CAD
+            </option>
+
+            <option value="AUD">
+              AUD
+            </option>
+
+            <option value="KRW">
+              KRW
+            </option>
+
+            <option value="HKD">
+              HKD
+            </option>
+
+            <option value="SGD">
+              SGD
+            </option>
+
+          </select>
+
+        </label>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- Items -->
+      <!-- ============================================== -->
 
       <div id="items"></div>
 
-      <button id="addItem" class="add-item-btn">
-        ＋ Add Item
+
+      <button
+        id="addItem"
+        class="add-item-btn"
+        type="button"
+      >
+
+        ＋ ${
+          lang === 'zh-TW'
+            ? '新增品項'
+            : 'Add Item'
+        }
+
       </button>
 
+
+      <!-- ============================================== -->
+      <!-- Receipt-level adjustments -->
+      <!-- ============================================== -->
+
       <div class="row">
+
         <label class="field">
-          Receipt discount
+
+          ${
+            lang === 'zh-TW'
+              ? '整張收據優惠'
+              : 'Receipt Discount'
+          }
+
           <input
             id="receiptDiscount"
             type="number"
+            min="0"
             step="0.01"
             value="0"
           >
+
         </label>
 
+
         <label class="field">
-          Tax
+
+          ${
+            lang === 'zh-TW'
+              ? '稅'
+              : 'Tax'
+          }
+
           <input
             id="receiptTax"
             type="number"
+            min="0"
             step="0.01"
             value="0"
           >
+
         </label>
 
+
         <label class="field">
-          Tip / Other fees
+
+          ${
+            lang === 'zh-TW'
+              ? '小費 / 其他費用'
+              : 'Tip / Other Fees'
+          }
+
           <input
             id="receiptFees"
             type="number"
+            min="0"
             step="0.01"
             value="0"
           >
+
         </label>
+
       </div>
 
+
+      <!-- ============================================== -->
+      <!-- Receipt Total + Payment Method -->
+      <!-- ============================================== -->
+
+      <div class="row receipt-payment-summary">
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '發票總額'
+              : 'Receipt Total'
+          }
+
+          <input
+            id="receiptTotal"
+            type="text"
+            value="0.00"
+            readonly
+          >
+
+        </label>
+
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '付款方式'
+              : 'Payment Method'
+          }
+
+          <select id="receiptPaymentMethod">
+
+            <option value="card">
+
+              ${
+                lang === 'zh-TW'
+                  ? '信用卡'
+                  : 'Card'
+              }
+
+            </option>
+
+
+            <option value="cash">
+
+              ${
+                lang === 'zh-TW'
+                  ? '付現'
+                  : 'Cash'
+              }
+
+            </option>
+
+          </select>
+
+        </label>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- Card -->
+      <!-- ============================================== -->
+
+      <div
+        id="receiptCardSection"
+        class="row"
+      >
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '信用卡'
+              : 'Card'
+          }
+
+          <select id="receiptCard">
+
+            <option value="">
+
+              ${
+                cards.length
+                  ? (
+                      lang === 'zh-TW'
+                        ? '請選擇信用卡…'
+                        : 'Select card…'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '目前沒有可用的信用卡'
+                        : 'No active cards available'
+                    )
+              }
+
+            </option>
+
+            ${cardOptions}
+
+          </select>
+
+
+          ${
+            cardLoadError
+              ? `
+                  <small class="muted">
+
+                    ${
+                      lang === 'zh-TW'
+                        ? `信用卡載入失敗：${escapeHtml(cardLoadError)}`
+                        : `Failed to load cards: ${escapeHtml(cardLoadError)}`
+                    }
+
+                  </small>
+                `
+              : ''
+          }
+
+        </label>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- Foreign-currency settlement -->
+      <!-- ============================================== -->
+
+      <div
+        id="foreignSettlementSection"
+        class="row"
+      >
+
+        <label class="field">
+
+          <span>
+
+            <input
+              id="foreignCurrencySettlementOffered"
+              type="checkbox"
+            >
+
+            ${
+              lang === 'zh-TW'
+                ? '店員有提供外幣結帳選擇，且我選擇以外幣結帳'
+                : 'Merchant offered a currency choice and I chose foreign-currency settlement'
+            }
+
+          </span>
+
+
+          <small class="muted">
+
+            ${
+              lang === 'zh-TW'
+                ? '之後會另外核對信用卡通知中的結帳幣值是否符合。'
+                : 'The settlement currency shown in the card notification will be verified separately.'
+            }
+
+          </small>
+
+        </label>
+
+      </div>
+
+
+      <!-- ============================================== -->
+      <!-- Buttons -->
+      <!-- ============================================== -->
+
       <div class="actions">
-        <button id="saveReceiptDraft">
-          Save Draft
+
+        <button
+          id="saveReceiptDraft"
+          type="button"
+        >
+
+          ${
+            lang === 'zh-TW'
+              ? '儲存草稿'
+              : 'Save Draft'
+          }
+
         </button>
+
 
         <button
           id="submitReceipt"
           class="primary"
+          type="button"
         >
-          Submit
+
+          ${
+            lang === 'zh-TW'
+              ? '送出'
+              : 'Submit'
+          }
+
         </button>
+
       </div>
+
     </section>
   `;
 
-  document.querySelector('#addItem').onclick = addItem;
-  
-  document.querySelector('#saveReceiptDraft').onclick =
-  () => saveReceipt('draft');
 
-  document.querySelector('#submitReceipt').onclick =
-  () => saveReceipt('pending');
+  // ====================================================
+  // Bind events AFTER rendering HTML
+  // ====================================================
 
+  document.querySelector(
+    '#addItem'
+  ).onclick = addItem;
+
+
+  document.querySelector(
+    '#saveReceiptDraft'
+  ).onclick =
+    () => saveReceipt('draft');
+
+
+  document.querySelector(
+    '#submitReceipt'
+  ).onclick =
+    () => saveReceipt('pending');
+
+
+  const paymentMethodSelect =
+    document.querySelector(
+      '#receiptPaymentMethod'
+    );
+
+
+  const cardSection =
+    document.querySelector(
+      '#receiptCardSection'
+    );
+
+
+  const foreignSettlementSection =
+    document.querySelector(
+      '#foreignSettlementSection'
+    );
+
+
+  function updatePaymentMethodUI() {
+
+    const isCard =
+      paymentMethodSelect.value === 'card';
+
+
+    cardSection.style.display =
+      isCard
+        ? ''
+        : 'none';
+
+
+    foreignSettlementSection.style.display =
+      isCard
+        ? ''
+        : 'none';
+
+
+    if (!isCard) {
+
+      document.querySelector(
+        '#receiptCard'
+      ).value = '';
+
+
+      document.querySelector(
+        '#foreignCurrencySettlementOffered'
+      ).checked = false;
+    }
+  }
+
+
+  paymentMethodSelect.addEventListener(
+    'change',
+    updatePaymentMethodUI
+  );
+
+
+  [
+    '#receiptDiscount',
+    '#receiptTax',
+    '#receiptFees'
+  ].forEach(selector => {
+
+    const element =
+      document.querySelector(selector);
+
+
+    if (element) {
+
+      element.addEventListener(
+        'input',
+        updateReceiptTotal
+      );
+    }
+  });
+
+
+  updatePaymentMethodUI();
+
+
+  // Start with one item
   addItem();
+
+
+  updateReceiptTotal();
 }
 
+
+
+// ======================================================
+// Add Receipt Item
+// ======================================================
+
 function addItem() {
-  const d = document.createElement('div');
+
+  const d =
+    document.createElement('div');
+
 
   d.className = 'item';
 
+
   d.innerHTML = `
+
+    <!-- ============================================== -->
+    <!-- Category / Product / Brand -->
+    <!-- ============================================== -->
+
     <div class="row">
-      <label class="field">
-        Category
-        <select class="itemCategory">
-          <option value="">Select category...</option>
-          <option value="Beverages">Beverages</option>
-          <option value="Food">Food</option>
-          <option value="Snacks">Snacks</option>
-          <option value="Household">Household</option>
-          <option value="Personal Care">Personal Care</option>
-          <option value="Clothing">Clothing</option>
-          <option value="Electronics">Electronics</option>
-          <option value="Other">Other</option>
-        </select>
-      </label>
-    </div>
-    
-      <label class="field">
-        Product
-        <input class="itemProduct">
-      </label>
 
       <label class="field">
-        Brand
-        <input class="itemBrand">
+
+        ${
+          lang === 'zh-TW'
+            ? '分類'
+            : 'Category'
+        }
+
+        <select class="itemCategory">
+
+          <option value="">
+
+            ${
+              lang === 'zh-TW'
+                ? '請選擇分類…'
+                : 'Select category...'
+            }
+
+          </option>
+
+          <option value="Beverages">
+            Beverages
+          </option>
+
+          <option value="Food">
+            Food
+          </option>
+
+          <option value="Snacks">
+            Snacks
+          </option>
+
+          <option value="Household">
+            Household
+          </option>
+
+          <option value="Personal Care">
+            Personal Care
+          </option>
+
+          <option value="Clothing">
+            Clothing
+          </option>
+
+          <option value="Electronics">
+            Electronics
+          </option>
+
+          <option value="Other">
+            Other
+          </option>
+
+        </select>
+
       </label>
-      
-    <div class="row">
+
+
       <label class="field">
-        Units per package
+
+        ${
+          lang === 'zh-TW'
+            ? '產品'
+            : 'Product'
+        }
+
+        <input class="itemProduct">
+
+      </label>
+
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '品牌'
+            : 'Brand'
+        }
+
+        <input class="itemBrand">
+
+      </label>
+
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- Package information -->
+    <!-- ============================================== -->
+
+    <div class="row">
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '每包件數'
+            : 'Units per package'
+        }
+
         <input
           class="itemUnitsPerPackage"
           type="number"
           min="1"
           value="1"
         >
+
       </label>
 
+
       <label class="field">
-        Capacity (optional)
-        <input 
+
+        ${
+          lang === 'zh-TW'
+            ? '單件容量 / 重量（選填）'
+            : 'Capacity / Size (optional)'
+        }
+
+        <input
           class="itemCapacity"
           type="number"
+          min="0"
           step="any"
         >
+
       </label>
 
+
       <label class="field">
-        Unit
+
+        ${
+          lang === 'zh-TW'
+            ? '單位'
+            : 'Unit'
+        }
+
         <select class="itemUnit">
-          <option value="">—</option>
+
+          <option value="">
+            —
+          </option>
+
+
           <optgroup label="Volume">
-            <option value="mL">mL</option>
-            <option value="L">L</option>
-            <option value="fl_oz">fl oz</option>
-            <option value="gal">gal</option>
+
+            <option value="mL">
+              mL
+            </option>
+
+            <option value="L">
+              L
+            </option>
+
+            <option value="fl_oz">
+              fl oz
+            </option>
+
+            <option value="gal">
+              gal
+            </option>
+
           </optgroup>
+
 
           <optgroup label="Weight">
-            <option value="g">g</option>
-            <option value="kg">kg</option>
+
+            <option value="g">
+              g
+            </option>
+
+            <option value="kg">
+              kg
+            </option>
+
           </optgroup>
+
 
           <optgroup label="Count">
-            <option value="each">each</option>
+
+            <option value="each">
+              each
+            </option>
+
           </optgroup>
+
         </select>
+
       </label>
+
     </div>
 
+
+    <!-- ============================================== -->
+    <!-- Quantity + Original Price -->
+    <!-- ============================================== -->
+
     <div class="row">
+
       <label class="field">
-        Purchase quantity (packages)
+
+        ${
+          lang === 'zh-TW'
+            ? '購買數量（包）'
+            : 'Purchase Quantity (packages)'
+        }
+
         <input
           class="itemQuantity"
           type="number"
           min="1"
           value="1"
         >
+
       </label>
 
+
       <label class="field">
-        Original price per package
+
+        ${
+          lang === 'zh-TW'
+            ? '每包原價'
+            : 'Original Price per Package'
+        }
+
         <input
           class="itemPrice"
-           type="number"
+          type="number"
           min="0"
           step="0.01"
           placeholder="0.00"
         >
 
       </label>
+
     </div>
+
+
+    <!-- ============================================== -->
+    <!-- Promotion checkbox -->
+    <!-- ============================================== -->
 
     <div class="row">
 
-  <label class="field">
-    <input
-      class="itemHasDiscount"
-      type="checkbox"
+      <label class="field">
+
+        <span>
+
+          <input
+            class="itemHasDiscount"
+            type="checkbox"
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '有優惠'
+              : 'Discount / Promotion'
+          }
+
+        </span>
+
+      </label>
+
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- Promotion details -->
+    <!-- ============================================== -->
+
+    <div
+      class="itemDiscountSection"
+      style="display:none;"
     >
-    Discount / Promotion
-  </label>
 
-</div>
+      <div class="row">
 
- <div
-  class="itemDiscountSection"
-  style="display:none;"
->
+        <label class="field">
 
-  <div class="row">
+          ${
+            lang === 'zh-TW'
+              ? '此品項優惠後總額'
+              : 'Discounted Total'
+          }
+
+          <input
+            class="itemDiscountedTotal"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          >
+
+        </label>
+
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '優惠備註'
+              : 'Promotion Note'
+          }
+
+          <input
+            class="itemPromotionNote"
+            type="text"
+            placeholder="${
+              lang === 'zh-TW'
+                ? '例如：買一送一，需買 2 件'
+                : 'e.g. Buy 1 get 1 free; requires 2'
+            }"
+          >
+
+        </label>
+
+      </div>
+
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- Calculated item amounts -->
+    <!-- ============================================== -->
+
+    <div class="row">
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '原價小計'
+            : 'Original Subtotal'
+        }
+
+        <input
+          class="itemOriginalSubtotal"
+          type="text"
+          value="0.00"
+          readonly
+        >
+
+      </label>
+
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '品項實付'
+            : 'Item Final Price'
+        }
+
+        <input
+          class="itemFinalPrice"
+          type="text"
+          value="0.00"
+          readonly
+        >
+
+      </label>
+
+
+      <label class="field">
+
+        ${
+          lang === 'zh-TW'
+            ? '等效折數'
+            : 'Effective Discount'
+        }
+
+        <input
+          class="itemEffectiveDiscount"
+          type="text"
+          value="—"
+          readonly
+        >
+
+      </label>
+
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- Photos -->
+    <!-- ============================================== -->
 
     <label class="field">
-      Discounted Total
+
+      ${
+        lang === 'zh-TW'
+          ? '照片（選填）'
+          : 'Photos (optional)'
+      }
+
       <input
-        class="itemDiscountedTotal"
-        type="number"
-        min="0"
-        step="0.01"
-        placeholder="Actual total paid for this item"
+        class="itemPhotos"
+        type="file"
+        multiple
       >
-    </label>
 
-    <label class="field">
-      Promotion Note
-      <input
-        class="itemPromotionNote"
-        type="text"
-        placeholder="e.g. Buy 1 get 1 free"
-      >
-    </label>
-
-  </div>
-
-</div>
-
-<div class="row">
-
-  <label class="field">
-    Original Subtotal
-    <input
-      class="itemOriginalSubtotal"
-      type="text"
-      value="0.00"
-      readonly
-    >
-  </label>
-
-  <label class="field">
-    Item Final Price
-    <input
-      class="itemFinalPrice"
-      type="text"
-      value="0.00"
-      readonly
-    >
-  </label>
-
-  <label class="field">
-    Effective Discount
-    <input
-      class="itemEffectiveDiscount"
-      type="text"
-      value="—"
-      readonly
-    >
-  </label>
-
-</div>
-
-    <label class="field">
-      Photos (optional)
-      <input type="file" multiple>
     </label>
   `;
 
-      <div class="row">
-        <label class="field">
-          Currency
-          <input id="receiptCurrency" value="USD">
-        </label>
 
-        <label class="field">
-  ${lang === 'zh-TW' ? '信用卡' : 'Card'}
+  document
+    .querySelector('#items')
+    .appendChild(d);
 
-  <select id="receiptCard">
-    <option value="">
-      ${
-        cards.length
-          ? (lang === 'zh-TW'
-              ? '請選擇信用卡…'
-              : 'Select card…')
-          : (lang === 'zh-TW'
-              ? '目前沒有可用的信用卡'
-              : 'No active cards available')
+
+  // ------------------------------------------------------
+  // Discount show/hide
+  // ------------------------------------------------------
+
+  const discountCheckbox =
+    d.querySelector(
+      '.itemHasDiscount'
+    );
+
+
+  const discountSection =
+    d.querySelector(
+      '.itemDiscountSection'
+    );
+
+
+  discountCheckbox.addEventListener(
+    'change',
+    () => {
+
+      discountSection.style.display =
+        discountCheckbox.checked
+          ? 'block'
+          : 'none';
+
+
+      if (!discountCheckbox.checked) {
+
+        d.querySelector(
+          '.itemDiscountedTotal'
+        ).value = '';
+
+
+        d.querySelector(
+          '.itemPromotionNote'
+        ).value = '';
       }
-    </option>
 
-    ${cardOptions}
-  </select>
 
-  ${
-    cardLoadError
-      ? `
-        <small class="muted">
-          ${
-            lang === 'zh-TW'
-              ? `信用卡載入失敗：${escapeHtml(cardLoadError)}`
-              : `Failed to load cards: ${escapeHtml(cardLoadError)}`
-          }
-        </small>
-      `
-      : ''
-  }
-</label>
-      </div>
-
-  <div class="row receipt-payment-summary">
-
-  <label class="field">
-    ${
-      lang === 'zh-TW'
-        ? '發票總額'
-        : 'Receipt Total'
+      updateReceiptTotal();
     }
-
-    <input
-      id="receiptTotal"
-      type="text"
-      value="0.00"
-      readonly
-    >
-  </label>
+  );
 
 
-  <label class="field">
-    ${
-      lang === 'zh-TW'
-        ? '幣值'
-        : 'Currency'
-    }
+  // ------------------------------------------------------
+  // Recalculate when item changes
+  // ------------------------------------------------------
 
-    <select id="receiptCurrency">
-      <option value="USD">USD</option>
-      <option value="TWD">TWD</option>
-      <option value="JPY">JPY</option>
-      <option value="EUR">EUR</option>
-      <option value="GBP">GBP</option>
-    </select>
-  </label>
+  d.querySelectorAll(
+    'input:not([type="file"]), select'
+  )
+    .forEach(element => {
+
+      element.addEventListener(
+        'input',
+        updateReceiptTotal
+      );
 
 
-  <label class="field">
-    ${
-      lang === 'zh-TW'
-        ? '付款方式'
-        : 'Payment Method'
-    }
+      element.addEventListener(
+        'change',
+        updateReceiptTotal
+      );
+    });
 
-    <select id="receiptPaymentMethod">
 
-      <option value="card">
-        ${
-          lang === 'zh-TW'
-            ? '信用卡'
-            : 'Card'
-        }
-      </option>
+  updateReceiptTotal();
+}
 
-      <option value="cash">
-        ${
-          lang === 'zh-TW'
-            ? '付現'
-            : 'Cash'
-        }
-      </option>
 
-    </select>
-  </label>
 
-</div>
-  
-  
+// ======================================================
+// Calculate One Item
+// ======================================================
+
 function calculateItemTotal(item) {
 
   const quantity =
     Number(
-      item.querySelector('.itemQuantity')?.value
+      item.querySelector(
+        '.itemQuantity'
+      )?.value
     ) || 0;
+
 
   const price =
     Number(
-      item.querySelector('.itemPrice')?.value
+      item.querySelector(
+        '.itemPrice'
+      )?.value
     ) || 0;
 
+
   const hasDiscount =
-    item.querySelector('.itemHasDiscount')
-      ?.checked === true;
+    item.querySelector(
+      '.itemHasDiscount'
+    )?.checked === true;
 
- const discountedTotalInput =
-  item.querySelector(
-    '.itemDiscountedTotal'
-  )?.value;
 
-const hasDiscountedTotal =
-  discountedTotalInput !== '' &&
-  discountedTotalInput != null;
+  const discountedTotalInput =
+    item.querySelector(
+      '.itemDiscountedTotal'
+    )?.value;
 
-const discountedTotal =
-  hasDiscountedTotal
-    ? Number(discountedTotalInput)
-    : null;
-if (
-  hasDiscount &&
-  hasDiscountedTotal
-) {
-  finalTotal = discountedTotal;
-}
 
+  const hasDiscountedTotal =
+    discountedTotalInput !== '' &&
+    discountedTotalInput != null &&
+    Number.isFinite(
+      Number(
+        discountedTotalInput
+      )
+    );
+
+
+  const discountedTotal =
+    hasDiscountedTotal
+      ? Number(
+          discountedTotalInput
+        )
+      : null;
+
+
+  // Original subtotal
   const originalSubtotal =
     quantity * price;
 
 
+  // Default = no discount
   let finalTotal =
     originalSubtotal;
 
 
+  // If discount exists and actual discounted total
+  // has been entered, use it.
   if (
     hasDiscount &&
-    discountedTotal >= 0
+    hasDiscountedTotal
   ) {
+
     finalTotal =
-      discountedTotal;
+      Math.max(
+        discountedTotal,
+        0
+      );
   }
 
 
+  // Effective rate:
+  //
+  // $20 original → $10 actual
+  // 10 / 20 = 0.5
+  // Chinese display = 5折
+  //
+  // $20 original → $15 actual
+  // 15 / 20 = 0.75
+  // Chinese display = 7.5折
+
   let effectiveRate = 1;
 
+
   if (originalSubtotal > 0) {
+
     effectiveRate =
-      finalTotal / originalSubtotal;
+      finalTotal /
+      originalSubtotal;
   }
 
 
@@ -994,128 +1739,66 @@ if (
   };
 }
 
-  function updateReceiptTotal() {
+
+
+// ======================================================
+// Update Receipt Total
+// ======================================================
+
+function updateReceiptTotal() {
 
   const itemElements =
     document.querySelectorAll(
       '#items .item'
     );
 
+
   let itemsTotal = 0;
 
 
-itemElements.forEach(item => {
+  itemElements.forEach(item => {
 
-  const product =
-    item.querySelector('.itemProduct')
-      .value
-      .trim();
+    const result =
+      calculateItemTotal(item);
 
-  const brand =
-    item.querySelector('.itemBrand')
-      .value
-      .trim();
 
-  const category =
-    item.querySelector('.itemCategory')
-      .value;
-
-  const unitsPerPackage =
-    Number(
+    const originalSubtotalField =
       item.querySelector(
-        '.itemUnitsPerPackage'
-      ).value
-    ) || 1;
+        '.itemOriginalSubtotal'
+      );
 
-  const capacity =
-    Number(
+
+    const finalPriceField =
       item.querySelector(
-        '.itemCapacity'
-      ).value
-    ) || null;
+        '.itemFinalPrice'
+      );
 
-  const unit =
-    item.querySelector('.itemUnit').value;
 
-  const quantity =
-    Number(
+    const discountField =
       item.querySelector(
-        '.itemQuantity'
-      ).value
-    ) || 1;
-
-  const originalPricePerPackage =
-    Number(
-      item.querySelector(
-        '.itemPrice'
-      ).value
-    ) || 0;
-
-  const hasDiscount =
-    item.querySelector(
-      '.itemHasDiscount'
-    ).checked;
-
-  const discountedTotal =
-    hasDiscount
-      ? Number(
-          item.querySelector(
-            '.itemDiscountedTotal'
-          ).value
-        )
-      : null;
-
-  const promotionNote =
-    hasDiscount
-      ? item.querySelector(
-          '.itemPromotionNote'
-        ).value.trim()
-      : '';
-
-  const result =
-    calculateItemTotal(item);
+        '.itemEffectiveDiscount'
+      );
 
 
-  items.push({
+    // Original subtotal
+    if (originalSubtotalField) {
 
-    product,
-    brand,
-    category,
-
-    unitsPerPackage,
-    capacity,
-    unit,
-
-    quantity,
-
-    originalPricePerPackage,
-
-    originalSubtotal:
-      result.originalSubtotal,
-
-    hasDiscount,
-
-    discountedTotal,
-
-    effectiveDiscountRate:
-      result.effectiveRate,
-
-    promotionNote,
-
-    finalTotal:
-      result.finalTotal
-
-  });
-
-});
-
-
-    if (finalPriceField) {
-      finalPriceField.value =
-        result.finalTotal.toFixed(2);
+      originalSubtotalField.value =
+        result.originalSubtotal
+          .toFixed(2);
     }
 
 
+    // Final item price
+    if (finalPriceField) {
+
+      finalPriceField.value =
+        result.finalTotal
+          .toFixed(2);
+    }
+
+
+    // Effective discount
     if (discountField) {
 
       if (
@@ -1123,19 +1806,38 @@ itemElements.forEach(item => {
         result.effectiveRate >= 0.9999
       ) {
 
-        discountField.value = '—';
+        discountField.value =
+          '—';
 
       } else {
 
         const zhe =
           result.effectiveRate * 10;
 
-        discountField.value =
-          lang === 'zh-TW'
-            ? `${Number(zhe.toFixed(2))}折`
-            : `${(
-                result.effectiveRate * 100
-              ).toFixed(1)}% of original`;
+
+        if (lang === 'zh-TW') {
+
+          discountField.value =
+            `${
+              Number(
+                zhe.toFixed(2)
+              )
+            }折`;
+
+        } else {
+
+          const percent =
+            result.effectiveRate *
+            100;
+
+
+          discountField.value =
+            `${
+              Number(
+                percent.toFixed(2)
+              )
+            }% of original`;
+        }
       }
     }
 
@@ -1145,12 +1847,21 @@ itemElements.forEach(item => {
   });
 
 
+  // ------------------------------------------------------
+  // Receipt-level discount
+  // ------------------------------------------------------
+
   const receiptDiscount =
     Number(
       document.querySelector(
         '#receiptDiscount'
       )?.value
     ) || 0;
+
+
+  // ------------------------------------------------------
+  // Tax
+  // ------------------------------------------------------
 
   const tax =
     Number(
@@ -1159,6 +1870,11 @@ itemElements.forEach(item => {
       )?.value
     ) || 0;
 
+
+  // ------------------------------------------------------
+  // Tip / fees
+  // ------------------------------------------------------
+
   const fees =
     Number(
       document.querySelector(
@@ -1166,6 +1882,10 @@ itemElements.forEach(item => {
       )?.value
     ) || 0;
 
+
+  // ------------------------------------------------------
+  // Final receipt total
+  // ------------------------------------------------------
 
   const receiptTotal =
     Math.max(
@@ -1182,281 +1902,501 @@ itemElements.forEach(item => {
       '#receiptTotal'
     );
 
+
   if (receiptTotalField) {
+
     receiptTotalField.value =
       receiptTotal.toFixed(2);
   }
 }
-  
-  
-  document.querySelector('#items').appendChild(d);
-  const discountCheckbox =
-  d.querySelector('.itemHasDiscount');
 
-const discountSection =
-  d.querySelector('.itemDiscountSection');
 
-discountCheckbox.addEventListener(
-  'change',
-  () => {
 
-    discountSection.style.display =
-      discountCheckbox.checked
-        ? 'block'
-        : 'none';
-
-    if (!discountCheckbox.checked) {
-      d.querySelector(
-        '.itemDiscountedTotal'
-      ).value = '';
-
-      d.querySelector(
-        '.itemPromotionNote'
-      ).value = '';
-    }
-
-    updateReceiptTotal();
-  }
-);
-  d.querySelectorAll('input, select')
-  .forEach(element => {
-
-    element.addEventListener(
-      'input',
-      updateReceiptTotal
-    );
-
-    element.addEventListener(
-      'change',
-      updateReceiptTotal
-    );
-  });
-
-updateReceiptTotal();
-}
-
+// ======================================================
+// Save Receipt
+// ======================================================
 
 async function saveReceipt(status) {
-  if (currentRole !== 'owner' || !currentUser) {
+
+  if (
+    currentRole !== 'owner' ||
+    !currentUser
+  ) {
+
     return;
   }
+
+
+  // ------------------------------------------------------
+  // Basic receipt fields
+  // ------------------------------------------------------
 
   const store =
-    document.querySelector('#receiptStore').value.trim();
+    document.querySelector(
+      '#receiptStore'
+    ).value.trim();
+
 
   const branch =
-    document.querySelector('#receiptBranch').value.trim();
+    document.querySelector(
+      '#receiptBranch'
+    ).value.trim();
+
 
   const purchaseType =
-    document.querySelector('#receiptPurchaseType').value;
+    document.querySelector(
+      '#receiptPurchaseType'
+    ).value;
+
 
   const purchaseDate =
-    document.querySelector('#receiptDate').value;
+    document.querySelector(
+      '#receiptDate'
+    ).value;
+
 
   const purchaseTime =
-    document.querySelector('#receiptTime').value;
+    document.querySelector(
+      '#receiptTime'
+    ).value;
+
 
   const timezone =
-    document.querySelector('#receiptTimezone').value;
+    document.querySelector(
+      '#receiptTimezone'
+    ).value;
 
+
+  // This is the currency printed on the receipt
   const currency =
-    document.querySelector('#receiptCurrency')
-      .value
-      .trim()
-      .toUpperCase();
+    document.querySelector(
+      '#receiptCurrency'
+    ).value;
+
+
+  // ------------------------------------------------------
+  // Payment
+  // ------------------------------------------------------
+
+  const paymentMethod =
+    document.querySelector(
+      '#receiptPaymentMethod'
+    ).value;
+
 
   const cardId =
-  paymentMethod === 'card'
-    ? document.querySelector(
-        '#receiptCard'
-      ).value
-    
-
-  if (!store || !purchaseDate) {
-
-  alert(
-    lang === 'zh-TW'
-      ? '請至少填寫商店與日期。'
-      : 'Please enter a store and date.'
-  );
-
-  return;
-}
+    paymentMethod === 'card'
+      ? document.querySelector(
+          '#receiptCard'
+        ).value
+      : null;
 
 
-if (
-  paymentMethod === 'card' &&
-  !cardId
-) {
+  // If checked:
+  //
+  // Merchant offered a currency choice
+  // AND
+  // user chose foreign-currency settlement.
+  //
+  // We do NOT ask for another currency because
+  // the expected settlement currency is the receipt
+  // currency.
 
-  alert(
-    lang === 'zh-TW'
-      ? '請選擇信用卡。'
-      : 'Please select a card.'
-  );
-
-  return;
-}
-
-  // Get the selected card again from Firestore.
- let confirmationUserId = null;
-
-
-if (paymentMethod === 'card') {
-
-  const cardSnapshot =
-    await getDoc(
-      doc(db, 'cards', cardId)
-    );
+  const foreignCurrencySettlementOffered =
+    paymentMethod === 'card' &&
+    document.querySelector(
+      '#foreignCurrencySettlementOffered'
+    ).checked === true;
 
 
-  if (!cardSnapshot.exists()) {
+  // ------------------------------------------------------
+  // Validation
+  // ------------------------------------------------------
+
+  if (
+    !store ||
+    !purchaseDate
+  ) {
 
     alert(
       lang === 'zh-TW'
-        ? '找不到所選信用卡。'
-        : 'Selected card could not be found.'
+        ? '請至少填寫商店與日期。'
+        : 'Please enter a store and date.'
     );
 
     return;
   }
 
 
-  const card =
-    cardSnapshot.data();
-
-
-  if (card.active !== true) {
+  if (
+    paymentMethod === 'card' &&
+    !cardId
+  ) {
 
     alert(
       lang === 'zh-TW'
-        ? '這張信用卡目前已停用。'
-        : 'This card is currently inactive.'
+        ? '請選擇信用卡。'
+        : 'Please select a card.'
     );
 
     return;
   }
 
 
-  confirmationUserId =
-    card.confirmationUserId;
-}
+  // ------------------------------------------------------
+  // Get card and snapshot confirmer
+  // ------------------------------------------------------
 
-  if (!cardSnapshot.exists()) {
-    alert(
-      lang === 'zh-TW'
-        ? '找不到所選信用卡。'
-        : 'Selected card could not be found.'
-    );
+  let confirmationUserId =
+    null;
 
-    return;
+
+  if (paymentMethod === 'card') {
+
+    const cardSnapshot =
+      await getDoc(
+        doc(
+          db,
+          'cards',
+          cardId
+        )
+      );
+
+
+    if (!cardSnapshot.exists()) {
+
+      alert(
+        lang === 'zh-TW'
+          ? '找不到所選信用卡。'
+          : 'Selected card could not be found.'
+      );
+
+      return;
+    }
+
+
+    const card =
+      cardSnapshot.data();
+
+
+    if (card.active !== true) {
+
+      alert(
+        lang === 'zh-TW'
+          ? '這張信用卡目前已停用。'
+          : 'This card is currently inactive.'
+      );
+
+      return;
+    }
+
+
+    confirmationUserId =
+      card.confirmationUserId ||
+      null;
   }
 
-  const card = cardSnapshot.data();
 
-  if (card.active !== true) {
-    alert(
-      lang === 'zh-TW'
-        ? '這張信用卡目前已停用。'
-        : 'This card is currently inactive.'
-    );
-
-    return;
-  }
+  // ------------------------------------------------------
+  // Read items
+  // ------------------------------------------------------
 
   const itemElements =
-    document.querySelectorAll('#items .item');
+    document.querySelectorAll(
+      '#items .item'
+    );
+
 
   const items = [];
 
+
   itemElements.forEach(item => {
+
     const product =
-      item.querySelector('.itemProduct')
-        .value
-        .trim();
+      item.querySelector(
+        '.itemProduct'
+      ).value.trim();
+
 
     const brand =
-      item.querySelector('.itemBrand')
-        .value
-        .trim();
+      item.querySelector(
+        '.itemBrand'
+      ).value.trim();
+
 
     const category =
-      item.querySelector('.itemCategory')
-        .value
-        .trim();
+      item.querySelector(
+        '.itemCategory'
+      ).value;
+
 
     const unitsPerPackage =
       Number(
-        item.querySelector('.itemUnitsPerPackage').value
+        item.querySelector(
+          '.itemUnitsPerPackage'
+        ).value
       ) || 1;
 
+
+    const capacityInput =
+      item.querySelector(
+        '.itemCapacity'
+      ).value;
+
+
     const capacity =
-      Number(
-        item.querySelector('.itemCapacity').value
-      ) || null;
+      capacityInput === ''
+        ? null
+        : Number(
+            capacityInput
+          );
+
 
     const unit =
-      item.querySelector('.itemUnit').value;
+      item.querySelector(
+        '.itemUnit'
+      ).value;
+
 
     const quantity =
       Number(
-        item.querySelector('.itemQuantity').value
+        item.querySelector(
+          '.itemQuantity'
+        ).value
       ) || 1;
 
-    const pricePerPackage =
+
+    const originalPricePerPackage =
       Number(
-        item.querySelector('.itemPrice').value
+        item.querySelector(
+          '.itemPrice'
+        ).value
       ) || 0;
 
-    const discountType =
-      item.querySelector('.itemDiscountType').value;
+
+    const hasDiscount =
+      item.querySelector(
+        '.itemHasDiscount'
+      ).checked === true;
+
+
+    const discountedTotalInput =
+      item.querySelector(
+        '.itemDiscountedTotal'
+      ).value;
+
+
+    const discountedTotal =
+      hasDiscount &&
+      discountedTotalInput !== ''
+        ? Number(
+            discountedTotalInput
+          )
+        : null;
+
+
+    const promotionNote =
+      hasDiscount
+        ? item.querySelector(
+            '.itemPromotionNote'
+          ).value.trim()
+        : '';
+
+
+    const result =
+      calculateItemTotal(item);
+
 
     items.push({
+
       product,
       brand,
       category,
+
       unitsPerPackage,
       capacity,
       unit,
+
       quantity,
-      pricePerPackage,
-      discountType
+
+      originalPricePerPackage,
+
+      originalSubtotal:
+        result.originalSubtotal,
+
+      hasDiscount,
+
+      discountedTotal,
+
+      effectiveDiscountRate:
+        result.effectiveRate,
+
+      promotionNote,
+
+      finalTotal:
+        result.finalTotal
+
     });
   });
 
+
+  // ------------------------------------------------------
+  // Remove completely empty items
+  // ------------------------------------------------------
+
+  const meaningfulItems =
+    items.filter(item =>
+
+      item.product ||
+
+      item.brand ||
+
+      item.category ||
+
+      item.originalPricePerPackage > 0
+
+    );
+
+
+  if (meaningfulItems.length === 0) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '請至少輸入一個品項。'
+        : 'Please enter at least one item.'
+    );
+
+    return;
+  }
+
+
+  // ------------------------------------------------------
+  // If discount checked, discounted total is required
+  // ------------------------------------------------------
+
+  const incompleteDiscount =
+    Array.from(
+      itemElements
+    )
+      .some(item => {
+
+        const hasDiscount =
+          item.querySelector(
+            '.itemHasDiscount'
+          ).checked === true;
+
+
+        const discountedTotal =
+          item.querySelector(
+            '.itemDiscountedTotal'
+          ).value;
+
+
+        return (
+          hasDiscount &&
+          discountedTotal === ''
+        );
+      });
+
+
+  if (incompleteDiscount) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '有勾選優惠的品項，請填寫「優惠後總額」。'
+        : 'Please enter the discounted total for every item marked as a promotion.'
+    );
+
+    return;
+  }
+
+
+  // ------------------------------------------------------
+  // Receipt-level totals
+  // ------------------------------------------------------
+
   const receiptDiscount =
     Number(
-      document.querySelector('#receiptDiscount').value
+      document.querySelector(
+        '#receiptDiscount'
+      ).value
     ) || 0;
+
 
   const tax =
     Number(
-      document.querySelector('#receiptTax').value
+      document.querySelector(
+        '#receiptTax'
+      ).value
     ) || 0;
+
 
   const fees =
     Number(
-      document.querySelector('#receiptFees').value
+      document.querySelector(
+        '#receiptFees'
+      ).value
     ) || 0;
 
+
+  // IMPORTANT:
+  // use finalTotal after item-level discounts
+
   const itemsSubtotal =
-  items.reduce(
-    (sum, item) =>
-      sum + item.finalTotal,
-    0
-  );
+    meaningfulItems.reduce(
+      (sum, item) =>
+        sum +
+        item.finalTotal,
+      0
+    );
+
 
   const total =
-    itemsSubtotal -
-    receiptDiscount +
-    tax +
-    fees;
+    Math.max(
+      itemsSubtotal -
+      receiptDiscount +
+      tax +
+      fees,
+      0
+    );
+
+
+  // ------------------------------------------------------
+  // Collect categories
+  // Used later for merchant settlement-currency history
+  // ------------------------------------------------------
+
+  const categories =
+    [
+      ...new Set(
+
+        meaningfulItems
+          .map(
+            item =>
+              item.category
+          )
+          .filter(Boolean)
+
+      )
+    ];
+
+
+  // ------------------------------------------------------
+  // Save to Firestore
+  // ------------------------------------------------------
 
   try {
+
     const receiptRef =
       await addDoc(
-        collection(db, 'receipts'),
+
+        collection(
+          db,
+          'receipts'
+        ),
+
         {
+
           store,
           branch,
           purchaseType,
@@ -1465,28 +2405,67 @@ if (paymentMethod === 'card') {
           purchaseTime,
           timezone,
 
+          // Currency shown on the receipt
           currency,
-          paymentMethod, nhy
+
+          paymentMethod,
 
           cardId,
 
-          // Snapshot the confirmer at creation time.
-          confirmationUserId:
-            card.confirmationUserId,
+          // Snapshot of the assigned confirmer
+          confirmationUserId,
 
           itemsSubtotal,
+
           receiptDiscount,
+
           tax,
+
           fees,
+
           total,
+
+
+          // ============================================
+          // Foreign currency settlement
+          // ============================================
+
+          foreignCurrencySettlementOffered,
+
+
+          // This makes future confirmation logic clearer:
+          //
+          // if true, the expected currency shown in the
+          // bank/card notification should match the
+          // receipt currency.
+
+          expectedSettlementCurrency:
+            foreignCurrencySettlementOffered
+              ? currency
+              : null,
+
+
+          categories,
+
 
           status,
 
-          createdAt: serverTimestamp(),
-          createdBy: currentUser.uid,
 
-          updatedAt: serverTimestamp(),
-          updatedBy: currentUser.uid,
+          createdAt:
+            serverTimestamp(),
+
+
+          createdBy:
+            currentUser.uid,
+
+
+          updatedAt:
+            serverTimestamp(),
+
+
+          updatedBy:
+            currentUser.uid,
+
 
           submittedAt:
             status === 'pending'
@@ -1495,54 +2474,161 @@ if (paymentMethod === 'card') {
         }
       );
 
-    for (const item of items) {
+
+    // ----------------------------------------------------
+    // Save items
+    // ----------------------------------------------------
+
+    for (
+      const item of meaningfulItems
+    ) {
+
       await addDoc(
+
         collection(
           db,
           'receipts',
           receiptRef.id,
           'items'
         ),
+
         {
+
           ...item,
 
-          createdAt: serverTimestamp(),
-          createdBy: currentUser.uid
+
+          createdAt:
+            serverTimestamp(),
+
+
+          createdBy:
+            currentUser.uid
         }
       );
     }
 
+
+    // ----------------------------------------------------
+    // Merchant currency-choice history
+    // ----------------------------------------------------
+    //
+    // Only create this record when:
+    //
+    // 1. receipt is actually submitted
+    // 2. merchant offered foreign-currency settlement
+    //
+    // Drafts DO NOT create this observation.
+    // ----------------------------------------------------
+
+    if (
+      status === 'pending' &&
+      foreignCurrencySettlementOffered
+    ) {
+
+      await addDoc(
+
+        collection(
+          db,
+          'merchantCurrencyOptions'
+        ),
+
+        {
+
+          storeName:
+            store,
+
+
+          branch:
+            branch || '',
+
+
+          // The receipt currency is also the currency
+          // chosen for settlement.
+
+          settlementCurrency:
+            currency,
+
+
+          categories,
+
+
+          sourceReceiptId:
+            receiptRef.id,
+
+
+          observedPurchaseDate:
+            purchaseDate,
+
+
+          observedAt:
+            serverTimestamp(),
+
+
+          createdAt:
+            serverTimestamp(),
+
+
+          createdBy:
+            currentUser.uid
+        }
+      );
+    }
+
+
+    // ----------------------------------------------------
+    // Success
+    // ----------------------------------------------------
+
     alert(
+
       status === 'draft'
+
         ? (
+
             lang === 'zh-TW'
               ? '草稿已儲存。'
               : 'Draft saved.'
+
           )
+
         : (
+
             lang === 'zh-TW'
               ? '收據已送出等待確認。'
               : 'Receipt submitted for confirmation.'
+
           )
     );
 
-    location.hash = '#dashboard';
+
+    location.hash =
+      '#dashboard';
+
 
   } catch (error) {
+
     console.error(
       'Failed to save receipt:',
       error
     );
 
+
     alert(
+
       `${
         lang === 'zh-TW'
           ? '儲存收據失敗'
           : 'Failed to save receipt'
       }: ${error.message}`
+
     );
   }
 }
+
+
+// ======================================================
+// END OF RECEIPT MODULE
+// ======================================================
 
 
 // ======================================================
