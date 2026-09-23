@@ -469,11 +469,14 @@ async function receiptForm() {
 
         <label class="field">
 
-          ${
-            lang === 'zh-TW'
-              ? '商店'
-              : 'Store'
-          }
+          <span class="field-label">
+            ${
+              lang === 'zh-TW'
+                ? '商店'
+                : 'Store'
+            }
+            <sup class="required-mark">*</sup>
+          </span>
 
           <input
             id="receiptStore"
@@ -545,6 +548,8 @@ async function receiptForm() {
               ? '日期'
               : 'Date'
           }
+          <sup class="required-mark">*</sup>
+          </span>
 
           <input
             id="receiptDate"
@@ -681,6 +686,9 @@ async function receiptForm() {
               ? '收據幣值'
               : 'Receipt Currency'
           }
+
+          <sup class="required-mark">*</sup>
+        </span>
 
           <select id="receiptCurrency">
 
@@ -896,6 +904,8 @@ async function receiptForm() {
               ? '信用卡'
               : 'Card'
           }
+          <sup class="required-mark">*</sup>
+          </span>
 
           <select id="receiptCard">
 
@@ -1219,6 +1229,8 @@ function addItem() {
             ? '產品'
             : 'Product'
         }
+        <sup class="required-mark">*</sup>
+        </span>
 
         <input class="itemProduct">
 
@@ -1360,6 +1372,9 @@ function addItem() {
             : 'Purchase Quantity (packages)'
         }
 
+        <sup class="required-mark">*</sup>
+        </span>
+
         <input
           class="itemQuantity"
           type="number"
@@ -1377,6 +1392,9 @@ function addItem() {
             ? '每包原價'
             : 'Original Price per Package'
         }
+
+        <sup class="required-mark">*</sup>
+        </span>
 
         <input
           class="itemPrice"
@@ -1437,6 +1455,15 @@ function addItem() {
               ? '此品項優惠後總額'
               : 'Discounted Total'
           }
+
+            <sup
+            class="required-mark itemDiscountRequiredMark"
+            style="display:none;"
+            >
+              *
+            </sup>
+
+            </span>
 
           <input
             class="itemDiscountedTotal"
@@ -1577,6 +1604,11 @@ function addItem() {
     d.querySelector(
       '.itemDiscountSection'
     );
+  
+  const discountRequiredMark =
+  d.querySelector(
+    '.itemDiscountRequiredMark'
+  );
 
 
   discountCheckbox.addEventListener(
