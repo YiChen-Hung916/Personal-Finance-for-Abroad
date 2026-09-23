@@ -12,3 +12,23 @@
 .add-item-btn:hover {
   background: #1d4ed8;
 }
+
+
+/* ======================================================
+   Required Field Indicator
+   ====================================================== */
+
+.field-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.required-mark {
+  color: #d93025;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1;
+  position: relative;
+  top: -0.25em;
+}
