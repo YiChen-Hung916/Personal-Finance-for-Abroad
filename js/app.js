@@ -3468,6 +3468,58 @@ function placeholder(title) {
 
 
 // ======================================================
+// Name Normalization Helpers
+// ======================================================
+
+// Used for matching/searching.
+//
+// Examples:
+// " Target "       -> "target"
+// "GIANT   EAGLE"  -> "giant eagle"
+// "Macy's"         -> "macy's"
+//
+// IMPORTANT:
+// We do NOT remove apostrophes or other punctuation.
+// "Macy's" and "Macys" remain different until Owner merges them.
+
+function normalizeNameKey(value) {
+
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase();
+}
+
+
+// ------------------------------------------------------
+// Default display name
+//
+// target       -> Target
+// giant eagle  -> Giant Eagle
+// macy's       -> Macy's
+//
+// This is only the DEFAULT display.
+// Later Owner can manually change the canonical display name.
+// ------------------------------------------------------
+
+function formatDisplayName(value) {
+
+  const cleaned =
+    String(value || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLocaleLowerCase();
+
+
+  return cleaned.replace(
+    /(^|[\s-])([a-z])/g,
+    (match, separator, letter) =>
+      separator + letter.toUpperCase()
+  );
+}
+
+
+// ======================================================
 // Routing
 // ======================================================
 
