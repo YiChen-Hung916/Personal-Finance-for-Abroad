@@ -2,6 +2,10 @@ import { t } from './i18n.js';
 import { firebaseConfig } from './firebase-config.js';
 
 import {
+  myConfirmationPage
+} from './js/myconfirmation.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -3774,15 +3778,33 @@ function route() {
 
   const r = location.hash.slice(1) || 'dashboard';
 
-  if (r === 'dashboard') {
-    dashboard();
-  } else if (r === 'new-receipt') {
-    receiptForm();
-  } else if (r === 'cards') {
-    cardsPage();
-  } else {
-    placeholder(r.replaceAll('-', ' '));
-  }
+if (r === 'dashboard') {
+
+  dashboard();
+
+} else if (r === 'new-receipt') {
+
+  receiptForm();
+
+} else if (r === 'my-confirmations') {
+
+  myConfirmationPage({
+    db,
+    currentUser,
+    lang,
+    page
+  });
+
+} else if (r === 'cards') {
+
+  cardsPage();
+
+} else {
+
+  placeholder(
+    r.replaceAll('-', ' ')
+  );
+}
 
   drawer.hidden = true;
 }
