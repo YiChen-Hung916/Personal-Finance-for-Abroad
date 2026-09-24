@@ -235,7 +235,106 @@ export async function receiptDetailPage({
         })
       );
 
+    // ==================================================
+    // Load Card / Confirmation User Display Data
+    // ==================================================
 
+    let cardDisplay = '—';
+    let confirmationUserDisplay = '—';
+
+
+    if (
+      receipt.paymentMethod === 'card' &&
+      receipt.cardId
+    ) {
+
+      try {
+
+        const cardSnapshot =
+          await getDoc(
+            doc(
+              db,
+              'cards',
+              receipt.cardId
+            )
+          );
+
+
+        if (cardSnapshot.exists()) {
+
+          const card =
+            cardSnapshot.data();
+
+          const cardParts = [
+            card.issuer,
+            card.network,
+            card.last4
+              ? `•••• ${card.last4}`
+              : ''
+          ]
+            .filter(Boolean);
+
+
+          if (cardParts.length > 0) {
+            cardDisplay =
+              cardParts.join(' · ');
+          }
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load card display data:',
+          error
+        );
+
+      }
+
+    }
+
+
+    if (
+      receipt.paymentMethod === 'card' &&
+      receipt.confirmationUserId
+    ) {
+
+      try {
+
+        const userSnapshot =
+          await getDoc(
+            doc(
+              db,
+              'users',
+              receipt.confirmationUserId
+            )
+          );
+
+
+        if (userSnapshot.exists()) {
+
+          const user =
+            userSnapshot.data();
+
+          confirmationUserDisplay =
+            user.displayAs ||
+            user.displayName ||
+            '—';
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load confirmation user display data:',
+          error
+        );
+
+      }
+
+    }
+
+    
     // ==================================================
     // Render
     // ==================================================
@@ -244,6 +343,8 @@ export async function receiptDetailPage({
       page,
       receipt,
       items,
+      cardDisplay,
+      confirmationUserDisplay,
       lang
     });
 
@@ -308,6 +409,8 @@ function renderReceiptDetail({
   page,
   receipt,
   items,
+  cardDisplay,
+  confirmationUserDisplay,
   lang
 }) {
 
@@ -358,7 +461,12 @@ function renderReceiptDetail({
       <!-- Header                                        -->
       <!-- ============================================= -->
 
-      <div class="actions">
+      <div
+        class="actions"
+        style="
+          align-items: center;
+        "
+      >
 
         <div>
 
@@ -376,10 +484,18 @@ function renderReceiptDetail({
 
         </div>
 
-
         <button
           type="button"
           id="receiptDetailBack"
+          style="
+            width: auto;
+            min-width: 0;
+            padding: 6px 12px;
+            margin-left: auto;
+            align-self: center;
+            font-size: 0.9rem;
+            line-height: 1.2;
+          "
         >
           ${
             lang === 'zh-TW'
@@ -627,7 +743,7 @@ function renderReceiptDetail({
                   lang === 'zh-TW'
                     ? 'Card ID'
                     : 'Card ID',
-                  receipt.cardId
+                  cardDisplay
                 )
 
               : ''
@@ -641,7 +757,7 @@ function renderReceiptDetail({
                   lang === 'zh-TW'
                     ? '交易確認人'
                     : 'Confirmation User',
-                  receipt.confirmationUserId
+                  confirmationUserDisplay
                 )
 
               : ''
