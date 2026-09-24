@@ -1820,7 +1820,7 @@ originalSubtotalInput.addEventListener(
   // ------------------------------------------------------
 
   d.querySelectorAll(
-  'input:not([type="file"]):not(.itemOriginalSubtotal), select'
+  'input:not(.itemOriginalSubtotal), select, textarea'
 )
     .forEach(element => {
 
@@ -2549,6 +2549,10 @@ const brandKey =
             '.itemPromotionNote'
           ).value.trim()
         : '';
+    const notes =
+  item.querySelector(
+    '.itemNotes'
+  )?.value.trim() || '';
 
 
     const result =
@@ -2582,6 +2586,7 @@ const brandKey =
         result.effectiveRate,
 
       promotionNote,
+      notes,
 
       finalTotal:
         result.finalTotal
