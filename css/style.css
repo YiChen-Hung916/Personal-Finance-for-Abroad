@@ -15,10 +15,6 @@
 
 
 /* ======================================================
-   Required Field Indicator
-   ====================================================== */
-
-/* ======================================================
    Required field labels
    ====================================================== */
 
@@ -39,7 +35,7 @@
 
 
 /* ======================================================
-   Foreign currency settlement checkbox
+   Receipt - Foreign currency settlement checkbox
    ====================================================== */
 
 .checkbox-inline {
@@ -128,5 +124,66 @@
   .foreign-settlement-note {
     width: 100%;
     white-space: normal;
+  }
+}
+
+
+/* ======================================================
+   My Confirmation
+   ====================================================== */
+
+.my-confirmation-card {
+  margin-top: 16px;
+}
+
+.my-confirmation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.my-confirmation-header h2 {
+  margin: 0 0 6px;
+}
+
+.my-confirmation-total {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.my-confirmation-total strong {
+  font-size: 1.2rem;
+}
+
+.my-confirmation-card hr {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 18px 0;
+}
+
+.my-confirmation-note {
+  margin-top: 4px;
+}
+
+.my-confirmation-result {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.my-confirmation-result div + div {
+  margin-top: 5px;
+}
+
+@media (max-width: 700px) {
+
+  .my-confirmation-header {
+    flex-direction: column;
+  }
+
+  .my-confirmation-total {
+    text-align: left;
   }
 }
