@@ -944,7 +944,7 @@ async function receiptForm() {
           </span>
 
 
-          <small class="muted">
+          <small class="muted foreign-settlement-note">
 
             ${
               lang === 'zh-TW'
