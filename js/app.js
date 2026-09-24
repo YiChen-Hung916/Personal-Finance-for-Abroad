@@ -1681,24 +1681,28 @@ function addItem() {
 
 
     <!-- ============================================== -->
-    <!-- Photos -->
+    <!-- Notes -->
     <!-- ============================================== -->
 
-    <label class="field">
+<label class="field">
 
-      ${
-        lang === 'zh-TW'
-          ? '照片（選填）'
-          : 'Photos (optional)'
-      }
+  ${
+    lang === 'zh-TW'
+      ? '備註（選填）'
+      : 'Notes (optional)'
+  }
 
-      <input
-        class="itemPhotos"
-        type="file"
-        multiple
-      >
+  <textarea
+    class="itemNotes"
+    rows="3"
+    placeholder="${
+      lang === 'zh-TW'
+        ? '例如：商品外觀、特殊規格、購買原因等'
+        : 'e.g. product details, special specifications, purchase notes'
+    }"
+  ></textarea>
 
-    </label>
+</label>
   `;
 
 
