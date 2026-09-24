@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 
 import {
   myConfirmationPage,
-  getMyPendingConfirmations
+  getMyPendingConfirmations 
 } from './myconfirmation.js';
 
 import {
