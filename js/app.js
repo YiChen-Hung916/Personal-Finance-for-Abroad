@@ -771,19 +771,15 @@ async function receiptForm() {
   <label class="field">
 
     <span class="field-label">
-
       ${
         lang === 'zh-TW'
           ? '收據幣值'
           : 'Receipt Currency'
       }
-
       <sup class="required-mark">*</sup>
-
     </span>
 
     <select id="receiptCurrency">
-
       <option value="USD">USD</option>
       <option value="TWD">TWD</option>
       <option value="JPY">JPY</option>
@@ -794,7 +790,6 @@ async function receiptForm() {
       <option value="KRW">KRW</option>
       <option value="HKD">HKD</option>
       <option value="SGD">SGD</option>
-
     </select>
 
   </label>
@@ -820,32 +815,31 @@ async function receiptForm() {
 
   <label class="field">
 
-    ${
-      lang === 'zh-TW'
-        ? '付款方式'
-        : 'Payment Method'
-    }
+    <span class="field-label">
+      ${
+        lang === 'zh-TW'
+          ? '付款方式'
+          : 'Payment Method'
+      }
+      <sup class="required-mark">*</sup>
+    </span>
 
     <select id="receiptPaymentMethod">
 
       <option value="card">
-
         ${
           lang === 'zh-TW'
             ? '信用卡'
             : 'Card'
         }
-
       </option>
 
       <option value="cash">
-
         ${
           lang === 'zh-TW'
             ? '付現'
             : 'Cash'
         }
-
       </option>
 
     </select>
@@ -853,55 +847,6 @@ async function receiptForm() {
   </label>
 
 </div>
-
-          <input
-            id="receiptTotal"
-            type="text"
-            value="0.00"
-            readonly
-          >
-
-        </label>
-
-
-        <label class="field">
-
-          ${
-            lang === 'zh-TW'
-              ? '付款方式'
-              : 'Payment Method'
-          }
-
-          <select id="receiptPaymentMethod">
-
-            <option value="card">
-
-              ${
-                lang === 'zh-TW'
-                  ? '信用卡'
-                  : 'Card'
-              }
-              <sup class="required-mark">*</sup>
-
-            </option>
-
-
-            <option value="cash">
-
-              ${
-                lang === 'zh-TW'
-                  ? '付現'
-                  : 'Cash'
-              }
-              <sup class="required-mark">*</sup>
-
-            </option>
-
-          </select>
-
-        </label>
-
-      </div>
 
 
       <!-- ============================================== -->
