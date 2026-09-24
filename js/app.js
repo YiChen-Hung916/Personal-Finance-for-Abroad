@@ -11,6 +11,10 @@ import {
 } from './receipt.js';
 
 import {
+  receiptDetailPage
+} from './receiptdetail.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -1447,6 +1451,21 @@ if (r === 'dashboard') {
     page
   });
 
+} else if (r.startsWith('receipt-detail/')) {
+
+  const receiptId =
+    r.substring(
+      'receipt-detail/'.length
+    );
+
+  receiptDetailPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    receiptId
+  });
 } else if (r === 'cards') {
 
   cardsPage();
