@@ -70,12 +70,63 @@
   }
 }
 
+/* ======================================================
+   Foreign settlement section
+   ====================================================== */
+
+/*
+  This section uses the full available row width instead
+  of only one of the three .row grid columns.
+*/
+#foreignSettlementSection {
+  grid-template-columns: 1fr;
+}
+
 #foreignSettlementSection .field {
-  flex: 1 1 100%;
+  width: 100%;
   max-width: none;
 }
 
+
+/*
+  Checkbox sentence:
+  stay on one line when there is enough room.
+*/
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.checkbox-inline input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+
+/*
+  Explanation note:
+  also stay on one line by default.
+*/
 .foreign-settlement-note {
   display: block;
-  white-space: normal;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+
+/*
+  Only allow wrapping when the screen becomes narrow.
+*/
+@media (max-width: 700px) {
+
+  .checkbox-inline,
+  .foreign-settlement-note {
+    width: 100%;
+    white-space: normal;
+  }
 }
