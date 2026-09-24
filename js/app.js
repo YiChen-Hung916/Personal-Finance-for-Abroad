@@ -540,24 +540,27 @@ async function receiptForm() {
       <!-- ============================================== -->
 
       <div class="row">
+<label class="field">
 
-        <label class="field">
+  <span class="field-label">
 
-          ${
-            lang === 'zh-TW'
-              ? '日期'
-              : 'Date'
-          }
-          <sup class="required-mark">*</sup>
-          </span>
+    ${
+      lang === 'zh-TW'
+        ? '日期'
+        : 'Date'
+    }
 
-          <input
-            id="receiptDate"
-            type="date"
-          >
+    <sup class="required-mark">*</sup>
 
-        </label>
+  </span>
 
+  <input
+    id="receiptDate"
+    type="date"
+  >
+
+</label>
+        
 
         <label class="field">
 
@@ -671,73 +674,6 @@ async function receiptForm() {
       </div>
 
 
-      <!-- ============================================== -->
-      <!-- Receipt Currency -->
-      <!-- This stays near the top because it is the -->
-      <!-- currency printed on the receipt/items. -->
-      <!-- ============================================== -->
-
-      <div class="row">
-
-        <label class="field">
-
-          ${
-            lang === 'zh-TW'
-              ? '收據幣值'
-              : 'Receipt Currency'
-          }
-
-          <sup class="required-mark">*</sup>
-        </span>
-
-          <select id="receiptCurrency">
-
-            <option value="USD">
-              USD
-            </option>
-
-            <option value="TWD">
-              TWD
-            </option>
-
-            <option value="JPY">
-              JPY
-            </option>
-
-            <option value="EUR">
-              EUR
-            </option>
-
-            <option value="GBP">
-              GBP
-            </option>
-
-            <option value="CAD">
-              CAD
-            </option>
-
-            <option value="AUD">
-              AUD
-            </option>
-
-            <option value="KRW">
-              KRW
-            </option>
-
-            <option value="HKD">
-              HKD
-            </option>
-
-            <option value="SGD">
-              SGD
-            </option>
-
-          </select>
-
-        </label>
-
-      </div>
-
 
       <!-- ============================================== -->
       <!-- Items -->
@@ -772,15 +708,15 @@ async function receiptForm() {
           ${
             lang === 'zh-TW'
               ? '整張收據優惠'
-              : 'Receipt Discount'
+              : 'Total Savings'
           }
 
           <input
             id="receiptDiscount"
-            type="number"
-            min="0"
-            step="0.01"
-            value="0"
+          type="number"
+          min="0"
+          step="0.01"
+          value="0.00"
           >
 
         </label>
@@ -827,18 +763,96 @@ async function receiptForm() {
 
 
       <!-- ============================================== -->
-      <!-- Receipt Total + Payment Method -->
+      <!-- Currency + Receipt Total + Payment Method -->
       <!-- ============================================== -->
 
-      <div class="row receipt-payment-summary">
+     <div class="row receipt-payment-summary">
 
-        <label class="field">
+  <label class="field">
 
-          ${
-            lang === 'zh-TW'
-              ? '發票總額'
-              : 'Receipt Total'
-          }
+    <span class="field-label">
+
+      ${
+        lang === 'zh-TW'
+          ? '收據幣值'
+          : 'Receipt Currency'
+      }
+
+      <sup class="required-mark">*</sup>
+
+    </span>
+
+    <select id="receiptCurrency">
+
+      <option value="USD">USD</option>
+      <option value="TWD">TWD</option>
+      <option value="JPY">JPY</option>
+      <option value="EUR">EUR</option>
+      <option value="GBP">GBP</option>
+      <option value="CAD">CAD</option>
+      <option value="AUD">AUD</option>
+      <option value="KRW">KRW</option>
+      <option value="HKD">HKD</option>
+      <option value="SGD">SGD</option>
+
+    </select>
+
+  </label>
+
+
+  <label class="field">
+
+    ${
+      lang === 'zh-TW'
+        ? '發票總額'
+        : 'Receipt Total'
+    }
+
+    <input
+      id="receiptTotal"
+      type="text"
+      value="0.00"
+      readonly
+    >
+
+  </label>
+
+
+  <label class="field">
+
+    ${
+      lang === 'zh-TW'
+        ? '付款方式'
+        : 'Payment Method'
+    }
+
+    <select id="receiptPaymentMethod">
+
+      <option value="card">
+
+        ${
+          lang === 'zh-TW'
+            ? '信用卡'
+            : 'Card'
+        }
+
+      </option>
+
+      <option value="cash">
+
+        ${
+          lang === 'zh-TW'
+            ? '付現'
+            : 'Cash'
+        }
+
+      </option>
+
+    </select>
+
+  </label>
+
+</div>
 
           <input
             id="receiptTotal"
@@ -867,6 +881,7 @@ async function receiptForm() {
                   ? '信用卡'
                   : 'Card'
               }
+              <sup class="required-mark">*</sup>
 
             </option>
 
@@ -878,6 +893,7 @@ async function receiptForm() {
                   ? '付現'
                   : 'Cash'
               }
+              <sup class="required-mark">*</sup>
 
             </option>
 
@@ -898,6 +914,7 @@ async function receiptForm() {
       >
 
         <label class="field">
+        <span class="field-label">
 
           ${
             lang === 'zh-TW'
@@ -964,18 +981,20 @@ async function receiptForm() {
 
         <label class="field">
 
-          <span>
+          <span class="checkbox-inline">
 
             <input
               id="foreignCurrencySettlementOffered"
               type="checkbox"
             >
 
+            <span>
             ${
               lang === 'zh-TW'
                 ? '店員有提供外幣結帳選擇，且我選擇以外幣結帳'
                 : 'Merchant offered a currency choice and I chose foreign-currency settlement'
             }
+            </span>
 
           </span>
 
@@ -1223,6 +1242,7 @@ function addItem() {
 
 
       <label class="field">
+      <span class="field-label">
 
         ${
           lang === 'zh-TW'
@@ -1365,6 +1385,7 @@ function addItem() {
     <div class="row">
 
       <label class="field">
+      <span class="field-label">
 
         ${
           lang === 'zh-TW'
@@ -1386,6 +1407,7 @@ function addItem() {
 
 
       <label class="field">
+      <span class="field-label">
 
         ${
           lang === 'zh-TW'
@@ -1449,6 +1471,7 @@ function addItem() {
       <div class="row">
 
         <label class="field">
+        <span class="field-label">
 
           ${
             lang === 'zh-TW'
@@ -1517,9 +1540,10 @@ function addItem() {
 
         <input
           class="itemOriginalSubtotal"
-          type="text"
+          type="number"
+          min="0"
+          step="0.01"
           value="0.00"
-          readonly
         >
 
       </label>
@@ -1609,6 +1633,57 @@ function addItem() {
   d.querySelector(
     '.itemDiscountRequiredMark'
   );
+  const originalSubtotalInput =
+  d.querySelector(
+    '.itemOriginalSubtotal'
+  );
+
+  const quantityInput =
+  d.querySelector(
+    '.itemQuantity'
+  );
+
+
+const priceInput =
+  d.querySelector(
+    '.itemPrice'
+  );
+
+
+function resetOriginalSubtotalToAutomatic() {
+
+  originalSubtotalInput.dataset.manualOverride =
+    'false';
+
+  updateReceiptTotal();
+}
+
+
+quantityInput.addEventListener(
+  'input',
+  resetOriginalSubtotalToAutomatic
+);
+
+
+priceInput.addEventListener(
+  'input',
+  resetOriginalSubtotalToAutomatic
+);
+
+originalSubtotalInput.dataset.manualOverride =
+  'false';
+
+
+originalSubtotalInput.addEventListener(
+  'input',
+  () => {
+
+    originalSubtotalInput.dataset.manualOverride =
+      'true';
+
+    updateReceiptTotal();
+  }
+);
 
 
   discountCheckbox.addEventListener(
@@ -1619,7 +1694,11 @@ function addItem() {
         discountCheckbox.checked
           ? 'block'
           : 'none';
-
+      
+      discountRequiredMark.style.display =
+        discountCheckbox.checked
+          ? ''
+          : 'none';
 
       if (!discountCheckbox.checked) {
 
@@ -1644,8 +1723,8 @@ function addItem() {
   // ------------------------------------------------------
 
   d.querySelectorAll(
-    'input:not([type="file"]), select'
-  )
+  'input:not([type="file"]):not(.itemOriginalSubtotal), select'
+)
     .forEach(element => {
 
       element.addEventListener(
@@ -1688,6 +1767,51 @@ function calculateItemTotal(item) {
     ) || 0;
 
 
+  const originalSubtotalInput =
+    item.querySelector(
+      '.itemOriginalSubtotal'
+    );
+
+
+  const manualOverride =
+    originalSubtotalInput
+      ?.dataset
+      ?.manualOverride === 'true';
+
+
+  // ------------------------------------------------------
+  // Automatic subtotal
+  // ------------------------------------------------------
+
+  const calculatedOriginalSubtotal =
+    quantity * price;
+
+
+  // ------------------------------------------------------
+  // Use manual subtotal if Owner adjusted it
+  // ------------------------------------------------------
+
+  let originalSubtotal;
+
+
+  if (manualOverride) {
+
+    originalSubtotal =
+      Number(
+        originalSubtotalInput.value
+      ) || 0;
+
+  } else {
+
+    originalSubtotal =
+      calculatedOriginalSubtotal;
+  }
+
+
+  // ------------------------------------------------------
+  // Discount
+  // ------------------------------------------------------
+
   const hasDiscount =
     item.querySelector(
       '.itemHasDiscount'
@@ -1718,18 +1842,14 @@ function calculateItemTotal(item) {
       : null;
 
 
-  // Original subtotal
-  const originalSubtotal =
-    quantity * price;
+  // ------------------------------------------------------
+  // Final item total
+  // ------------------------------------------------------
 
-
-  // Default = no discount
   let finalTotal =
     originalSubtotal;
 
 
-  // If discount exists and actual discounted total
-  // has been entered, use it.
   if (
     hasDiscount &&
     hasDiscountedTotal
@@ -1741,6 +1861,51 @@ function calculateItemTotal(item) {
         0
       );
   }
+
+
+  // ------------------------------------------------------
+  // Effective discount rate
+  // ------------------------------------------------------
+
+  let effectiveRate =
+    1;
+
+
+  if (originalSubtotal > 0) {
+
+    effectiveRate =
+      finalTotal /
+      originalSubtotal;
+  }
+
+
+  // ------------------------------------------------------
+  // Savings
+  // ------------------------------------------------------
+
+  const savings =
+    Math.max(
+      originalSubtotal -
+      finalTotal,
+      0
+    );
+
+
+  return {
+
+    calculatedOriginalSubtotal,
+
+    originalSubtotal,
+
+    finalTotal,
+
+    effectiveRate,
+
+    savings,
+
+    manualOverride
+  };
+}
 
 
   // Effective rate:
@@ -1785,7 +1950,16 @@ function updateReceiptTotal() {
     );
 
 
-  let itemsTotal = 0;
+  let originalItemsTotal =
+    0;
+
+
+  let itemsFinalTotal =
+    0;
+
+
+  let totalSavings =
+    0;
 
 
   itemElements.forEach(item => {
@@ -1812,16 +1986,28 @@ function updateReceiptTotal() {
       );
 
 
+    // ----------------------------------------------------
     // Original subtotal
-    if (originalSubtotalField) {
+    // ----------------------------------------------------
+    //
+    // Only auto-fill if Owner has NOT manually adjusted it.
+    // ----------------------------------------------------
+
+    if (
+      originalSubtotalField &&
+      result.manualOverride !== true
+    ) {
 
       originalSubtotalField.value =
-        result.originalSubtotal
+        result.calculatedOriginalSubtotal
           .toFixed(2);
     }
 
 
-    // Final item price
+    // ----------------------------------------------------
+    // Item final price
+    // ----------------------------------------------------
+
     if (finalPriceField) {
 
       finalPriceField.value =
@@ -1830,7 +2016,10 @@ function updateReceiptTotal() {
     }
 
 
+    // ----------------------------------------------------
     // Effective discount
+    // ----------------------------------------------------
+
     if (discountField) {
 
       if (
@@ -1872,6 +2061,94 @@ function updateReceiptTotal() {
         }
       }
     }
+
+
+    originalItemsTotal +=
+      result.originalSubtotal;
+
+
+    itemsFinalTotal +=
+      result.finalTotal;
+
+
+    totalSavings +=
+      result.savings;
+  });
+
+
+  // ------------------------------------------------------
+  // Total receipt savings
+  // ------------------------------------------------------
+
+  const receiptDiscountField =
+    document.querySelector(
+      '#receiptDiscount'
+    );
+
+
+  if (receiptDiscountField) {
+
+    receiptDiscountField.value =
+      totalSavings.toFixed(2);
+  }
+
+
+  // ------------------------------------------------------
+  // Tax
+  // ------------------------------------------------------
+
+  const tax =
+    Number(
+      document.querySelector(
+        '#receiptTax'
+      )?.value
+    ) || 0;
+
+
+  // ------------------------------------------------------
+  // Tip / Other Fees
+  // ------------------------------------------------------
+
+  const fees =
+    Number(
+      document.querySelector(
+        '#receiptFees'
+      )?.value
+    ) || 0;
+
+
+  // ------------------------------------------------------
+  // Receipt Total
+  //
+  // IMPORTANT:
+  //
+  // Item discounts have ALREADY been reflected in
+  // itemsFinalTotal.
+  //
+  // Therefore totalSavings must NOT be deducted again.
+  // ------------------------------------------------------
+
+  const receiptTotal =
+    Math.max(
+      itemsFinalTotal +
+      tax +
+      fees,
+      0
+    );
+
+
+  const receiptTotalField =
+    document.querySelector(
+      '#receiptTotal'
+    );
+
+
+  if (receiptTotalField) {
+
+    receiptTotalField.value =
+      receiptTotal.toFixed(2);
+  }
+}
 
 
     itemsTotal +=
@@ -2369,18 +2646,6 @@ if (invalidItem) {
 }
 
 
-  if (meaningfulItems.length === 0) {
-
-    alert(
-      lang === 'zh-TW'
-        ? '請至少輸入一個品項。'
-        : 'Please enter at least one item.'
-    );
-
-    return;
-  }
-
-
   // ------------------------------------------------------
   // If discount checked, discounted total is required
   // ------------------------------------------------------
@@ -2453,23 +2718,44 @@ if (invalidItem) {
   // IMPORTANT:
   // use finalTotal after item-level discounts
 
-  const itemsSubtotal =
-    meaningfulItems.reduce(
-      (sum, item) =>
-        sum +
+  const originalItemsSubtotal =
+  meaningfulItems.reduce(
+    (sum, item) =>
+      sum +
+      item.originalSubtotal,
+    0
+  );
+
+
+const itemsSubtotal =
+  meaningfulItems.reduce(
+    (sum, item) =>
+      sum +
+      item.finalTotal,
+    0
+  );
+
+
+const receiptDiscount =
+  meaningfulItems.reduce(
+    (sum, item) =>
+      sum +
+      Math.max(
+        item.originalSubtotal -
         item.finalTotal,
-      0
-    );
+        0
+      ),
+    0
+  );
 
 
-  const total =
-    Math.max(
-      itemsSubtotal -
-      receiptDiscount +
-      tax +
-      fees,
-      0
-    );
+const total =
+  Math.max(
+    itemsSubtotal +
+    tax +
+    fees,
+    0
+  );
 
 
   // ------------------------------------------------------
@@ -2526,15 +2812,11 @@ if (invalidItem) {
 
           // Snapshot of the assigned confirmer
           confirmationUserId,
-
+          originalItemsSubtotal,
           itemsSubtotal,
-
           receiptDiscount,
-
           tax,
-
           fees,
-
           total,
 
 
