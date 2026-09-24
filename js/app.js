@@ -1908,33 +1908,6 @@ function calculateItemTotal(item) {
 }
 
 
-  // Effective rate:
-  //
-  // $20 original → $10 actual
-  // 10 / 20 = 0.5
-  // Chinese display = 5折
-  //
-  // $20 original → $15 actual
-  // 15 / 20 = 0.75
-  // Chinese display = 7.5折
-
-  let effectiveRate = 1;
-
-
-  if (originalSubtotal > 0) {
-
-    effectiveRate =
-      finalTotal /
-      originalSubtotal;
-  }
-
-
-  return {
-    originalSubtotal,
-    finalTotal,
-    effectiveRate
-  };
-}
 
 
 
@@ -2080,17 +2053,12 @@ function updateReceiptTotal() {
   // Total receipt savings
   // ------------------------------------------------------
 
-  const receiptDiscountField =
-    document.querySelector(
-      '#receiptDiscount'
-    );
-
-
-  if (receiptDiscountField) {
-
-    receiptDiscountField.value =
-      totalSavings.toFixed(2);
-  }
+  const receiptDiscount =
+   Number(
+      document.querySelector(
+        '#receiptDiscount'
+      )?.value
+    ) || 0;
 
 
   // ------------------------------------------------------
@@ -2130,75 +2098,7 @@ function updateReceiptTotal() {
 
   const receiptTotal =
     Math.max(
-      itemsFinalTotal +
-      tax +
-      fees,
-      0
-    );
-
-
-  const receiptTotalField =
-    document.querySelector(
-      '#receiptTotal'
-    );
-
-
-  if (receiptTotalField) {
-
-    receiptTotalField.value =
-      receiptTotal.toFixed(2);
-  }
-}
-
-
-    itemsTotal +=
-      result.finalTotal;
-  });
-
-
-  // ------------------------------------------------------
-  // Receipt-level discount
-  // ------------------------------------------------------
-
-  const receiptDiscount =
-    Number(
-      document.querySelector(
-        '#receiptDiscount'
-      )?.value
-    ) || 0;
-
-
-  // ------------------------------------------------------
-  // Tax
-  // ------------------------------------------------------
-
-  const tax =
-    Number(
-      document.querySelector(
-        '#receiptTax'
-      )?.value
-    ) || 0;
-
-
-  // ------------------------------------------------------
-  // Tip / fees
-  // ------------------------------------------------------
-
-  const fees =
-    Number(
-      document.querySelector(
-        '#receiptFees'
-      )?.value
-    ) || 0;
-
-
-  // ------------------------------------------------------
-  // Final receipt total
-  // ------------------------------------------------------
-
-  const receiptTotal =
-    Math.max(
-      itemsTotal -
+      itemsFinalTotal -
       receiptDiscount +
       tax +
       fees,
@@ -2736,7 +2636,7 @@ const itemsSubtotal =
   );
 
 
-const receiptDiscount =
+const itemDiscountTotal =
   meaningfulItems.reduce(
     (sum, item) =>
       sum +
@@ -2751,12 +2651,12 @@ const receiptDiscount =
 
 const total =
   Math.max(
-    itemsSubtotal +
+    itemsSubtotal -
+    receiptDiscount +
     tax +
     fees,
     0
   );
-
 
   // ------------------------------------------------------
   // Collect categories
