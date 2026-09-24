@@ -2,7 +2,7 @@ import { t } from './i18n.js';
 import { firebaseConfig } from './firebase-config.js';
 
 import {
-  myConfirmationPage
+  myConfirmationPage,
   getMyPendingConfirmations
 } from './myconfirmation.js';
 
