@@ -258,7 +258,46 @@ export async function myConfirmationPage({
         )
         .join('');
 
+<div class="actions">
 
+  <button
+    type="button"
+    class="viewReceiptDetailBtn"
+    data-receipt-id="${escapeHtml(receipt.id)}"
+  >
+    ${
+      lang === 'zh-TW'
+        ? '檢視明細'
+        : 'View Details'
+    }
+  </button>
+
+</div>
+
+    page
+  .querySelectorAll(
+    '.viewReceiptDetailBtn'
+  )
+  .forEach(button => {
+
+    button.addEventListener(
+      'click',
+      () => {
+
+        const receiptId =
+          button.dataset.receiptId;
+
+        if (!receiptId) {
+          return;
+        }
+
+        location.hash =
+          `#receipt-detail/${receiptId}`;
+      }
+    );
+
+  });
+    
     // ==================================================
     // Match / Mismatch radio buttons
     // ==================================================
