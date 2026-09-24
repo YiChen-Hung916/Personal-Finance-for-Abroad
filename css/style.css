@@ -70,9 +70,12 @@
   }
 }
 
+#foreignSettlementSection .field {
+  flex: 1 1 100%;
+  max-width: none;
+}
+
 .foreign-settlement-note {
   display: block;
-  width: max-content;
-  max-width: 100%;
   white-space: normal;
 }
