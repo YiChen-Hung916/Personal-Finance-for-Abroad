@@ -18,17 +18,54 @@
    Required Field Indicator
    ====================================================== */
 
+/* ======================================================
+   Required field labels
+   ====================================================== */
+
 .field-label {
   display: inline-flex;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
 }
 
 .required-mark {
   color: #d93025;
-  font-size: 0.78em;
+  font-size: 0.85em;
   font-weight: 700;
   line-height: 1;
-  position: relative;
-  top: -0.25em;
+  vertical-align: super;
+}
+
+
+/* ======================================================
+   Foreign currency settlement checkbox
+   ====================================================== */
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  /*
+    Keep the checkbox + sentence on one line whenever
+    there is enough screen width.
+  */
+  white-space: nowrap;
+}
+
+.checkbox-inline input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+
+/*
+  On a narrow screen, wrapping is allowed.
+*/
+@media (max-width: 700px) {
+
+  .checkbox-inline {
+    white-space: normal;
+  }
 }
