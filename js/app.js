@@ -236,8 +236,26 @@ function renderMenu() {
 // Dashboard
 // ======================================================
 
-function dashboard() {
+async function dashboard() {
   const isOwner = currentRole === 'owner';
+  let myPendingConfirmations = [];
+
+
+  try {
+
+    myPendingConfirmations =
+      await getMyPendingConfirmations({
+        db,
+        currentUser
+      });
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load dashboard confirmations:',
+      error
+    );
+  }
 
   if (isOwner) {
     page.innerHTML = `
@@ -248,18 +266,81 @@ function dashboard() {
       </div>
 
       <section class="panel">
-        <h2>${t('myConfirm', lang)}</h2>
 
-        <div class="activity">
-          <span>Sep 17</span>
-          <span>Target</span>
-          <span>USD 42.87 · Pending</span>
-        </div>
+  <h2>
+    ${t('myConfirm', lang)}
+    ${
+      myPendingConfirmations.length > 0
+        ? `<span class="badge">${myPendingConfirmations.length}</span>`
+        : ''
+    }
+  </h2>
 
+
+  ${
+    myPendingConfirmations.length === 0
+
+      ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前沒有需要你確認的交易。'
+              : 'You have no transactions requiring confirmation.'
+          }
+        </p>
+      `
+
+      : myPendingConfirmations
+          .slice(0, 3)
+          .map(receipt => `
+
+            <div class="activity">
+
+              <span>
+                ${escapeHtml(
+                  receipt.purchaseDate || '—'
+                )}
+              </span>
+
+              <span>
+                ${escapeHtml(
+                  receipt.store || '—'
+                )}
+              </span>
+
+              <span>
+                ${money(
+                  receipt.total || 0,
+                  receipt.expectedSettlementCurrency ||
+                  receipt.currency ||
+                  ''
+                )}
+                ·
+                ${
+                  lang === 'zh-TW'
+                    ? '待確認'
+                    : 'Pending'
+                }
+              </span>
+
+            </div>
+
+          `)
+          .join('')
+  }
+
+
+  ${
+    myPendingConfirmations.length > 0
+      ? `
         <a href="#my-confirmations">
           ${t('viewAll', lang)}
         </a>
-      </section>
+      `
+      : ''
+  }
+
+</section>
 
       <section class="panel">
         <h2>${t('waiting', lang)}</h2>
@@ -332,26 +413,88 @@ function dashboard() {
   // Authorized User dashboard
   page.innerHTML = `
     <section class="panel">
-      <h2>
-        ${
-          lang === 'zh-TW'
-            ? '需要你確認'
-            : 'Need Your Confirmation'
-        }
-      </h2>
 
-      <p class="muted">
-        ${
-          lang === 'zh-TW'
-            ? '這裡之後只會顯示指派給你的待確認交易。'
-            : 'Only transactions assigned to you will appear here.'
-        }
-      </p>
+  <h2>
 
-      <a href="#my-confirmations">
-        ${t('viewAll', lang)}
-      </a>
-    </section>
+    ${
+      lang === 'zh-TW'
+        ? '需要你確認'
+        : 'Need Your Confirmation'
+    }
+
+    ${
+      myPendingConfirmations.length > 0
+        ? `<span class="badge">${myPendingConfirmations.length}</span>`
+        : ''
+    }
+
+  </h2>
+
+
+  ${
+    myPendingConfirmations.length === 0
+
+      ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前沒有需要你確認的交易。'
+              : 'You have no transactions requiring confirmation.'
+          }
+        </p>
+      `
+
+      : myPendingConfirmations
+          .slice(0, 3)
+          .map(receipt => `
+
+            <div class="activity">
+
+              <span>
+                ${escapeHtml(
+                  receipt.purchaseDate || '—'
+                )}
+              </span>
+
+              <span>
+                ${escapeHtml(
+                  receipt.store || '—'
+                )}
+              </span>
+
+              <span>
+                ${money(
+                  receipt.total || 0,
+                  receipt.expectedSettlementCurrency ||
+                  receipt.currency ||
+                  ''
+                )}
+                ·
+                ${
+                  lang === 'zh-TW'
+                    ? '待確認'
+                    : 'Pending'
+                }
+              </span>
+
+            </div>
+
+          `)
+          .join('')
+  }
+
+
+  ${
+    myPendingConfirmations.length > 0
+      ? `
+        <a href="#my-confirmations">
+          ${t('viewAll', lang)}
+        </a>
+      `
+      : ''
+  }
+
+</section>
 
     <section class="panel">
       <h2>
