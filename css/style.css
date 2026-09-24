@@ -69,3 +69,10 @@
     white-space: normal;
   }
 }
+
+.foreign-settlement-note {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  white-space: normal;
+}
