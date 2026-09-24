@@ -3,7 +3,7 @@ import { firebaseConfig } from './firebase-config.js';
 
 import {
   myConfirmationPage
-} from './js/myconfirmation.js';
+} from './myconfirmation.js';
 
 import {
   initializeApp
