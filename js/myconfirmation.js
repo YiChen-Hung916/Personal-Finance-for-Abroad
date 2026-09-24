@@ -702,6 +702,29 @@ function confirmationCardHtml(
       </div>
 
 
+      <label class="field">
+
+        <span class="field-label">
+          ${
+            lang === 'zh-TW'
+              ? '備註（選填）'
+              : 'Notes (optional)'
+          }
+        </span>
+
+        <textarea
+          class="my-confirmation-notes"
+          rows="3"
+          placeholder="${
+            lang === 'zh-TW'
+              ? '例如：信用卡通知上的商家名稱不同、其他核對資訊等'
+              : 'e.g. different merchant name shown by the card notification'
+          }"
+        ></textarea>
+
+      </label>
+
+
       <div
         class="my-confirmation-result"
         hidden
@@ -766,6 +789,15 @@ async function submitMyConfirmation({
 
   const userSaysMatch =
     selectedChoice.value === 'match';
+  
+  const notes =
+    card
+      .querySelector(
+        '.my-confirmation-notes'
+      )
+      ?.value
+      .trim() || '';
+
 
 
   const expectedAmount =
@@ -1045,6 +1077,8 @@ async function submitMyConfirmation({
         // Overall result
         hasMismatch,
 
+        // Optional confirmation notes
+        notes,
 
         // Owner resolution
         mismatchResolved:
