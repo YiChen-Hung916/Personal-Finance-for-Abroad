@@ -649,8 +649,8 @@ function confirmationCardHtml(
 
           ${
             lang === 'zh-TW'
-              ? `相符
-              : `Match
+              ? '相符'
+              : 'Match'
           }
 
         </label>
@@ -1131,7 +1131,7 @@ async function submitMyConfirmation({
         expectedAmount,
         reportedAmount,
         amountMatchStatus,
-        amountMismatch
+        amountMismatch,
 
 
         // Currency
@@ -1156,7 +1156,7 @@ async function submitMyConfirmation({
 
         // Overall result
         hasMismatch,
-        mismatchReasons
+        mismatchReasons,
 
         // Optional confirmation notes
         notes,
