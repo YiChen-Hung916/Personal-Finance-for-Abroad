@@ -569,6 +569,57 @@ function confirmationCardHtml(
 
 
       <hr>
+       <div class="field">
+
+        <span class="field-label">
+
+          ${
+            lang === 'zh-TW'
+              ? '信用卡通知顯示的請款幣值？'
+              : 'What currency type is shown in the card notification?'
+          }
+
+          <sup class="required-mark">*</sup>
+
+        </span>
+
+
+        <label class="confirmation-choice">
+
+          <input
+            type="radio"
+            class="notification-currency-type"
+            name="currency-type-${escapeHtml(receipt.id)}"
+            value="local"
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '台幣'
+              : 'TWD'
+          }
+
+        </label>
+
+
+        <label class="confirmation-choice">
+
+          <input
+            type="radio"
+            class="notification-currency-type"
+            name="currency-type-${escapeHtml(receipt.id)}"
+            value="foreign"
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '外幣'
+              : 'Foreign currency'
+          }
+
+        </label>
+
+      </div>
 
 
       <div class="field">
@@ -577,8 +628,8 @@ function confirmationCardHtml(
 
           ${
             lang === 'zh-TW'
-              ? '信用卡通知是否與 Receipt 相符？'
-              : 'Does the card notification match the receipt?'
+              ? '信用卡通知金額是否相符？'
+              : 'Does the card notification amount match?'
           }
 
           <sup class="required-mark">*</sup>
@@ -598,14 +649,8 @@ function confirmationCardHtml(
 
           ${
             lang === 'zh-TW'
-              ? `相符（${formatMoney(
-                  expectedAmount,
-                  expectedCurrency
-                )}）`
-              : `Match (${formatMoney(
-                  expectedAmount,
-                  expectedCurrency
-                )})`
+              ? `相符
+              : `Match
           }
 
         </label>
@@ -774,6 +819,27 @@ async function submitMyConfirmation({
   if (!card) {
     return;
   }
+  
+  const currencyTypeChoice =
+    card.querySelector(
+      '.notification-currency-type:checked'
+    );
+
+
+  if (!currencyTypeChoice) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '請選擇信用卡通知顯示的請款幣值是台幣或外幣。'
+        : 'Please select whether the card notification shows TWD or foreign currency.'
+    );
+
+    return;
+  }
+
+
+  const notificationCurrencyType =
+    currencyTypeChoice.value;
 
 
   const selectedChoice =
@@ -910,52 +976,58 @@ async function submitMyConfirmation({
   // Calculate Match Status
   // ====================================================
 
-  const expectedAmountCents =
-    Math.round(
-      expectedAmount * 100
-    );
-
-
-  const reportedAmountCents =
-    Math.round(
-      reportedAmount * 100
-    );
+  // The user's amount answer directly determines
+  // whether the amount is considered a mismatch.
+  const amountMismatch =
+    !userSaysMatch;
 
 
   const amountMatchStatus =
-    expectedAmountCents ===
-    reportedAmountCents
-      ? 'match'
-      : 'mismatch';
+    amountMismatch
+      ? 'mismatch'
+      : 'match';
 
 
-  const settlementCurrencyMatchStatus =
-    reportedCurrency ===
-    expectedCurrency
-      ? 'match'
-      : 'mismatch';
+  // This Receipt field means that the cardholder was
+  // offered a currency choice and selected the foreign /
+  // Receipt currency at the merchant.
+  const foreignCurrencyWasSelected =
+    receipt.foreignCurrencySettlementOffered === true;
 
 
+  // Currency-type mismatch only exists when the
+  // cardholder explicitly selected foreign currency
+  // at the merchant, but the card notification later
+  // shows TWD.
+  const currencyTypeMismatch =
+    foreignCurrencyWasSelected &&
+    notificationCurrencyType === 'local';
+
+
+  const currencyTypeMatchStatus =
+    currencyTypeMismatch
+      ? 'mismatch'
+      : 'match';
+
+
+  // Overall mismatch:
+  // 1. User says the notification amount does not match
+  // OR
+  // 2. Foreign currency was selected at the merchant,
+  //    but the card notification shows TWD.
   const hasMismatch =
-    amountMatchStatus === 'mismatch' ||
-    settlementCurrencyMatchStatus === 'mismatch';
+    amountMismatch ||
+    currencyTypeMismatch;
 
 
-  // Important:
-  // If user selected "Does not match" but entered the
-  // exact same amount + currency, warn them.
-  if (
-    !userSaysMatch &&
-    !hasMismatch
-  ) {
+  const mismatchReasons = [];
 
-    alert(
-      lang === 'zh-TW'
-        ? '你選擇了「不符」，但輸入的金額與幣值都和 Receipt 相同。請重新確認。'
-        : 'You selected "Does not match", but the amount and currency match the receipt.'
-    );
+  if (amountMismatch) {
+    mismatchReasons.push('amount');
+  }
 
-    return;
+  if (currencyTypeMismatch) {
+    mismatchReasons.push('currencyType');
   }
 
 
@@ -1044,8 +1116,11 @@ async function submitMyConfirmation({
         confirmationUserId:
           currentUser.uid,
 
+        // Currency type shown in the card notification
+        notificationCurrencyType,
 
-        // User's top-level answer
+
+        // User's amount answer
         confirmationResult:
           userSaysMatch
             ? 'match'
@@ -1056,6 +1131,7 @@ async function submitMyConfirmation({
         expectedAmount,
         reportedAmount,
         amountMatchStatus,
+        amountMismatch
 
 
         // Currency
@@ -1071,11 +1147,16 @@ async function submitMyConfirmation({
 
         reportedCurrency,
 
-        settlementCurrencyMatchStatus,
+        foreignCurrencyWasSelected,
+
+        currencyTypeMatchStatus,
+
+        currencyTypeMismatch,
 
 
         // Overall result
         hasMismatch,
+        mismatchReasons
 
         // Optional confirmation notes
         notes,
