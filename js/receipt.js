@@ -1905,57 +1905,170 @@ async function saveReceipt(status) {
 
   // ------------------------------------------------------
   // Card + Confirmation User Snapshot
+  
+  // Receipt keeps its own snapshot of:
+  // 1. confirmation users
+  // 2. card display information
+  //
+  // Therefore, later changes to the Card document
+  // DO NOT change an existing Receipt.
   // ------------------------------------------------------
 
-  let confirmationUserId =
-    null;
+  let confirmationUserIds = [];
 
 
-  if (paymentMethod === 'card') {
-
-    const cardSnapshot =
-      await getDoc(
-        doc(
-          db,
-          'cards',
-          cardId
-        )
-      );
+// Temporary backward-compatible primary confirmer.
+// Older modules still read confirmationUserId.
+// We will remove this only after My Confirmation /
+// Pending / Rules are migrated to confirmationUserIds.
+let confirmationUserId =
+  null;
 
 
-    if (!cardSnapshot.exists()) {
-
-      alert(
-        lang === 'zh-TW'
-          ? '找不到所選信用卡。'
-          : 'Selected card could not be found.'
-      );
-
-      return;
-    }
+// Snapshot of the card information at the moment
+// this receipt is created.
+let cardSnapshotData =
+  null;
 
 
-    const card =
-      cardSnapshot.data();
+if (paymentMethod === 'card') {
+
+  const cardDocument =
+    await getDoc(
+      doc(
+        db,
+        'cards',
+        cardId
+      )
+    );
 
 
-    if (card.active !== true) {
+  if (!cardDocument.exists()) {
 
-      alert(
-        lang === 'zh-TW'
-          ? '這張信用卡目前已停用。'
-          : 'This card is currently inactive.'
-      );
+    alert(
+      lang === 'zh-TW'
+        ? '找不到所選信用卡。'
+        : 'Selected card could not be found.'
+    );
 
-      return;
-    }
-
-
-    confirmationUserId =
-      card.confirmationUserId ||
-      null;
+    return;
   }
 
+
+  const card =
+    cardDocument.data();
+
+
+  // A new Receipt may only use an active card.
+  //
+  // This check affects NEW receipts only.
+  // If the card is disabled later, existing receipts
+  // are NOT changed.
+  if (card.active !== true) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '這張信用卡目前已停用。'
+        : 'This card is currently inactive.'
+    );
+
+    return;
+  }
+
+
+  // ----------------------------------------------------
+  // Confirmation-user snapshot
+  // ----------------------------------------------------
+  //
+  // New Card structure:
+  // confirmationUserIds: ["uid_A", "uid_B", ...]
+  //
+  // Legacy fallback:
+  // confirmationUserId: "uid_A"
+  // ----------------------------------------------------
+
+  if (
+    Array.isArray(
+      card.confirmationUserIds
+    )
+  ) {
+
+    confirmationUserIds =
+      card.confirmationUserIds
+        .filter(Boolean);
+
+  } else if (
+    card.confirmationUserId
+  ) {
+
+    confirmationUserIds =
+      [
+        card.confirmationUserId
+      ];
+  }
+
+
+  // Remove accidental duplicates.
+  confirmationUserIds =
+    [
+      ...new Set(
+        confirmationUserIds
+      )
+    ];
+
+
+  if (
+    confirmationUserIds.length === 0
+  ) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '這張信用卡尚未設定交易確認人。'
+        : 'This card does not have a confirmation user.'
+    );
+
+    return;
+  }
+
+
+  // Temporary legacy field.
+  //
+  // Existing My Confirmation / Pending modules
+  // can continue working before their migration.
+  confirmationUserId =
+    confirmationUserIds[0];
+
+
+  // ----------------------------------------------------
+  // Card display snapshot
+  // ----------------------------------------------------
+  //
+  // This preserves historical information.
+  //
+  // Example:
+  // Receipt created while nickname = "HSBC Travel"
+  // Card later renamed to "Family HSBC"
+  //
+  // This Receipt still records "HSBC Travel".
+  // ----------------------------------------------------
+
+  cardSnapshotData = {
+
+    nickname:
+      card.nickname || '',
+
+    issuer:
+      card.issuer || '',
+
+    network:
+      card.network || '',
+
+    last4:
+      card.last4 || ''
+  };
+}
+
+  
 
   // ------------------------------------------------------
   // Read Items
@@ -2352,7 +2465,37 @@ async function saveReceipt(status) {
 
           paymentMethod,
 
+          // ============================================
+          // Card Snapshot
+          // ============================================
+          //
+          // cardId keeps the relationship to the current
+          // Card document.
+          //
+          // cardSnapshot preserves what the card looked
+          // like when THIS Receipt was created.
+          // ============================================
+
           cardId,
+          cardSnapshot:
+            cardSnapshotData,
+
+          // ============================================
+          // Confirmation Assignment Snapshot
+          // ============================================
+          //
+          // This array belongs to the Receipt itself.
+          //
+          // Future changes to the Card's confirmation users
+          // must NOT modify this Receipt.
+          // ============================================
+
+          confirmationUserIds,
+
+          // Temporary backward compatibility.
+          //
+          // Existing confirmation modules still use this
+          // field until they are migrated.
 
           confirmationUserId,
 
