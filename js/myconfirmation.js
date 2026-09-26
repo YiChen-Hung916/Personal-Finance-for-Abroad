@@ -1,17 +1,14 @@
 // ======================================================
 // My Confirmation
 //
-// Purpose:
-// Show card transactions assigned to the currently
-// signed-in user and allow that user to confirm the
-// amount and settlement currency shown by the card.
-//
 // Firestore:
 //
 // receipts/{receiptId}
 //   └─ confirmations/{userUid}
 //
-// This module does NOT change the parent receipt status.
+// Supports:
+// 1. Full single-receipt confirmation page
+// 2. Dashboard quick confirmation
 // ======================================================
 
 
@@ -47,7 +44,6 @@ function formatMoney(value, currency) {
 
 
 function getExpectedCurrency(receipt) {
-
   return String(
     receipt.expectedSettlementCurrency ||
     receipt.currency ||
@@ -58,14 +54,57 @@ function getExpectedCurrency(receipt) {
 }
 
 
+function getCurrencyOptions(
+  selectedCurrency = ''
+) {
+
+  const currencies = [
+    'USD',
+    'TWD',
+    'JPY',
+    'EUR',
+    'GBP',
+    'CAD',
+    'AUD',
+    'KRW',
+    'HKD',
+    'SGD'
+  ];
+
+
+  const normalized =
+    String(selectedCurrency || '')
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    normalized &&
+    !currencies.includes(normalized)
+  ) {
+    currencies.unshift(normalized);
+  }
+
+
+  return currencies
+    .map(code => `
+      <option
+        value="${escapeHtml(code)}"
+        ${
+          code === normalized
+            ? 'selected'
+            : ''
+        }
+      >
+        ${escapeHtml(code)}
+      </option>
+    `)
+    .join('');
+}
+
+
 // ======================================================
-// Shared Data Function
-//
-// Used by:
-// 1. My Confirmation page
-// 2. Dashboard
-//
-// This ensures both places use exactly the same logic.
+// Get Pending Confirmations
 // ======================================================
 
 export async function getMyPendingConfirmations({
@@ -102,7 +141,6 @@ export async function getMyPendingConfirmations({
       receiptDoc.data();
 
 
-    // Only submitted card receipts need confirmation.
     if (data.status !== 'pending') {
       return;
     }
@@ -133,7 +171,6 @@ export async function getMyPendingConfirmations({
   });
 
 
-  // Remove receipts already confirmed by this user.
   const receiptsNeedingConfirmation = [];
 
 
@@ -154,7 +191,6 @@ export async function getMyPendingConfirmations({
 
 
     if (!confirmationSnapshot.exists()) {
-
       receiptsNeedingConfirmation.push(
         receipt
       );
@@ -167,14 +203,314 @@ export async function getMyPendingConfirmations({
 
 
 // ======================================================
-// Main Page
+// Shared Save Function
+//
+// BOTH Dashboard and full confirmation page use this.
+// ======================================================
+
+export async function saveMyConfirmation({
+  db,
+  currentUser,
+  receipt,
+  notificationCurrencyType,
+  amountMatchStatus,
+  reportedAmount = null,
+  reportedCurrency = null,
+  notes = ''
+}) {
+
+  if (!db || !currentUser || !receipt) {
+    throw new Error(
+      'Missing confirmation dependency.'
+    );
+  }
+
+
+  if (
+    notificationCurrencyType !== 'local' &&
+    notificationCurrencyType !== 'foreign'
+  ) {
+    throw new Error(
+      'Invalid notification currency type.'
+    );
+  }
+
+
+  if (
+    amountMatchStatus !== 'match' &&
+    amountMatchStatus !== 'mismatch'
+  ) {
+    throw new Error(
+      'Invalid amount confirmation result.'
+    );
+  }
+
+
+  if (
+    receipt.confirmationUserId !==
+    currentUser.uid
+  ) {
+    throw new Error(
+      'This transaction is not assigned to the current user.'
+    );
+  }
+
+
+  if (receipt.status !== 'pending') {
+    throw new Error(
+      'This transaction is not pending confirmation.'
+    );
+  }
+
+
+  const expectedAmount =
+    Number(receipt.total || 0);
+
+
+  const expectedCurrency =
+    getExpectedCurrency(receipt);
+
+
+  const amountMismatch =
+    amountMatchStatus === 'mismatch';
+
+
+  let finalReportedAmount;
+  let finalReportedCurrency;
+
+
+  // --------------------------------------------------
+  // Amount matches
+  // --------------------------------------------------
+
+  if (!amountMismatch) {
+
+    finalReportedAmount =
+      expectedAmount;
+
+    finalReportedCurrency =
+      expectedCurrency;
+  }
+
+
+  // --------------------------------------------------
+  // Amount mismatch
+  // --------------------------------------------------
+
+  else {
+
+    finalReportedAmount =
+      Number(reportedAmount);
+
+
+    if (
+      !Number.isFinite(finalReportedAmount) ||
+      finalReportedAmount < 0
+    ) {
+      throw new Error(
+        'Invalid card notification amount.'
+      );
+    }
+
+
+    finalReportedCurrency =
+      String(
+        reportedCurrency || ''
+      )
+        .trim()
+        .toUpperCase();
+
+
+    if (!finalReportedCurrency) {
+      throw new Error(
+        'Card notification currency is required.'
+      );
+    }
+  }
+
+
+  // --------------------------------------------------
+  // Currency-type mismatch
+  // --------------------------------------------------
+
+  const foreignCurrencyWasSelected =
+    receipt.foreignCurrencySettlementOffered === true;
+
+
+  const currencyTypeMismatch =
+    foreignCurrencyWasSelected &&
+    notificationCurrencyType === 'local';
+
+
+  const currencyTypeMatchStatus =
+    currencyTypeMismatch
+      ? 'mismatch'
+      : 'match';
+
+
+  // --------------------------------------------------
+  // Overall mismatch
+  // --------------------------------------------------
+
+  const hasMismatch =
+    amountMismatch ||
+    currencyTypeMismatch;
+
+
+  const mismatchReasons = [];
+
+
+  if (amountMismatch) {
+    mismatchReasons.push('amount');
+  }
+
+
+  if (currencyTypeMismatch) {
+    mismatchReasons.push(
+      'currencyType'
+    );
+  }
+
+
+  // --------------------------------------------------
+  // Confirmation document
+  // --------------------------------------------------
+
+  const confirmationRef =
+    doc(
+      db,
+      'receipts',
+      receipt.id,
+      'confirmations',
+      currentUser.uid
+    );
+
+
+  const existingConfirmation =
+    await getDoc(
+      confirmationRef
+    );
+
+
+  if (existingConfirmation.exists()) {
+    throw new Error(
+      'This transaction has already been confirmed.'
+    );
+  }
+
+
+  await setDoc(
+    confirmationRef,
+    {
+      receiptId:
+        receipt.id,
+
+      confirmationUserId:
+        currentUser.uid,
+
+
+      // Currency type shown by card notification
+      notificationCurrencyType,
+
+
+      // Amount answer
+      confirmationResult:
+        amountMismatch
+          ? 'mismatch'
+          : 'match',
+
+      expectedAmount,
+
+      reportedAmount:
+        finalReportedAmount,
+
+      amountMatchStatus,
+
+      amountMismatch,
+
+
+      // Currency
+      receiptCurrency:
+        String(
+          receipt.currency || ''
+        )
+          .trim()
+          .toUpperCase(),
+
+      expectedSettlementCurrency:
+        expectedCurrency,
+
+      reportedCurrency:
+        finalReportedCurrency,
+
+      foreignCurrencyWasSelected,
+
+      currencyTypeMatchStatus,
+
+      currencyTypeMismatch,
+
+
+      // Overall
+      hasMismatch,
+
+      mismatchReasons,
+
+
+      // Notes
+      notes:
+        String(notes || '').trim(),
+
+
+      // Owner resolution
+      mismatchResolved:
+        false,
+
+      mismatchResolvedAt:
+        null,
+
+      mismatchResolvedBy:
+        null,
+
+
+      // Audit
+      confirmedAt:
+        serverTimestamp(),
+
+      confirmedBy:
+        currentUser.uid,
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp()
+    }
+  );
+
+
+  return {
+    hasMismatch,
+    amountMismatch,
+    currencyTypeMismatch,
+    mismatchReasons
+  };
+}
+
+
+// ======================================================
+// Main Confirmation Page
+//
+// receiptId:
+// - provided -> show that receipt
+// - missing  -> show first pending receipt
 // ======================================================
 
 export async function myConfirmationPage({
   db,
   currentUser,
   lang,
-  page
+  page,
+  receiptId = null
 }) {
 
   if (!db || !currentUser || !page) {
@@ -202,12 +538,11 @@ export async function myConfirmationPage({
         ${
           lang === 'zh-TW'
             ? '請依照信用卡通知核對交易是否與 Receipt 相符。'
-            : 'Compare each transaction with the card notification.'
+            : 'Compare the transaction with the card notification.'
         }
       </p>
 
       <div id="myConfirmationList">
-
         <p class="muted">
           ${
             lang === 'zh-TW'
@@ -215,7 +550,6 @@ export async function myConfirmationPage({
               : 'Loading…'
           }
         </p>
-
       </div>
 
     </section>
@@ -248,118 +582,33 @@ export async function myConfirmationPage({
     }
 
 
-    list.innerHTML =
-      receipts
-        .map(receipt =>
-          confirmationCardHtml(
-            receipt,
-            lang
-          )
-        )
-        .join('');
+    let currentIndex = 0;
 
 
+    if (receiptId) {
 
-    page
-  .querySelectorAll(
-    '.viewReceiptDetailBtn'
-  )
-  .forEach(button => {
-
-    button.addEventListener(
-      'click',
-      () => {
-
-        const receiptId =
-          button.dataset.receiptId;
-
-        if (!receiptId) {
-          return;
-        }
-
-        location.hash =
-          `#receipt-detail/${receiptId}`;
-      }
-    );
-
-  });
-    
-    // ==================================================
-    // Match / Mismatch radio buttons
-    // ==================================================
-
-    list
-      .querySelectorAll(
-        '.my-confirmation-card'
-      )
-      .forEach(card => {
-
-        const radios =
-          card.querySelectorAll(
-            '.confirmation-match-choice'
-          );
-
-
-        const mismatchFields =
-          card.querySelector(
-            '.mismatch-fields'
-          );
-
-
-        radios.forEach(radio => {
-
-          radio.addEventListener(
-            'change',
-            () => {
-
-              mismatchFields.hidden =
-                radio.value !== 'mismatch';
-            }
-          );
-        });
-      });
-
-
-    // ==================================================
-    // Submit buttons
-    // ==================================================
-
-    list
-      .querySelectorAll(
-        '.submit-my-confirmation-btn'
-      )
-      .forEach(button => {
-
-        button.addEventListener(
-          'click',
-          async () => {
-
-            const receiptId =
-              button.dataset.receiptId;
-
-
-            const receipt =
-              receipts.find(
-                item =>
-                  item.id === receiptId
-              );
-
-
-            if (!receipt) {
-              return;
-            }
-
-
-            await submitMyConfirmation({
-              db,
-              currentUser,
-              lang,
-              receipt,
-              button
-            });
-          }
+      const requestedIndex =
+        receipts.findIndex(
+          receipt =>
+            receipt.id === receiptId
         );
-      });
+
+
+      if (requestedIndex !== -1) {
+        currentIndex =
+          requestedIndex;
+      }
+    }
+
+
+    renderSingleConfirmation({
+      db,
+      currentUser,
+      lang,
+      list,
+      receipts,
+      currentIndex
+    });
 
 
   } catch (error) {
@@ -392,6 +641,122 @@ export async function myConfirmationPage({
 
 
 // ======================================================
+// Render One Confirmation
+// ======================================================
+
+function renderSingleConfirmation({
+  db,
+  currentUser,
+  lang,
+  list,
+  receipts,
+  currentIndex
+}) {
+
+  const receipt =
+    receipts[currentIndex];
+
+
+  if (!receipt) {
+
+    renderEmptyState(
+      list,
+      lang
+    );
+
+    return;
+  }
+
+
+  list.innerHTML =
+    confirmationCardHtml(
+      receipt,
+      lang
+    );
+
+
+  // --------------------------------------------------
+  // View receipt details
+  // --------------------------------------------------
+
+  const detailButton =
+    list.querySelector(
+      '.viewReceiptDetailBtn'
+    );
+
+
+  if (detailButton) {
+
+    detailButton.onclick = () => {
+
+      location.hash =
+        `#receipt-detail/${receipt.id}`;
+    };
+  }
+
+
+  // --------------------------------------------------
+  // Match / mismatch UI
+  // --------------------------------------------------
+
+  const card =
+    list.querySelector(
+      '.my-confirmation-card'
+    );
+
+
+  const mismatchFields =
+    card.querySelector(
+      '.mismatch-fields'
+    );
+
+
+  card
+    .querySelectorAll(
+      '.confirmation-match-choice'
+    )
+    .forEach(radio => {
+
+      radio.addEventListener(
+        'change',
+        () => {
+
+          mismatchFields.hidden =
+            radio.value !== 'mismatch';
+        }
+      );
+    });
+
+
+  // --------------------------------------------------
+  // Submit
+  // --------------------------------------------------
+
+  const submitButton =
+    card.querySelector(
+      '.submit-my-confirmation-btn'
+    );
+
+
+  submitButton.onclick =
+    async () => {
+
+      await submitFullConfirmation({
+        db,
+        currentUser,
+        lang,
+        receipt,
+        button:
+          submitButton,
+        receipts,
+        currentIndex,
+        list
+      });
+    };
+}
+
+
+// ======================================================
 // Empty State
 // ======================================================
 
@@ -411,6 +776,19 @@ function renderEmptyState(
         }
       </p>
 
+      <div class="actions">
+        <button
+          type="button"
+          onclick="location.hash='#dashboard'"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '回到 Dashboard'
+              : 'Back to Dashboard'
+          }
+        </button>
+      </div>
+
     </div>
   `;
 }
@@ -425,16 +803,10 @@ function confirmationCardHtml(
   lang
 ) {
 
-  const receiptCurrency =
-    String(
-      receipt.currency || ''
-    )
-      .trim()
-      .toUpperCase();
-
-
   const expectedCurrency =
-    getExpectedCurrency(receipt);
+    getExpectedCurrency(
+      receipt
+    );
 
 
   const expectedAmount =
@@ -443,46 +815,10 @@ function confirmationCardHtml(
     );
 
 
-  const currencies = [
-    'USD',
-    'TWD',
-    'JPY',
-    'EUR',
-    'GBP',
-    'CAD',
-    'AUD',
-    'KRW',
-    'HKD',
-    'SGD'
-  ];
-
-
-  if (
-    expectedCurrency &&
-    !currencies.includes(expectedCurrency)
-  ) {
-
-    currencies.unshift(
+  const currencyOptions =
+    getCurrencyOptions(
       expectedCurrency
     );
-  }
-
-
-  const currencyOptions =
-    currencies
-      .map(code => `
-        <option
-          value="${escapeHtml(code)}"
-          ${
-            code === expectedCurrency
-              ? 'selected'
-              : ''
-          }
-        >
-          ${escapeHtml(code)}
-        </option>
-      `)
-      .join('');
 
 
   return `
@@ -521,7 +857,9 @@ function confirmationCardHtml(
             receipt.branch
               ? `
                 <div class="muted">
-                  ${escapeHtml(receipt.branch)}
+                  ${escapeHtml(
+                    receipt.branch
+                  )}
                 </div>
               `
               : ''
@@ -533,11 +871,7 @@ function confirmationCardHtml(
         <div class="my-confirmation-total">
 
           <div class="muted">
-            ${
-              lang === 'zh-TW'
-                ? 'Receipt'
-                : 'Receipt'
-            }
+            Receipt
           </div>
 
           <strong>
@@ -551,12 +885,12 @@ function confirmationCardHtml(
 
       </div>
 
+
       <div class="actions">
 
         <button
           type="button"
           class="viewReceiptDetailBtn"
-          data-receipt-id="${escapeHtml(receipt.id)}"
         >
           ${
             lang === 'zh-TW'
@@ -565,11 +899,13 @@ function confirmationCardHtml(
           }
         </button>
 
-</div>
+      </div>
 
 
       <hr>
-       <div class="field">
+
+
+      <div class="field">
 
         <span class="field-label">
 
@@ -644,7 +980,6 @@ function confirmationCardHtml(
             class="confirmation-match-choice"
             name="match-${escapeHtml(receipt.id)}"
             value="match"
-            checked
           >
 
           ${
@@ -750,11 +1085,13 @@ function confirmationCardHtml(
       <label class="field">
 
         <span class="field-label">
+
           ${
             lang === 'zh-TW'
               ? '備註（選填）'
               : 'Notes (optional)'
           }
+
         </span>
 
         <textarea
@@ -799,15 +1136,18 @@ function confirmationCardHtml(
 
 
 // ======================================================
-// Submit Confirmation
+// Submit Full Confirmation
 // ======================================================
 
-async function submitMyConfirmation({
+async function submitFullConfirmation({
   db,
   currentUser,
   lang,
   receipt,
-  button
+  button,
+  receipts,
+  currentIndex,
+  list
 }) {
 
   const card =
@@ -819,7 +1159,12 @@ async function submitMyConfirmation({
   if (!card) {
     return;
   }
-  
+
+
+  // --------------------------------------------------
+  // Currency type
+  // --------------------------------------------------
+
   const currencyTypeChoice =
     card.querySelector(
       '.notification-currency-type:checked'
@@ -838,9 +1183,9 @@ async function submitMyConfirmation({
   }
 
 
-  const notificationCurrencyType =
-    currencyTypeChoice.value;
-
+  // --------------------------------------------------
+  // Amount match choice
+  // --------------------------------------------------
 
   const selectedChoice =
     card.querySelector(
@@ -849,13 +1194,25 @@ async function submitMyConfirmation({
 
 
   if (!selectedChoice) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '請選擇信用卡通知金額是相符或不符。'
+        : 'Please select whether the card notification amount matches.'
+    );
+
     return;
   }
 
 
-  const userSaysMatch =
-    selectedChoice.value === 'match';
-  
+  const notificationCurrencyType =
+    currencyTypeChoice.value;
+
+
+  const amountMatchStatus =
+    selectedChoice.value;
+
+
   const notes =
     card
       .querySelector(
@@ -865,40 +1222,17 @@ async function submitMyConfirmation({
       .trim() || '';
 
 
-
-  const expectedAmount =
-    Number(
-      receipt.total || 0
-    );
+  let reportedAmount = null;
+  let reportedCurrency = null;
 
 
-  const expectedCurrency =
-    getExpectedCurrency(receipt);
+  // --------------------------------------------------
+  // Mismatch fields
+  // --------------------------------------------------
 
-
-  let reportedAmount;
-  let reportedCurrency;
-
-
-  // ====================================================
-  // User selected "Match"
-  // ====================================================
-
-  if (userSaysMatch) {
-
-    reportedAmount =
-      expectedAmount;
-
-    reportedCurrency =
-      expectedCurrency;
-  }
-
-
-  // ====================================================
-  // User selected "Mismatch"
-  // ====================================================
-
-  else {
+  if (
+    amountMatchStatus === 'mismatch'
+  ) {
 
     const amountInput =
       card.querySelector(
@@ -972,65 +1306,6 @@ async function submitMyConfirmation({
   }
 
 
-  // ====================================================
-  // Calculate Match Status
-  // ====================================================
-
-  // The user's amount answer directly determines
-  // whether the amount is considered a mismatch.
-  const amountMismatch =
-    !userSaysMatch;
-
-
-  const amountMatchStatus =
-    amountMismatch
-      ? 'mismatch'
-      : 'match';
-
-
-  // This Receipt field means that the cardholder was
-  // offered a currency choice and selected the foreign /
-  // Receipt currency at the merchant.
-  const foreignCurrencyWasSelected =
-    receipt.foreignCurrencySettlementOffered === true;
-
-
-  // Currency-type mismatch only exists when the
-  // cardholder explicitly selected foreign currency
-  // at the merchant, but the card notification later
-  // shows TWD.
-  const currencyTypeMismatch =
-    foreignCurrencyWasSelected &&
-    notificationCurrencyType === 'local';
-
-
-  const currencyTypeMatchStatus =
-    currencyTypeMismatch
-      ? 'mismatch'
-      : 'match';
-
-
-  // Overall mismatch:
-  // 1. User says the notification amount does not match
-  // OR
-  // 2. Foreign currency was selected at the merchant,
-  //    but the card notification shows TWD.
-  const hasMismatch =
-    amountMismatch ||
-    currencyTypeMismatch;
-
-
-  const mismatchReasons = [];
-
-  if (amountMismatch) {
-    mismatchReasons.push('amount');
-  }
-
-  if (currencyTypeMismatch) {
-    mismatchReasons.push('currencyType');
-  }
-
-
   button.disabled = true;
 
 
@@ -1042,155 +1317,18 @@ async function submitMyConfirmation({
 
   try {
 
-    // ==================================================
-    // Safety checks
-    // ==================================================
-
-    if (
-      receipt.confirmationUserId !==
-      currentUser.uid
-    ) {
-
-      throw new Error(
-        lang === 'zh-TW'
-          ? '這筆交易不是指定給目前使用者確認。'
-          : 'This transaction is not assigned to the current user.'
-      );
-    }
-
-
-    if (
-      receipt.status !== 'pending'
-    ) {
-
-      throw new Error(
-        lang === 'zh-TW'
-          ? '這筆交易目前不是待確認狀態。'
-          : 'This transaction is not pending confirmation.'
-      );
-    }
-
-
-    // ==================================================
-    // Confirmation Document
-    // ==================================================
-
-    const confirmationRef =
-      doc(
+    const result =
+      await saveMyConfirmation({
         db,
-        'receipts',
-        receipt.id,
-        'confirmations',
-        currentUser.uid
-      );
-
-
-    const existingConfirmation =
-      await getDoc(
-        confirmationRef
-      );
-
-
-    if (
-      existingConfirmation.exists()
-    ) {
-
-      throw new Error(
-        lang === 'zh-TW'
-          ? '這筆交易已經確認過。'
-          : 'This transaction has already been confirmed.'
-      );
-    }
-
-
-    // ==================================================
-    // Save
-    // ==================================================
-
-    await setDoc(
-      confirmationRef,
-      {
-        receiptId:
-          receipt.id,
-
-        confirmationUserId:
-          currentUser.uid,
-
-        // Currency type shown in the card notification
+        currentUser,
+        receipt,
         notificationCurrencyType,
-
-
-        // User's amount answer
-        confirmationResult:
-          userSaysMatch
-            ? 'match'
-            : 'mismatch',
-
-
-        // Amount
-        expectedAmount,
-        reportedAmount,
         amountMatchStatus,
-        amountMismatch,
-
-
-        // Currency
-        receiptCurrency:
-          String(
-            receipt.currency || ''
-          )
-            .trim()
-            .toUpperCase(),
-
-        expectedSettlementCurrency:
-          expectedCurrency,
-
+        reportedAmount,
         reportedCurrency,
+        notes
+      });
 
-        foreignCurrencyWasSelected,
-
-        currencyTypeMatchStatus,
-
-        currencyTypeMismatch,
-
-
-        // Overall result
-        hasMismatch,
-        mismatchReasons,
-
-        // Optional confirmation notes
-        notes,
-
-        // Owner resolution
-        mismatchResolved:
-          false,
-
-        mismatchResolvedAt:
-          null,
-
-        mismatchResolvedBy:
-          null,
-
-
-        // Audit
-        confirmedAt:
-          serverTimestamp(),
-
-        confirmedBy:
-          currentUser.uid,
-
-        createdAt:
-          serverTimestamp(),
-
-        updatedAt:
-          serverTimestamp()
-      }
-    );
-
-
-    // ==================================================
-    // Success
-    // ==================================================
 
     const resultBox =
       card.querySelector(
@@ -1205,7 +1343,7 @@ async function submitMyConfirmation({
     resultBox.innerHTML = `
       <strong>
         ${
-          hasMismatch
+          result.hasMismatch
             ? (
                 lang === 'zh-TW'
                   ? '已送出：資料不符'
@@ -1221,7 +1359,7 @@ async function submitMyConfirmation({
     `;
 
 
-    if (hasMismatch) {
+    if (result.hasMismatch) {
 
       resultBox.classList.add(
         'warn'
@@ -1235,35 +1373,153 @@ async function submitMyConfirmation({
         : 'Confirmed';
 
 
-    setTimeout(() => {
-
-      card.remove();
-
-
-      const remaining =
-        document.querySelectorAll(
-          '.my-confirmation-card'
-        );
-
-
-      if (remaining.length === 0) {
-
-        const list =
-          document.querySelector(
-            '#myConfirmationList'
-          );
+    // Disable confirmation inputs after submission.
+    card
+      .querySelectorAll(
+        'input, select, textarea'
+      )
+      .forEach(input => {
+        input.disabled = true;
+      });
 
 
-        if (list) {
+    // Remove submit button.
+    button.hidden = true;
 
-          renderEmptyState(
-            list,
-            lang
-          );
-        }
+
+    // ------------------------------------------------
+    // Navigation appears AFTER confirmation
+    // ------------------------------------------------
+
+    const previousReceipt =
+      currentIndex > 0
+        ? receipts[currentIndex - 1]
+        : null;
+
+
+    const nextReceipt =
+      currentIndex < receipts.length - 1
+        ? receipts[currentIndex + 1]
+        : null;
+
+
+    const navigation =
+      document.createElement(
+        'div'
+      );
+
+
+    navigation.className =
+      'actions confirmation-navigation';
+
+
+    navigation.innerHTML = `
+
+      ${
+        previousReceipt
+          ? `
+            <button
+              type="button"
+              class="previousConfirmationBtn"
+            >
+              ${
+                lang === 'zh-TW'
+                  ? '← 前一筆'
+                  : '← Previous'
+              }
+            </button>
+          `
+          : ''
       }
 
-    }, 1200);
+
+      <button
+        type="button"
+        class="dashboardConfirmationBtn"
+      >
+        ${
+          lang === 'zh-TW'
+            ? '回到 Dashboard'
+            : 'Back to Dashboard'
+        }
+      </button>
+
+
+      ${
+        nextReceipt
+          ? `
+            <button
+              type="button"
+              class="nextConfirmationBtn primary"
+            >
+              ${
+                lang === 'zh-TW'
+                  ? '下一筆 →'
+                  : 'Next →'
+              }
+            </button>
+          `
+          : ''
+      }
+
+    `;
+
+
+    card.appendChild(
+      navigation
+    );
+
+
+    const previousButton =
+      navigation.querySelector(
+        '.previousConfirmationBtn'
+      );
+
+
+    if (
+      previousButton &&
+      previousReceipt
+    ) {
+
+      previousButton.onclick =
+        () => {
+
+          location.hash =
+            `#my-confirmations/${previousReceipt.id}`;
+        };
+    }
+
+
+    const nextButton =
+      navigation.querySelector(
+        '.nextConfirmationBtn'
+      );
+
+
+    if (
+      nextButton &&
+      nextReceipt
+    ) {
+
+      nextButton.onclick =
+        () => {
+
+          location.hash =
+            `#my-confirmations/${nextReceipt.id}`;
+        };
+    }
+
+
+    navigation
+      .querySelector(
+        '.dashboardConfirmationBtn'
+      )
+      .onclick =
+        () => {
+
+          location.hash =
+            '#dashboard';
+        };
 
 
   } catch (error) {
