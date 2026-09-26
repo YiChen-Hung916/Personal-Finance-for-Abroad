@@ -340,6 +340,19 @@ export async function receiptDetailPage({
 
     }
 
+
+    const receiptWithReminder =
+  attachPendingReminderInfo(
+    receipt
+  );
+
+
+const reminderClass =
+  getPendingReminderClass(
+    receiptWithReminder.daysWaiting
+  );
+
+    
     
     // ==================================================
     // Render
