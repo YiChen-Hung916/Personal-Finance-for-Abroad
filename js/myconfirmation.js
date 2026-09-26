@@ -873,7 +873,104 @@ function renderSingleConfirmation({
       lang
     );
 
+// --------------------------------------------------
+// Restore Dashboard quick-confirmation draft
+// --------------------------------------------------
 
+const draftKey =
+  `confirmation-draft-${receipt.id}`;
+
+
+const draftRaw =
+  sessionStorage.getItem(
+    draftKey
+  );
+
+
+if (draftRaw) {
+
+  try {
+
+    const draft =
+      JSON.parse(
+        draftRaw
+      );
+
+
+    const restoredCard =
+      list.querySelector(
+        '.my-confirmation-card'
+      );
+
+
+    if (
+      draft.notificationCurrencyType
+    ) {
+
+      const currencyRadio =
+        restoredCard.querySelector(
+          `.notification-currency-type[value="${draft.notificationCurrencyType}"]`
+        );
+
+
+      if (currencyRadio) {
+        currencyRadio.checked =
+          true;
+      }
+    }
+
+
+    if (
+      draft.amountMatchStatus
+    ) {
+
+      const amountRadio =
+        restoredCard.querySelector(
+          `.confirmation-match-choice[value="${draft.amountMatchStatus}"]`
+        );
+
+
+      if (amountRadio) {
+        amountRadio.checked =
+          true;
+      }
+
+
+      const restoredMismatchFields =
+        restoredCard.querySelector(
+          '.mismatch-fields'
+        );
+
+
+      if (restoredMismatchFields) {
+
+        restoredMismatchFields.hidden =
+          draft.amountMatchStatus !==
+          'mismatch';
+      }
+    }
+
+
+    sessionStorage.removeItem(
+      draftKey
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to restore confirmation draft:',
+      error
+    );
+
+
+    sessionStorage.removeItem(
+      draftKey
+    );
+  }
+}
+
+  
   // --------------------------------------------------
   // View receipt details
   // --------------------------------------------------
