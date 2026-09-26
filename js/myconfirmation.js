@@ -123,7 +123,30 @@ export async function getMyPendingConfirmations({
   }
 
 
-  const receiptQuery =
+  // ====================================================
+  // New receipts:
+  // confirmationUserIds: [uidA, uidB, uidC]
+  // ====================================================
+
+  const multiUserQuery =
+    query(
+      collection(db, 'receipts'),
+      where(
+        'confirmationUserIds',
+        'array-contains',
+        currentUser.uid
+      )
+    );
+
+
+  // ====================================================
+  // Legacy receipts:
+  // confirmationUserId: uidA
+  //
+  // Keep this temporarily so old receipts still work.
+  // ====================================================
+
+  const legacyUserQuery =
     query(
       collection(db, 'receipts'),
       where(
@@ -134,34 +157,69 @@ export async function getMyPendingConfirmations({
     );
 
 
-  const receiptSnapshot =
-    await getDocs(receiptQuery);
+  const [
+    multiUserSnapshot,
+    legacyUserSnapshot
+  ] =
+    await Promise.all([
+      getDocs(multiUserQuery),
+      getDocs(legacyUserQuery)
+    ]);
 
 
-  const assignedReceipts = [];
+  // ====================================================
+  // Merge both query results
+  //
+  // A new receipt may match BOTH queries because during
+  // migration we still keep confirmationUserId as the
+  // first confirmer. Map prevents duplicates.
+  // ====================================================
+
+  const receiptMap =
+    new Map();
 
 
-  receiptSnapshot.forEach(receiptDoc => {
+  const addReceipt =
+    receiptDoc => {
 
-    const data =
-      receiptDoc.data();
-
-
-    if (data.status !== 'pending') {
-      return;
-    }
+      const data =
+        receiptDoc.data();
 
 
-    if (data.paymentMethod !== 'card') {
-      return;
-    }
+      if (data.status !== 'pending') {
+        return;
+      }
 
 
-    assignedReceipts.push({
-      id: receiptDoc.id,
-      ...data
-    });
-  });
+      if (data.paymentMethod !== 'card') {
+        return;
+      }
+
+
+      receiptMap.set(
+        receiptDoc.id,
+        {
+          id: receiptDoc.id,
+          ...data
+        }
+      );
+    };
+
+
+  multiUserSnapshot.forEach(
+    addReceipt
+  );
+
+
+  legacyUserSnapshot.forEach(
+    addReceipt
+  );
+
+
+  const assignedReceipts =
+    Array.from(
+      receiptMap.values()
+    );
 
 
   // Newest first
@@ -180,23 +238,35 @@ export async function getMyPendingConfirmations({
   const receiptsNeedingConfirmation = [];
 
 
+  // ====================================================
+  // IMPORTANT:
+  //
+  // A receipt is complete as soon as ANY assigned user
+  // has submitted a confirmation.
+  //
+  // Therefore we check the entire confirmations
+  // subcollection, not only confirmations/currentUser.
+  // ====================================================
+
   for (const receipt of assignedReceipts) {
 
-    const confirmationRef =
-      doc(
+    const confirmationsRef =
+      collection(
         db,
         'receipts',
         receipt.id,
-        'confirmations',
-        currentUser.uid
+        'confirmations'
       );
 
 
     const confirmationSnapshot =
-      await getDoc(confirmationRef);
+      await getDocs(
+        confirmationsRef
+      );
 
 
-    if (!confirmationSnapshot.exists()) {
+    if (confirmationSnapshot.empty) {
+
       receiptsNeedingConfirmation.push(
         receipt
       );
@@ -253,10 +323,39 @@ export async function saveMyConfirmation({
   }
 
 
-  if (
-    receipt.confirmationUserId !==
-    currentUser.uid
-  ) {
+  // ====================================================
+  // Confirm that the current user is assigned
+  //
+  // New receipts:
+  //   confirmationUserIds: [uidA, uidB, uidC]
+  //
+  // Legacy receipts:
+  //   confirmationUserId: uidA
+  // ====================================================
+
+  const assignedConfirmationUserIds =
+    Array.isArray(
+      receipt.confirmationUserIds
+    )
+      ? receipt.confirmationUserIds.filter(
+          Boolean
+        )
+      : [];
+
+
+  const isAssignedUser =
+    assignedConfirmationUserIds.includes(
+      currentUser.uid
+    ) ||
+    (
+      assignedConfirmationUserIds.length === 0 &&
+      receipt.confirmationUserId ===
+        currentUser.uid
+    );
+
+
+  if (!isAssignedUser) {
+
     throw new Error(
       'This transaction is not assigned to the current user.'
     );
@@ -402,6 +501,39 @@ const currencyTypeMatchStatus =
   // Confirmation document
   // --------------------------------------------------
 
+    // ====================================================
+  // Confirmation document
+  //
+  // Any ONE assigned confirmer completes the receipt.
+  // Therefore check whether ANY confirmation already
+  // exists before allowing another submission.
+  // ====================================================
+
+  const confirmationsRef =
+    collection(
+      db,
+      'receipts',
+      receipt.id,
+      'confirmations'
+    );
+
+
+  const existingConfirmations =
+    await getDocs(
+      confirmationsRef
+    );
+
+
+  if (!existingConfirmations.empty) {
+
+    throw new Error(
+      'This transaction has already been confirmed.'
+    );
+  }
+
+
+  // The confirmation document is still stored under
+  // the UID of the person who actually confirmed it.
   const confirmationRef =
     doc(
       db,
@@ -410,20 +542,7 @@ const currencyTypeMatchStatus =
       'confirmations',
       currentUser.uid
     );
-
   
-  const existingConfirmation =
-    await getDoc(
-      confirmationRef
-    );
- 
-
-  if (existingConfirmation.exists()) {
-    throw new Error(
-    'This transaction has already been confirmed.'
-  );
-  }
-
   
   await setDoc(
     confirmationRef,
