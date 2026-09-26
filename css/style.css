@@ -1050,18 +1050,40 @@
 
 
 .card-list-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
 
+  gap: 6px;
+
+  width: 100%;
   margin-top: 4px;
 }
 
 
-.card-status {
+.card-list-footer > .card-status {
+  flex: 0 0 auto !important;
+
+  width: auto !important;
+  margin: 0 !important;
+
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+
+.card-list-footer > .editCardBtn {
+  flex: 0 0 auto !important;
+
+  width: auto !important;
+  min-width: 0 !important;
+
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+
+  padding: 7px 10px;
 }
 
 
@@ -1072,11 +1094,4 @@
 
 .card-status-inactive {
   opacity: 0.55;
-}
-
-
-.card-list-footer .editCardBtn {
-  width: auto;
-  margin: 0;
-  padding: 7px 12px;
 }
