@@ -1321,7 +1321,7 @@ async function editCard(cardId) {
         })}
 
 
-        <label class="field">
+        <label class="card-active-toggle">
 
           <input
             type="checkbox"
@@ -1333,11 +1333,13 @@ async function editCard(cardId) {
             }
           >
 
+          <span>
           ${
             lang === 'zh-TW'
               ? '使用中'
               : 'Active'
           }
+          </span>
 
         </label>
 
