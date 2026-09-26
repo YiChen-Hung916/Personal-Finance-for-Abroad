@@ -33,6 +33,10 @@ import {
 } from './mismatch.js';
 
 import {
+  historyPage
+} from './history.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -2348,6 +2352,15 @@ if (r === 'dashboard') {
     page,
     receiptId
   });
+} else if (r === 'history') {
+
+  historyPage({
+    db,
+    currentRole,
+    lang,
+    page
+  });
+
 } else if (r === 'cards') {
 
   cardsPage();
