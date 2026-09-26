@@ -18,7 +18,10 @@ import {
 import {
   pendingPage,
   getAllPendingReceipts,
-  groupPendingByUser
+  groupPendingByUser,
+  attachPendingReminderInfo,
+  getPendingReminderClass,
+  getPendingReminderText
 } from './pending.js';
 
 import {
