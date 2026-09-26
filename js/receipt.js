@@ -2408,7 +2408,7 @@ async function saveReceipt(status) {
           submittedAt:
             status === 'pending'
               ? serverTimestamp()
-              : null
+              : null,
           submittedDate:
             status === 'pending'
               ? localSubmittedDate
