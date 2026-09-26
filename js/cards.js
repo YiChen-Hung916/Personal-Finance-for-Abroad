@@ -199,88 +199,123 @@ const userNameMap =
 
     function cardHtml(card) {
 
-      const confirmationUserIds =
-        getCardConfirmationUserIds(
-          card
+  const confirmationUserIds =
+    getCardConfirmationUserIds(
+      card
+    );
+
+
+  const confirmationUserNames =
+    confirmationUserIds
+      .map(userId =>
+        userNameMap.get(userId) ||
+        userId
+      );
+
+
+  const confirmerText =
+    confirmationUserNames.length > 0
+      ? confirmationUserNames.join('、')
+      : (
+          lang === 'zh-TW'
+            ? '尚未設定'
+            : 'Not assigned'
         );
 
 
-      return `
-        <div class="item">
+  return `
+    <div class="item card-list-item">
 
-          <h3>
-            ${escapeHtml(
-              card.nickname || ''
-            )}
-          </h3>
-
-
-          <p>
-            ${escapeHtml(
-              card.issuer || ''
-            )}
-            ·
-            ${escapeHtml(
-              card.network || ''
-            )}
-          </p>
+      <h3 class="card-list-nickname">
+        ${escapeHtml(
+          card.nickname || ''
+        )}
+      </h3>
 
 
-          <p>
-            ••••
-            ${escapeHtml(
-              card.last4 || ''
-            )}
-          </p>
+      <div class="card-list-details">
+
+        <span>
+          ${escapeHtml(
+            card.issuer || ''
+          )}
+          ·
+          ${escapeHtml(
+            card.network || ''
+          )}
+          ·
+          ${escapeHtml(
+            card.last4 || ''
+          )}
+        </span>
+
+      </div>
 
 
+      <div class="card-list-confirmers">
+
+        <span class="muted">
           ${
-            confirmationUserIds.length > 1
-              ? `
-                <p class="muted">
-                  ${
-                    lang === 'zh-TW'
-                      ? `${confirmationUserIds.length} 位交易確認人`
-                      : `${confirmationUserIds.length} confirmation users`
-                  }
-                </p>
-              `
-              : ''
+            lang === 'zh-TW'
+              ? '確認人：'
+              : 'Confirmers: '
           }
+        </span>
+
+        <span>
+          ${escapeHtml(
+            confirmerText
+          )}
+        </span>
+
+      </div>
 
 
-          <p class="muted">
+      <div class="card-list-footer">
+
+        <span
+          class="
+            card-status
             ${
               card.active === true
-                ? (
-                    lang === 'zh-TW'
-                      ? '使用中'
-                      : 'Active'
-                  )
-                : (
-                    lang === 'zh-TW'
-                      ? '未啟用'
-                      : 'Inactive'
-                  )
+                ? 'card-status-active'
+                : 'card-status-inactive'
             }
-          </p>
+          "
+        >
+          ${
+            card.active === true
+              ? (
+                  lang === 'zh-TW'
+                    ? '使用中'
+                    : 'Active'
+                )
+              : (
+                  lang === 'zh-TW'
+                    ? '未啟用'
+                    : 'Inactive'
+                )
+          }
+        </span>
 
 
-          <button
-            class="editCardBtn"
-            data-id="${escapeHtml(card.id)}"
-          >
-            ${
-              lang === 'zh-TW'
-                ? '編輯'
-                : 'Edit'
-            }
-          </button>
+        <button
+          type="button"
+          class="editCardBtn"
+          data-id="${escapeHtml(card.id)}"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '編輯'
+              : 'Edit'
+          }
+        </button>
 
-        </div>
-      `;
-    }
+      </div>
 
+    </div>
+  `;
+}
 
     const activeHtml =
       activeCards.length > 0
