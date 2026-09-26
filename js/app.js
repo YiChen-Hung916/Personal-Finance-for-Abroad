@@ -574,16 +574,7 @@ function dashboardConfirmationCardHtml(
         style="cursor: pointer;"
       >
 
-        <div
-  style="
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 6px 12px;
-    text-align: left;
-  "
->
+        <div class="dashboard-confirmation-summary">
 
   <span
     style="
