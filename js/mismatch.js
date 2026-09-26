@@ -392,6 +392,49 @@ export async function resolveMismatch({
   const confirmation =
     confirmationSnapshot.data();
 
+  // ------------------------------------------------
+// Load confirmer profile
+// ------------------------------------------------
+
+let confirmerName = '';
+
+
+try {
+
+  const confirmerSnapshot =
+    await getDoc(
+      doc(
+        db,
+        'users',
+        confirmationUserId
+      )
+    );
+
+
+  if (confirmerSnapshot.exists()) {
+
+    const confirmerProfile =
+      confirmerSnapshot.data();
+
+
+    confirmerName =
+      String(
+        confirmerProfile.displayName ||
+        confirmerProfile.name ||
+        confirmerProfile.preferredName ||
+        ''
+      ).trim();
+  }
+
+
+} catch (error) {
+
+  console.warn(
+    'Failed to load confirmer profile:',
+    error
+  );
+}
+
 
   if (
     confirmation.hasMismatch !== true
@@ -1004,12 +1047,20 @@ export async function mismatchDetailPage({
       <section class="panel">
 
         <h2>
-          ${
-            lang === 'zh-TW'
-              ? '確認者回報'
-              : 'Confirmation Report'
-          }
-        </h2>
+  ${
+    confirmerName
+      ? (
+          lang === 'zh-TW'
+            ? `${escapeHtml(confirmerName)} 回報`
+            : `Reported by ${escapeHtml(confirmerName)}`
+        )
+      : (
+          lang === 'zh-TW'
+            ? '確認者回報'
+            : 'Confirmation Report'
+        )
+  }
+</h2>
 
 
         <div class="field">
