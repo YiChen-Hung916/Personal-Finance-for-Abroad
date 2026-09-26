@@ -420,14 +420,35 @@ const currencyTypeMatchStatus =
       currentUser.uid
     );
 
+console.log(
+  '🔥 BEFORE getDoc existing confirmation',
+  confirmationRef.path
+);
 
+  
   const existingConfirmation =
     await getDoc(
       confirmationRef
     );
 
 
+  console.log(
+  '🔥 AFTER getDoc existing confirmation',
+  {
+    exists: existingConfirmation.exists(),
+    data: existingConfirmation.exists()
+      ? existingConfirmation.data()
+      : null
+  }
+);
+
+  
+
   if (existingConfirmation.exists()) {
+     console.log(
+    '🔥 STOPPED because confirmation already exists'
+  );
+    
     throw new Error(
       'This transaction has already been confirmed.'
     );
