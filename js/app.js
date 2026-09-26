@@ -840,147 +840,111 @@ function dashboardConfirmationCardHtml(
       </div>
 
 
-      <div class="actions">
+      <div class="field">
 
-        <button
-          type="button"
-          class="dashboard-match-btn primary"
-          data-receipt-id="${receiptId}"
-        >
-          ${
-            lang === 'zh-TW'
-              ? '相符'
-              : 'Match'
-          }
-        </button>
+  <span class="field-label">
 
+    ${
+      lang === 'zh-TW'
+        ? '信用卡通知金額是否相符？'
+        : 'Does the card notification amount match?'
+    }
 
-        <button
-          type="button"
-          class="dashboard-mismatch-btn"
-          data-receipt-id="${receiptId}"
-        >
-          ${
-            lang === 'zh-TW'
-              ? '不符'
-              : 'Mismatch'
-          }
-        </button>
+    <sup class="required-mark">*</sup>
 
-      </div>
+  </span>
 
 
-      <div
-        class="dashboard-mismatch-fields"
-        hidden
-      >
+  <label class="confirmation-choice">
 
-        <hr>
+    <input
+      type="radio"
+      class="dashboard-amount-match"
+      name="dashboard-match-${receiptId}"
+      value="match"
+    >
 
+    ${
+      lang === 'zh-TW'
+        ? '相符'
+        : 'Match'
+    }
 
-        <p class="muted">
-
-          ${
-            lang === 'zh-TW'
-              ? '請輸入信用卡通知中實際顯示的金額與幣值。'
-              : 'Enter the amount and currency shown in the card notification.'
-          }
-
-        </p>
-
-
-        <div class="grid">
-
-          <label class="field">
-
-            <span class="field-label">
-
-              ${
-                lang === 'zh-TW'
-                  ? '信用卡通知金額'
-                  : 'Card Notification Amount'
-              }
-
-              <sup class="required-mark">*</sup>
-
-            </span>
-
-            <input
-              type="number"
-              class="dashboard-reported-amount"
-              min="0"
-              step="0.01"
-              inputmode="decimal"
-              placeholder="0.00"
-            >
-
-          </label>
+  </label>
 
 
-          <label class="field">
+  <label class="confirmation-choice">
 
-            <span class="field-label">
+    <input
+      type="radio"
+      class="dashboard-amount-match"
+      name="dashboard-match-${receiptId}"
+      value="mismatch"
+    >
 
-              ${
-                lang === 'zh-TW'
-                  ? '信用卡通知幣值'
-                  : 'Card Notification Currency'
-              }
+    ${
+      lang === 'zh-TW'
+        ? '不符'
+        : 'Does not match'
+    }
 
-              <sup class="required-mark">*</sup>
+  </label>
 
-            </span>
-
-            <select
-              class="dashboard-reported-currency"
-            >
-              ${currencyOptions}
-            </select>
-
-          </label>
-
-        </div>
+</div>
 
 
-        <label class="field">
+<div
+  class="dashboard-reference-rate"
+  hidden
+>
 
-          <span class="field-label">
+  <span class="muted">
 
-            ${
-              lang === 'zh-TW'
-                ? '備註（選填）'
-                : 'Notes (optional)'
-            }
+    ${
+      lang === 'zh-TW'
+        ? '參考換算：匯率功能尚未啟用'
+        : 'Reference conversion: exchange-rate feature not yet available'
+    }
 
-          </span>
+  </span>
 
-          <textarea
-            class="dashboard-confirmation-notes"
-            rows="2"
-          ></textarea>
-
-        </label>
+</div>
 
 
-        <div class="actions">
+<div class="actions dashboard-confirmation-actions">
 
-          <button
-            type="button"
-            class="dashboard-submit-mismatch-btn primary"
-            data-receipt-id="${receiptId}"
-          >
+  <button
+    type="button"
+    class="dashboard-submit-match-btn primary"
+    data-receipt-id="${receiptId}"
+    hidden
+  >
 
-            ${
-              lang === 'zh-TW'
-                ? '送出回報'
-                : 'Submit'
-            }
+    ${
+      lang === 'zh-TW'
+        ? '送出確認'
+        : 'Submit Confirmation'
+    }
 
-          </button>
+  </button>
 
-        </div>
 
-      </div>
+  <button
+    type="button"
+    class="dashboard-review-mismatch-btn"
+    data-receipt-id="${receiptId}"
+    hidden
+  >
+
+    ${
+      lang === 'zh-TW'
+        ? '進一步核對'
+        : 'Review Details'
+    }
+
+  </button>
+
+</div>
 
     </div>
   `;
@@ -1015,6 +979,267 @@ function bindDashboardConfirmationEvents(
       if (!receipt) {
         return;
       }
+
+
+      // ------------------------------------------------
+      // Click transaction summary
+      // -> full confirmation page
+      // ------------------------------------------------
+
+      const openArea =
+        card.querySelector(
+          '.dashboard-confirmation-open'
+        );
+
+
+      if (openArea) {
+
+        openArea.onclick =
+          () => {
+
+            location.hash =
+              `#my-confirmations/${receipt.id}`;
+          };
+      }
+
+
+      // ------------------------------------------------
+      // Elements
+      // ------------------------------------------------
+
+      const currencyChoices =
+        card.querySelectorAll(
+          '.dashboard-currency-type'
+        );
+
+
+      const amountChoices =
+        card.querySelectorAll(
+          '.dashboard-amount-match'
+        );
+
+
+      const referenceRate =
+        card.querySelector(
+          '.dashboard-reference-rate'
+        );
+
+
+      const submitMatchButton =
+        card.querySelector(
+          '.dashboard-submit-match-btn'
+        );
+
+
+      const reviewMismatchButton =
+        card.querySelector(
+          '.dashboard-review-mismatch-btn'
+        );
+
+
+      // ------------------------------------------------
+      // Currency choice
+      //
+      // Local/TWD:
+      // show reference conversion area.
+      //
+      // Foreign:
+      // hide reference conversion area.
+      // ------------------------------------------------
+
+      currencyChoices.forEach(
+        radio => {
+
+          radio.addEventListener(
+            'change',
+            () => {
+
+              referenceRate.hidden =
+                radio.value !== 'local';
+            }
+          );
+        }
+      );
+
+
+      // ------------------------------------------------
+      // Amount match choice
+      // ------------------------------------------------
+
+      amountChoices.forEach(
+        radio => {
+
+          radio.addEventListener(
+            'change',
+            () => {
+
+              const isMatch =
+                radio.value === 'match';
+
+
+              submitMatchButton.hidden =
+                !isMatch;
+
+
+              reviewMismatchButton.hidden =
+                isMatch;
+            }
+          );
+        }
+      );
+
+
+      // ------------------------------------------------
+      // Quick normal confirmation
+      // ------------------------------------------------
+
+      submitMatchButton.onclick =
+        async () => {
+
+          const currencyChoice =
+            card.querySelector(
+              '.dashboard-currency-type:checked'
+            );
+
+
+          const amountChoice =
+            card.querySelector(
+              '.dashboard-amount-match:checked'
+            );
+
+
+          if (!currencyChoice) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請先選擇信用卡通知顯示的是台幣或外幣。'
+                : 'Please select TWD or foreign currency first.'
+            );
+
+            return;
+          }
+
+
+          if (
+            !amountChoice ||
+            amountChoice.value !== 'match'
+          ) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請確認信用卡通知金額是否相符。'
+                : 'Please confirm whether the amount matches.'
+            );
+
+            return;
+          }
+
+
+          submitMatchButton.disabled =
+            true;
+
+
+          submitMatchButton.textContent =
+            lang === 'zh-TW'
+              ? '正在送出…'
+              : 'Submitting…';
+
+
+          try {
+
+            await saveMyConfirmation({
+              db,
+              currentUser,
+              receipt,
+
+              notificationCurrencyType:
+                currencyChoice.value,
+
+              amountMatchStatus:
+                'match'
+            });
+
+
+            await dashboard();
+
+
+          } catch (error) {
+
+            console.error(
+              'Dashboard quick confirmation failed:',
+              error
+            );
+
+
+            alert(
+              `${
+                lang === 'zh-TW'
+                  ? '送出確認失敗'
+                  : 'Failed to submit confirmation'
+              }: ${error.message}`
+            );
+
+
+            submitMatchButton.disabled =
+              false;
+
+
+            submitMatchButton.textContent =
+              lang === 'zh-TW'
+                ? '送出確認'
+                : 'Submit Confirmation';
+          }
+        };
+
+
+      // ------------------------------------------------
+      // Amount mismatch
+      // -> continue in full confirmation page
+      //
+      // Save currency choice temporarily so the
+      // full page can restore it.
+      // ------------------------------------------------
+
+      reviewMismatchButton.onclick =
+        () => {
+
+          const currencyChoice =
+            card.querySelector(
+              '.dashboard-currency-type:checked'
+            );
+
+
+          if (!currencyChoice) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請先選擇信用卡通知顯示的是台幣或外幣。'
+                : 'Please select TWD or foreign currency first.'
+            );
+
+            return;
+          }
+
+
+          sessionStorage.setItem(
+            `confirmation-draft-${receipt.id}`,
+            JSON.stringify({
+              notificationCurrencyType:
+                currencyChoice.value,
+
+              amountMatchStatus:
+                'mismatch'
+            })
+          );
+
+
+          location.hash =
+            `#my-confirmations/${receipt.id}`;
+        };
+
+    });
+}
+
 
 
       // ------------------------------------------------
