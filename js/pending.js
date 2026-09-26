@@ -370,23 +370,49 @@ export async function getAllPendingReceipts({
     );
 
 
+  // ====================================================
+  // Candidate receipts
+  // ====================================================
+
   const candidateReceipts =
     receiptSnapshot.docs
       .map(receiptDoc => ({
         id: receiptDoc.id,
         ...receiptDoc.data()
       }))
-      .filter(receipt =>
+      .filter(receipt => {
 
-        receipt.paymentMethod === 'card' &&
+        if (
+          receipt.paymentMethod !== 'card' ||
+          receipt.status !== 'pending'
+        ) {
+          return false;
+        }
 
-        receipt.status === 'pending' &&
 
-        Boolean(
+        // New structure
+        if (
+          Array.isArray(
+            receipt.confirmationUserIds
+          ) &&
+          receipt.confirmationUserIds
+            .filter(Boolean)
+            .length > 0
+        ) {
+          return true;
+        }
+
+
+        // Legacy structure
+        return Boolean(
           receipt.confirmationUserId
-        )
-      );
+        );
+      });
 
+
+  // ====================================================
+  // Check whether ANY assigned user already confirmed
+  // ====================================================
 
   const pendingChecks =
     await Promise.all(
@@ -394,78 +420,133 @@ export async function getAllPendingReceipts({
       candidateReceipts.map(
         async receipt => {
 
-          const confirmationSnapshot =
-            await getDoc(
-              doc(
+          const confirmationsSnapshot =
+            await getDocs(
+              collection(
                 db,
                 'receipts',
                 receipt.id,
-                'confirmations',
-                receipt.confirmationUserId
+                'confirmations'
               )
             );
 
 
+          // Any confirmation completes this Receipt.
           if (
-            confirmationSnapshot.exists()
+            !confirmationsSnapshot.empty
           ) {
             return null;
           }
 
 
-          const confirmationUserName =
-            await getUserDisplayName({
-              db,
-              userId:
-                receipt.confirmationUserId
-            });
+          // --------------------------------------------
+          // Assigned users
+          // --------------------------------------------
+
+          let confirmationUserIds = [];
+
+
+          if (
+            Array.isArray(
+              receipt.confirmationUserIds
+            )
+          ) {
+
+            confirmationUserIds =
+              receipt.confirmationUserIds
+                .filter(Boolean);
+
+          } else if (
+            receipt.confirmationUserId
+          ) {
+
+            // Legacy Receipt
+            confirmationUserIds = [
+              receipt.confirmationUserId
+            ];
+          }
+
+
+          confirmationUserIds =
+            [
+              ...new Set(
+                confirmationUserIds
+              )
+            ];
+
+
+          // --------------------------------------------
+          // Load display names for every assigned user
+          // --------------------------------------------
+
+          const confirmationUsers =
+            await Promise.all(
+
+              confirmationUserIds.map(
+                async userId => ({
+
+                  userId,
+
+                  userName:
+                    await getUserDisplayName({
+                      db,
+                      userId
+                    })
+                })
+              )
+            );
 
 
           return attachPendingReminderInfo({
             ...receipt,
-            confirmationUserName
+
+            confirmationUserIds,
+
+            confirmationUsers
           });
         }
       )
     );
 
 
+  // ====================================================
+  // Remove completed receipts + sort
+  // ====================================================
+
   return pendingChecks
-  .filter(Boolean)
-  .sort((a, b) => {
+    .filter(Boolean)
+    .sort((a, b) => {
 
-    // Purchase date:
-    // oldest transaction first.
-    const dateA =
-      String(
-        a.purchaseDate || ''
-      );
+      const daysA =
+        Number.isFinite(
+          a.daysWaiting
+        )
+          ? a.daysWaiting
+          : -1;
 
-    const dateB =
-      String(
+
+      const daysB =
+        Number.isFinite(
+          b.daysWaiting
+        )
+          ? b.daysWaiting
+          : -1;
+
+
+      // Longest waiting first.
+      if (daysA !== daysB) {
+        return daysB - daysA;
+      }
+
+
+      return String(
         b.purchaseDate || ''
+      ).localeCompare(
+        String(
+          a.purchaseDate || ''
+        )
       );
-
-
-    // Receipts without a purchase date
-    // go to the bottom.
-    if (!dateA && !dateB) {
-      return 0;
-    }
-
-    if (!dateA) {
-      return 1;
-    }
-
-    if (!dateB) {
-      return -1;
-    }
-
-
-    return dateA.localeCompare(
-      dateB
-    );
-  });
+    });
 }
 
 
@@ -483,32 +564,82 @@ export function groupPendingByUser(
 
   receipts.forEach(receipt => {
 
-    const userId =
-      receipt.confirmationUserId ||
-      'unknown';
+    // ==================================================
+    // New multi-confirmer structure
+    // ==================================================
+
+    let confirmationUsers =
+      Array.isArray(
+        receipt.confirmationUsers
+      )
+        ? receipt.confirmationUsers
+        : [];
 
 
-    if (!groups.has(userId)) {
+    // ==================================================
+    // Legacy fallback
+    // ==================================================
 
-      groups.set(
-        userId,
+    if (
+      confirmationUsers.length === 0 &&
+      receipt.confirmationUserId
+    ) {
+
+      confirmationUsers = [
         {
-          userId,
+          userId:
+            receipt.confirmationUserId,
 
           userName:
             receipt.confirmationUserName ||
-            '—',
-
-          receipts: []
+            '—'
         }
-      );
+      ];
     }
 
 
-    groups
-      .get(userId)
-      .receipts
-      .push(receipt);
+    // ==================================================
+    // The same Receipt belongs to every assigned user.
+    //
+    // Example:
+    // Receipt assigned to A + B
+    //
+    // A group -> contains Receipt
+    // B group -> contains Receipt
+    //
+    // This is intentional.
+    // ==================================================
+
+    confirmationUsers.forEach(user => {
+
+      const userId =
+        user.userId ||
+        'unknown';
+
+
+      const userName =
+        user.userName ||
+        '—';
+
+
+      if (!groups.has(userId)) {
+
+        groups.set(
+          userId,
+          {
+            userId,
+            userName,
+            receipts: []
+          }
+        );
+      }
+
+
+      groups
+        .get(userId)
+        .receipts
+        .push(receipt);
+    });
   });
 
 
