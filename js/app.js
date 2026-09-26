@@ -576,7 +576,7 @@ function dashboardConfirmationCardHtml(
 
         <div class="activity">
 
-          <span>
+          <span style="white-space: nowrap;">
             ${escapeHtml(
               receipt.purchaseDate || '—'
             )}
