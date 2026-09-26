@@ -271,7 +271,6 @@ async function dashboard() {
     currentUser
   });
 
-
 myPendingConfirmations =
   rawMyPendingConfirmations
     .map(receipt =>
@@ -281,24 +280,35 @@ myPendingConfirmations =
     )
     .sort((a, b) => {
 
-      const daysA =
-        Number.isFinite(
-          a.daysWaiting
-        )
-          ? a.daysWaiting
-          : -1;
+      const dateA =
+        String(
+          a.purchaseDate || ''
+        );
+
+      const dateB =
+        String(
+          b.purchaseDate || ''
+        );
 
 
-      const daysB =
-        Number.isFinite(
-          b.daysWaiting
-        )
-          ? b.daysWaiting
-          : -1;
+      if (!dateA && !dateB) {
+        return 0;
+      }
+
+      if (!dateA) {
+        return 1;
+      }
+
+      if (!dateB) {
+        return -1;
+      }
 
 
-      return daysB - daysA;
+      return dateA.localeCompare(
+        dateB
+      );
     });
+
 
     if (isOwner) {
 
@@ -434,19 +444,11 @@ const pendingSummaryHtml =
               : null;
 
 
-          const reminderClass =
-  getPendingReminderClass(
-    oldestDays
-  );
+
 
 
 return `
-  <div
-    class="
-      dashboard-pending-user
-      ${reminderClass}
-    "
-  >
+  <div class="dashboard-pending-user">
 
     <b>
       ${escapeHtml(
