@@ -430,3 +430,200 @@ export async function resolveMismatch({
     }
   );
 }
+
+
+// ======================================================
+// Owner Mismatch List Page
+// ======================================================
+
+export async function mismatchPage({
+  db,
+  currentRole,
+  lang,
+  page
+}) {
+
+  if (!db || !page) {
+    return;
+  }
+
+
+  // Owner only.
+  if (currentRole !== 'owner') {
+
+    page.innerHTML = `
+      <section class="panel">
+
+        <h1>
+          ${
+            lang === 'zh-TW'
+              ? '無權存取'
+              : 'Access Denied'
+          }
+        </h1>
+
+      </section>
+    `;
+
+    return;
+  }
+
+
+  page.innerHTML = `
+    <section class="panel">
+
+      <h1>
+        ${
+          lang === 'zh-TW'
+            ? '不符項目'
+            : 'Mismatches'
+        }
+      </h1>
+
+      <p class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '查看已回報但尚未處理的不符項目。'
+            : 'Review reported mismatches that still require resolution.'
+        }
+      </p>
+
+      <div id="mismatchList">
+
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '正在載入…'
+              : 'Loading…'
+          }
+        </p>
+
+      </div>
+
+    </section>
+  `;
+
+
+  const list =
+    page.querySelector(
+      '#mismatchList'
+    );
+
+
+  try {
+
+    const mismatches =
+      await getUnresolvedMismatches({
+        db
+      });
+
+
+    if (mismatches.length === 0) {
+
+      list.innerHTML = `
+        <div class="card">
+
+          <p>
+            ${
+              lang === 'zh-TW'
+                ? '目前沒有需要處理的不符項目。'
+                : 'There are currently no unresolved mismatches.'
+            }
+          </p>
+
+        </div>
+      `;
+
+      return;
+    }
+
+
+    list.innerHTML =
+      mismatches
+        .map(item =>
+          mismatchDashboardCardHtml({
+            item,
+            lang
+          })
+        )
+        .join('');
+
+
+    bindMismatchViewButtons(
+      list
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load mismatches:',
+      error
+    );
+
+
+    list.innerHTML = `
+      <div class="card">
+
+        <p class="danger">
+          ${
+            lang === 'zh-TW'
+              ? '載入不符項目失敗。'
+              : 'Failed to load mismatches.'
+          }
+        </p>
+
+        <p class="muted">
+          ${escapeHtml(error.message)}
+        </p>
+
+      </div>
+    `;
+  }
+}
+
+
+// ======================================================
+// Bind "View" Buttons
+// ======================================================
+
+export function bindMismatchViewButtons(
+  container
+) {
+
+  if (!container) {
+    return;
+  }
+
+
+  container
+    .querySelectorAll(
+      '.view-mismatch-btn'
+    )
+    .forEach(button => {
+
+      button.onclick =
+        () => {
+
+          const receiptId =
+            button.dataset.receiptId;
+
+
+          const confirmationUserId =
+            button.dataset.confirmationUserId;
+
+
+          if (
+            !receiptId ||
+            !confirmationUserId
+          ) {
+            return;
+          }
+
+
+          location.hash =
+            `#mismatches/${receiptId}/${confirmationUserId}`;
+        };
+
+    });
+}
