@@ -127,32 +127,27 @@ export async function receiptDetailPage({
   // Loading
   // ----------------------------------------------------
 
-  page.innerHTML = `
-    <section class="
-      panel
-      receipt-detail-panel
-      ${reminderClass}
-    "
-    >
+page.innerHTML = `
+  <section class="panel">
 
-      <h1>
-        ${
-          lang === 'zh-TW'
-            ? 'Receipt 明細'
-            : 'Receipt Details'
-        }
-      </h1>
+    <h1>
+      ${
+        lang === 'zh-TW'
+          ? 'Receipt 明細'
+          : 'Receipt Details'
+      }
+    </h1>
 
-      <p class="muted">
-        ${
-          lang === 'zh-TW'
-            ? '正在載入…'
-            : 'Loading…'
-        }
-      </p>
+    <p class="muted">
+      ${
+        lang === 'zh-TW'
+          ? '正在載入…'
+          : 'Loading…'
+      }
+    </p>
 
-    </section>
-  `;
+  </section>
+`;
 
 
   try {
@@ -353,9 +348,11 @@ export async function receiptDetailPage({
 
 
 const reminderClass =
-  getPendingReminderClass(
-    receiptWithReminder.daysWaiting
-  );
+  receipt.status === 'pending'
+    ? getPendingReminderClass(
+        receiptWithReminder.daysWaiting
+      )
+    : 'pending-reminder-normal';
 
     
     
@@ -369,6 +366,7 @@ const reminderClass =
       items,
       cardDisplay,
       confirmationUserDisplay,
+      reminderClass,
       lang
     });
 
@@ -435,6 +433,7 @@ function renderReceiptDetail({
   items,
   cardDisplay,
   confirmationUserDisplay,
+  reminderClass,
   lang
 }) {
 
@@ -479,7 +478,13 @@ function renderReceiptDetail({
 
   page.innerHTML = `
 
-    <section class="panel">
+  <section
+    class="
+      panel
+      receipt-detail-panel
+      ${reminderClass}
+    "
+  >
 
       <!-- ============================================= -->
       <!-- Header                                        -->
