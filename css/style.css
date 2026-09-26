@@ -728,3 +728,80 @@
     gap: 6px;
   }
 }
+
+
+/* ======================================================
+   History
+   ====================================================== */
+
+.history-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.history-heading-row h2 {
+  margin: 0;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history-custom-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.history-transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.history-transaction-card {
+  cursor: pointer;
+}
+
+.history-transaction-card:hover {
+  background: #f8f8f8;
+}
+
+.history-transaction-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.history-transaction-main > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-transaction-main > strong {
+  white-space: nowrap;
+}
+
+
+@media (max-width: 700px) {
+
+  .history-filters,
+  .history-custom-range {
+    grid-template-columns: 1fr;
+  }
+
+  .history-transaction-main {
+    gap: 10px;
+  }
+
+}
