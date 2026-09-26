@@ -654,3 +654,77 @@
 }
 
 
+/* ======================================================
+   Owner Mismatch / Resolution
+   ====================================================== */
+
+/*
+  Mismatch is different from Pending reminders.
+
+  Pending:
+  yellow / orange / red
+
+  Confirmed but unresolved mismatch:
+  peach-pink
+*/
+
+.mismatch-card {
+  background: #fff0f4;
+  border-color: #f57a9f;
+}
+
+
+.mismatch-card:hover {
+  background: #ffe7ee;
+}
+
+
+.mismatch-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+
+.mismatch-card-main > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+
+.mismatch-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  margin-top: 10px;
+}
+
+
+.mismatch-reason-badge {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 8px;
+
+  border: 1px solid #f57a9f;
+  border-radius: 999px;
+
+  background: #ffe1ea;
+
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  color: #9f3153;
+}
+
+
+@media (max-width: 700px) {
+
+  .mismatch-card-main {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
