@@ -64,9 +64,37 @@ function getMonthsAgoString(
   const target =
     new Date(
       today.getFullYear(),
-      today.getMonth() - months,
+      today.getMonth(),
       today.getDate()
     );
+
+
+  const originalDay =
+    target.getDate();
+
+
+  target.setDate(1);
+
+  target.setMonth(
+    target.getMonth() - months
+  );
+
+
+  const lastDayOfTargetMonth =
+    new Date(
+      target.getFullYear(),
+      target.getMonth() + 1,
+      0
+    ).getDate();
+
+
+  target.setDate(
+    Math.min(
+      originalDay,
+      lastDayOfTargetMonth
+    )
+  );
+
 
   const year =
     target.getFullYear();
@@ -80,6 +108,7 @@ function getMonthsAgoString(
     String(
       target.getDate()
     ).padStart(2, '0');
+
 
   return `${year}-${month}-${day}`;
 }
@@ -136,40 +165,76 @@ function filterByPeriod(
   customStart,
   customEnd
 ) {
+
   if (period === 'all') {
     return transactions;
   }
 
 
   let startDate = '';
-  let endDate =
-    getTodayString();
+  let endDate = '';
+
+
+  if (period === '1m') {
+
+    startDate =
+      customStart ||
+      getMonthsAgoString(1);
+
+    endDate =
+      customEnd ||
+      getTodayString();
+
+  }
 
 
   if (period === '3m') {
+
     startDate =
+      customStart ||
       getMonthsAgoString(3);
+
+    endDate =
+      customEnd ||
+      getTodayString();
+
   }
 
 
   if (period === '6m') {
+
     startDate =
+      customStart ||
       getMonthsAgoString(6);
+
+    endDate =
+      customEnd ||
+      getTodayString();
+
   }
 
 
   if (period === '12m') {
+
     startDate =
+      customStart ||
       getMonthsAgoString(12);
+
+    endDate =
+      customEnd ||
+      getTodayString();
+
   }
 
 
   if (period === 'custom') {
+
     startDate =
       customStart || '';
 
     endDate =
       customEnd || '';
+
   }
 
 
@@ -205,6 +270,7 @@ function filterByPeriod(
     }
   );
 }
+
 
 
 // ======================================================
@@ -382,6 +448,10 @@ function exportTransactionsToExcel({
           '商店':
             transaction.store || '',
 
+          'Branch':
+            source.branch || '',
+
+
           '幣別':
             transaction.currency || '',
 
@@ -452,6 +522,7 @@ function exportTransactionsToExcel({
     { wch: 14 }, // 日期
     { wch: 12 }, // 類型
     { wch: 24 }, // 商店
+    { wch: 22 }, // Branch
     { wch: 10 }, // 幣別
     { wch: 14 }, // 金額
     { wch: 14 }, // 付款方式
@@ -478,6 +549,10 @@ function exportTransactionsToExcel({
   // ==================================================
 
   let periodText = '所有交易';
+
+  if (period === '1m') {
+    periodText = '最近 1 個月';
+  }
 
 
   if (period === '3m') {
@@ -775,48 +850,55 @@ export async function historyPage({
 
             <select id="historyPeriod">
 
-              <option value="all">
-                ${
-                  lang === 'zh-TW'
-                    ? '所有交易'
-                    : 'All transactions'
-                }
-              </option>
+  <option value="1m" selected>
+    ${
+      lang === 'zh-TW'
+        ? '最近 1 個月'
+        : 'Last 1 month'
+    }
+  </option>
 
-              <option value="3m">
-                ${
-                  lang === 'zh-TW'
-                    ? '最近 3 個月'
-                    : 'Last 3 months'
-                }
-              </option>
+  <option value="3m">
+    ${
+      lang === 'zh-TW'
+        ? '最近 3 個月'
+        : 'Last 3 months'
+    }
+  </option>
 
-              <option value="6m">
-                ${
-                  lang === 'zh-TW'
-                    ? '最近 6 個月'
-                    : 'Last 6 months'
-                }
-              </option>
+  <option value="6m">
+    ${
+      lang === 'zh-TW'
+        ? '最近 6 個月'
+        : 'Last 6 months'
+    }
+  </option>
 
-              <option value="12m">
-                ${
-                  lang === 'zh-TW'
-                    ? '最近 12 個月'
-                    : 'Last 12 months'
-                }
-              </option>
+  <option value="12m">
+    ${
+      lang === 'zh-TW'
+        ? '最近 12 個月'
+        : 'Last 12 months'
+    }
+  </option>
 
-              <option value="custom">
-                ${
-                  lang === 'zh-TW'
-                    ? '自訂區間'
-                    : 'Custom range'
-                }
-              </option>
+  <option value="custom">
+    ${
+      lang === 'zh-TW'
+        ? '自訂區間'
+        : 'Custom range'
+    }
+  </option>
 
-            </select>
+  <option value="all">
+    ${
+      lang === 'zh-TW'
+        ? '所有交易'
+        : 'All transactions'
+    }
+  </option>
 
+</select>
           </div>
 
 
@@ -982,6 +1064,81 @@ export async function historyPage({
     '#historyExportButton'
   );
 
+    function syncPeriodDates() {
+
+  const period =
+    periodSelect.value;
+
+
+  if (period === 'all') {
+
+    customRange.hidden = true;
+
+    startDateInput.value = '';
+    endDateInput.value = '';
+
+    return;
+  }
+
+
+  customRange.hidden = false;
+
+
+  if (period === '1m') {
+
+    startDateInput.value =
+      getMonthsAgoString(1);
+
+    endDateInput.value =
+      getTodayString();
+
+    return;
+  }
+
+
+  if (period === '3m') {
+
+    startDateInput.value =
+      getMonthsAgoString(3);
+
+    endDateInput.value =
+      getTodayString();
+
+    return;
+  }
+
+
+  if (period === '6m') {
+
+    startDateInput.value =
+      getMonthsAgoString(6);
+
+    endDateInput.value =
+      getTodayString();
+
+    return;
+  }
+
+
+  if (period === '12m') {
+
+    startDateInput.value =
+      getMonthsAgoString(12);
+
+    endDateInput.value =
+      getTodayString();
+
+    return;
+  }
+
+
+  if (period === 'custom') {
+
+    customRange.hidden = false;
+
+  }
+}
+
 
     // ==================================================
     // Render filtered transactions
@@ -997,10 +1154,6 @@ export async function historyPage({
 
       const type =
         typeSelect.value;
-
-
-      customRange.hidden =
-        period !== 'custom';
 
 
       let visibleTransactions =
@@ -1117,20 +1270,39 @@ export async function historyPage({
     // Events
     // ==================================================
 
-    periodSelect.onchange =
-      renderTransactions;
+    periodSelect.onchange = () => {
+
+  syncPeriodDates();
+
+  renderTransactions();
+
+};
 
 
     typeSelect.onchange =
       renderTransactions;
 
 
-    startDateInput.onchange =
-      renderTransactions;
+    function handleManualDateChange() {
+
+  if (
+    periodSelect.value !== 'custom'
+  ) {
+    periodSelect.value =
+      'custom';
+  }
 
 
-    endDateInput.onchange =
-      renderTransactions;
+  renderTransactions();
+}
+
+
+startDateInput.onchange =
+  handleManualDateChange;
+
+
+endDateInput.onchange =
+  handleManualDateChange;
 
     exportButton.onclick = () => {
 
@@ -1159,6 +1331,7 @@ export async function historyPage({
 
 
     // First render
+    syncPeriodDates();
     renderTransactions();
 
 
