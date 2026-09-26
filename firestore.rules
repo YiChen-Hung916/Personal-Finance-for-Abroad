@@ -1,152 +1,272 @@
 rules_version = '2';
 
 service cloud.firestore {
+
   match /databases/{database}/documents {
 
-    // =========================
-    // Helper functions
-    // =========================
+
+    // ==================================================
+    // Authentication
+    // ==================================================
 
     function signedIn() {
       return request.auth != null;
     }
 
-    function userDoc() {
-      return get(
-        /databases/$(database)/documents/users/$(request.auth.uid)
-      );
-    }
+
+    // ==================================================
+    // Authorized User
+    // ==================================================
 
     function authorized() {
+
       return signedIn()
+
         && exists(
           /databases/$(database)/documents/users/$(request.auth.uid)
         )
-        && userDoc().data.active == true
+
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.active == true
+
         && (
-          userDoc().data.role == "owner" ||
-          userDoc().data.role == "authorizedUser"
+          get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.role == "owner"
+
+          ||
+
+          get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.role == "authorizedUser"
         );
     }
 
+
+    // ==================================================
+    // Owner
+    // ==================================================
+
     function owner() {
-      return authorized()
-        && userDoc().data.role == "owner";
+
+      return signedIn()
+
+        && exists(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        )
+
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.active == true
+
+        && get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.role == "owner";
     }
+
+
+    // ==================================================
+    // Receipt Assignment
+    // ==================================================
+    //
+    // NEW:
+    //
+    // confirmationUserIds: [
+    //   "uid_A",
+    //   "uid_B"
+    // ]
+    //
+    // LEGACY:
+    //
+    // confirmationUserId: "uid_A"
+    //
+    // A user is assigned when:
+    //
+    // 1. their UID appears in confirmationUserIds
+    //
+    // OR
+    //
+    // 2. this is an old Receipt without the array and
+    //    confirmationUserId equals their UID.
+    //
+    // ==================================================
 
     function assignedToMe(receiptId) {
-      return authorized()
-        && get(
+
+      let receipt =
+        get(
           /databases/$(database)/documents/receipts/$(receiptId)
-        ).data.confirmationUserId == request.auth.uid;
+        ).data;
+
+
+      return authorized()
+
+        && (
+
+          (
+            receipt.confirmationUserIds is list
+
+            &&
+
+            request.auth.uid in
+              receipt.confirmationUserIds
+          )
+
+          ||
+
+          (
+            !(
+              receipt.confirmationUserIds is list
+            )
+
+            &&
+
+            receipt.confirmationUserId ==
+              request.auth.uid
+          )
+        );
     }
 
 
-    // =========================
-    // USERS
-    // =========================
+    // ==================================================
+    // Users
+    // ==================================================
 
     match /users/{uid} {
 
-      // IMPORTANT:
-      // Any authenticated Google user can read ONLY
-      // their own profile.
-      //
-      // This allows the frontend to determine whether
-      // the account is authorized.
-      allow get: if signedIn()
-                 && request.auth.uid == uid;
+      // User may read own profile.
+      allow get:
+        if signedIn()
+        && request.auth.uid == uid;
 
-      // Owners may list/read user profiles for
-      // Authorized User management.
-      allow list: if owner();
 
-      // Owner can read another individual user profile.
-      allow get: if owner();
+      // Owner may read/list all users.
+      allow get, list:
+        if owner();
 
-      // Only existing owners manage authorization.
-      allow create, update, delete: if owner();
+
+      // Only Owner manages users.
+      allow create, update, delete:
+        if owner();
     }
 
 
-// ==================================================
-// Cards
-// ==================================================
-
-match /cards/{cardId} {
-
-  // All authorized users may read card information.
-  // This is needed later when reviewing receipts.
-  allow read: if authorized();
-
-  // Only owners may manage cards.
-  allow create, update, delete: if owner();
-}
-
-
-    // =========================
-    // RECEIPTS
-    // =========================
+    // ==================================================
+    // Receipts
+    // ==================================================
 
     match /receipts/{rid} {
 
-      // Every authorized user may view receipts.
-      allow read: if authorized();
+      // ------------------------------------------------
+      // Receipt read
+      // ------------------------------------------------
+      //
+      // Keep current architecture:
+      //
+      // all authorized users may read Receipts.
+      //
+      // We can tighten receipt-level visibility later
+      // as a separate checkpoint because Firestore
+      // queries must match Security Rules.
+      // ------------------------------------------------
 
-      // Only Owner creates/edits/deletes receipts.
-      allow create, update, delete: if owner();
+      allow read:
+        if authorized();
 
 
-      // -------------------------
+      // Only Owner may create/change/delete Receipts.
+      allow create, update, delete:
+        if owner();
+
+
+      // =================================================
       // Receipt Items
-      // -------------------------
+      // =================================================
 
       match /items/{iid} {
 
-        // Every authorized user may view items.
-        allow read: if authorized();
+        allow read:
+          if authorized();
 
-        // Only Owner modifies items.
-        allow create, update, delete: if owner();
+
+        allow create, update, delete:
+          if owner();
       }
 
 
-      // -------------------------
+      // =================================================
       // Confirmations
-      // -------------------------
+      // =================================================
 
       match /confirmations/{cid} {
 
-        // Owner sees all confirmations.
+        // ----------------------------------------------
+        // READ
+        // ----------------------------------------------
         //
-        // Authorized user sees their confirmation
-        // only for a receipt assigned to them.
-        allow read: if owner()
-                    || (
-                      authorized()
-                      && request.auth.uid == cid
-                      && assignedToMe(rid)
-                    );
+        // Owner:
+        // may read every confirmation.
+        //
+        // Assigned confirmer:
+        // may read confirmations belonging to the same
+        // Receipt.
+        //
+        // This is necessary because A/B/C must be able
+        // to determine whether ANY confirmer already
+        // completed the Receipt.
+        // ----------------------------------------------
 
-        // Only the designated confirmer can
-        // create/update their confirmation.
-        allow create, update: if authorized()
-                              && request.auth.uid == cid
-                              && assignedToMe(rid);
+        allow read:
+          if owner()
+          || assignedToMe(rid);
 
-        allow delete: if owner();
+
+        // ----------------------------------------------
+        // CREATE
+        // ----------------------------------------------
+        //
+        // An assigned user may create ONLY the
+        // confirmation document whose ID is their UID.
+        //
+        // A cannot create confirmations/B.
+        // ----------------------------------------------
+
+        allow create:
+          if assignedToMe(rid)
+          && request.auth.uid == cid;
+
+
+        // ----------------------------------------------
+        // UPDATE
+        // ----------------------------------------------
+        //
+        // Keep the same ownership requirement.
+        // ----------------------------------------------
+
+        allow update:
+          if assignedToMe(rid)
+          && request.auth.uid == cid;
+
+
+        // Only Owner can delete confirmations.
+        allow delete:
+          if owner();
       }
     }
 
 
-    // =========================
-    // OTHER COLLECTIONS
-    // =========================
+    // ==================================================
+    // Other Collections
+    // ==================================================
+    //
+    // Existing owner-only fallback.
+    // ==================================================
 
-    // Temporary while other V1 modules are built.
-    // Owner has access; authorizedUser does not.
     match /{document=**} {
-      allow read, write: if owner();
+
+      allow read, write:
+        if owner();
     }
   }
 }
