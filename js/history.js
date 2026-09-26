@@ -3,6 +3,8 @@ import {
   getDocs
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
+import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
+
 
 // ======================================================
 // Helpers
@@ -309,6 +311,291 @@ function transactionCardHtml({
 }
 
 
+
+// ======================================================
+// Excel Export
+// ======================================================
+
+function exportTransactionsToExcel({
+  transactions,
+  period,
+  type,
+  customStart,
+  customEnd,
+  lang
+}) {
+
+  if (
+    !transactions ||
+    transactions.length === 0
+  ) {
+    alert(
+      lang === 'zh-TW'
+        ? '目前沒有可匯出的交易。'
+        : 'There are no transactions to export.'
+    );
+
+    return;
+  }
+
+
+  // ==================================================
+  // Transaction rows
+  // ==================================================
+
+  const rows =
+    transactions.map(
+      transaction => {
+
+        const source =
+          transaction.source || {};
+
+
+        const transactionType =
+          transaction.type === 'refund'
+            ? (
+                lang === 'zh-TW'
+                  ? '退款'
+                  : 'Refund'
+              )
+            : (
+                lang === 'zh-TW'
+                  ? '消費'
+                  : 'Purchase'
+              );
+
+
+        const paymentMethod =
+          source.paymentMethod ||
+          transaction.paymentMethod ||
+          '';
+
+
+        return {
+
+          '交易日期':
+            transaction.transactionDate || '',
+
+          '交易類型':
+            transactionType,
+
+          '商店':
+            transaction.store || '',
+
+          '幣別':
+            transaction.currency || '',
+
+          '最終金額':
+            Number(
+              transaction.amount || 0
+            ),
+
+          '付款方式':
+            paymentMethod,
+
+          '分類':
+            source.category || '',
+
+          '原商品小計':
+            Number(
+              source.originalItemsSubtotal || 0
+            ),
+
+          '商品折扣':
+            Number(
+              source.itemDiscountTotal || 0
+            ),
+
+          'Receipt 折扣':
+            Number(
+              source.receiptDiscount || 0
+            ),
+
+          '稅額':
+            Number(
+              source.tax || 0
+            ),
+
+          '其他費用':
+            Number(
+              source.fees || 0
+            ),
+
+          '備註':
+            source.notes || ''
+
+        };
+      }
+    );
+
+
+  // ==================================================
+  // Workbook
+  // ==================================================
+
+  const workbook =
+    XLSX.utils.book_new();
+
+
+  const worksheet =
+    XLSX.utils.json_to_sheet(
+      rows
+    );
+
+
+  // ==================================================
+  // Column widths
+  // ==================================================
+
+  worksheet['!cols'] = [
+
+    { wch: 14 }, // 日期
+    { wch: 12 }, // 類型
+    { wch: 24 }, // 商店
+    { wch: 10 }, // 幣別
+    { wch: 14 }, // 金額
+    { wch: 14 }, // 付款方式
+    { wch: 18 }, // 分類
+    { wch: 16 }, // 原商品小計
+    { wch: 14 }, // 商品折扣
+    { wch: 16 }, // Receipt 折扣
+    { wch: 12 }, // 稅額
+    { wch: 12 }, // 其他費用
+    { wch: 30 }  // 備註
+
+  ];
+
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    '交易歷史'
+  );
+
+
+  // ==================================================
+  // Filter information sheet
+  // ==================================================
+
+  let periodText = '所有交易';
+
+
+  if (period === '3m') {
+    periodText = '最近 3 個月';
+  }
+
+
+  if (period === '6m') {
+    periodText = '最近 6 個月';
+  }
+
+
+  if (period === '12m') {
+    periodText = '最近 12 個月';
+  }
+
+
+  if (period === 'custom') {
+
+    periodText =
+      `${customStart || '不限'} ～ ${
+        customEnd || '不限'
+      }`;
+
+  }
+
+
+  let typeText = '全部';
+
+
+  if (type === 'receipt') {
+    typeText = '消費';
+  }
+
+
+  if (type === 'refund') {
+    typeText = '退款';
+  }
+
+
+  const infoRows = [
+
+    {
+      '項目': '期間',
+      '內容': periodText
+    },
+
+    {
+      '項目': '交易類型',
+      '內容': typeText
+    },
+
+    {
+      '項目': '匯出筆數',
+      '內容': transactions.length
+    },
+
+    {
+      '項目': '匯出日期',
+      '內容': getTodayString()
+    }
+
+  ];
+
+
+  const infoSheet =
+    XLSX.utils.json_to_sheet(
+      infoRows
+    );
+
+
+  infoSheet['!cols'] = [
+    { wch: 16 },
+    { wch: 30 }
+  ];
+
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    infoSheet,
+    '匯出資訊'
+  );
+
+
+  // ==================================================
+  // Filename
+  // ==================================================
+
+  let filenamePeriod =
+    period;
+
+
+  if (period === 'all') {
+    filenamePeriod =
+      'all';
+  }
+
+
+  if (period === 'custom') {
+
+    filenamePeriod =
+      `${customStart || 'start'}_${customEnd || 'end'}`;
+
+  }
+
+
+  const filename =
+    `transaction-history_${filenamePeriod}_${getTodayString()}.xlsx`;
+
+
+  XLSX.writeFile(
+    workbook,
+    filename
+  );
+}
+
+
+
 // ======================================================
 // Main History page
 // ======================================================
@@ -457,22 +744,16 @@ export async function historyPage({
           </h2>
 
           <button
-            id="historyExportButton"
-            type="button"
-            class="secondary"
-            disabled
-            title="${
-              lang === 'zh-TW'
-                ? '匯出功能下一階段加入'
-                : 'Export will be added next'
-            }"
-          >
-            ${
-              lang === 'zh-TW'
-                ? '匯出'
-                : 'Export'
-            }
-          </button>
+  id="historyExportButton"
+  type="button"
+  class="secondary"
+>
+  ${
+    lang === 'zh-TW'
+      ? '匯出 Excel'
+      : 'Export Excel'
+  }
+</button>
 
         </div>
 
@@ -695,10 +976,18 @@ export async function historyPage({
         '#historyFilterMessage'
       );
 
+    
+    const exportButton =
+  page.querySelector(
+    '#historyExportButton'
+  );
+
 
     // ==================================================
     // Render filtered transactions
     // ==================================================
+
+    let currentVisibleTransactions = [];
 
     function renderTransactions() {
 
@@ -729,6 +1018,8 @@ export async function historyPage({
           type
         );
 
+      currentVisibleTransactions =
+        [...visibleTransactions];
 
       visibleTransactions.sort(
         (a, b) =>
@@ -840,6 +1131,31 @@ export async function historyPage({
 
     endDateInput.onchange =
       renderTransactions;
+
+    exportButton.onclick = () => {
+
+  exportTransactionsToExcel({
+
+    transactions:
+      currentVisibleTransactions,
+
+    period:
+      periodSelect.value,
+
+    type:
+      typeSelect.value,
+
+    customStart:
+      startDateInput.value,
+
+    customEnd:
+      endDateInput.value,
+
+    lang
+
+  });
+
+};
 
 
     // First render
