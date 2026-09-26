@@ -5,6 +5,9 @@ import {
 
 import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
 
+import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm';
+
+import autoTable from 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/+esm';
 
 // ======================================================
 // Helpers
@@ -670,6 +673,356 @@ function exportTransactionsToExcel({
 }
 
 
+// ======================================================
+// PDF Export
+// ======================================================
+
+function exportTransactionsToPdf({
+  transactions,
+  period,
+  type,
+  customStart,
+  customEnd,
+  lang
+}) {
+
+  if (
+    !transactions ||
+    transactions.length === 0
+  ) {
+    alert(
+      lang === 'zh-TW'
+        ? '目前沒有可匯出的交易。'
+        : 'There are no transactions to export.'
+    );
+
+    return;
+  }
+
+
+  // ==================================================
+  // Period text
+  // ==================================================
+
+  let periodText = 'All Transactions';
+
+
+  if (period === '1m') {
+    periodText = 'Last 1 Month';
+  }
+
+
+  if (period === '3m') {
+    periodText = 'Last 3 Months';
+  }
+
+
+  if (period === '6m') {
+    periodText = 'Last 6 Months';
+  }
+
+
+  if (period === '12m') {
+    periodText = 'Last 12 Months';
+  }
+
+
+  if (period === 'custom') {
+
+    periodText =
+      `${customStart || 'No Start'} - ${
+        customEnd || 'No End'
+      }`;
+
+  }
+
+
+  // ==================================================
+  // Type text
+  // ==================================================
+
+  let typeText = 'All';
+
+
+  if (type === 'receipt') {
+    typeText = 'Purchase';
+  }
+
+
+  if (type === 'refund') {
+    typeText = 'Refund';
+  }
+
+
+  // ==================================================
+  // Create PDF
+  // ==================================================
+
+  const pdf =
+    new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+
+  const pageWidth =
+    pdf.internal.pageSize.getWidth();
+
+
+  // ==================================================
+  // Header
+  // ==================================================
+
+  pdf.setFontSize(18);
+
+  pdf.text(
+    'Transaction History',
+    14,
+    16
+  );
+
+
+  pdf.setFontSize(10);
+
+
+  pdf.text(
+    `Period: ${periodText}`,
+    14,
+    24
+  );
+
+
+  pdf.text(
+    `Type: ${typeText}`,
+    14,
+    30
+  );
+
+
+  pdf.text(
+    `Transactions: ${transactions.length}`,
+    14,
+    36
+  );
+
+
+  pdf.text(
+    `Generated: ${getTodayString()}`,
+    pageWidth - 14,
+    16,
+    {
+      align: 'right'
+    }
+  );
+
+
+  // ==================================================
+  // Table rows
+  // ==================================================
+
+  const tableRows =
+    transactions.map(
+      transaction => {
+
+        const source =
+          transaction.source || {};
+
+
+        const transactionType =
+          transaction.type === 'refund'
+            ? 'Refund'
+            : 'Purchase';
+
+
+        const branch =
+          source.branch || '';
+
+
+        const storeAndBranch =
+          branch
+            ? `${transaction.store || ''} / ${branch}`
+            : transaction.store || '';
+
+
+        const amount =
+          transaction.type === 'refund'
+            ? `-${formatMoney(
+                transaction.amount,
+                transaction.currency
+              )}`
+            : formatMoney(
+                transaction.amount,
+                transaction.currency
+              );
+
+
+        return [
+
+          transaction.transactionDate || '',
+
+          transactionType,
+
+          storeAndBranch,
+
+          transaction.currency || '',
+
+          Number(
+            transaction.amount || 0
+          ).toFixed(2),
+
+          source.category || '',
+
+          source.paymentMethod ||
+            transaction.paymentMethod ||
+            ''
+
+        ];
+
+      }
+    );
+
+
+  // ==================================================
+  // Table
+  // ==================================================
+
+  autoTable(
+    pdf,
+    {
+
+      startY: 43,
+
+      head: [[
+        'Date',
+        'Type',
+        'Store / Branch',
+        'Currency',
+        'Amount',
+        'Category',
+        'Payment'
+      ]],
+
+      body:
+        tableRows,
+
+      theme:
+        'grid',
+
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak'
+      },
+
+      headStyles: {
+        fontStyle: 'bold'
+      },
+
+      columnStyles: {
+
+        0: {
+          cellWidth: 25
+        },
+
+        1: {
+          cellWidth: 22
+        },
+
+        2: {
+          cellWidth: 72
+        },
+
+        3: {
+          cellWidth: 22
+        },
+
+        4: {
+          cellWidth: 28,
+          halign: 'right'
+        },
+
+        5: {
+          cellWidth: 38
+        },
+
+        6: {
+          cellWidth: 35
+        }
+
+      },
+
+      didDrawPage: function(data) {
+
+        const currentPage =
+          pdf.internal
+            .getCurrentPageInfo()
+            .pageNumber;
+
+
+        const totalWidth =
+          pdf.internal
+            .pageSize
+            .getWidth();
+
+
+        const totalHeight =
+          pdf.internal
+            .pageSize
+            .getHeight();
+
+
+        pdf.setFontSize(8);
+
+
+        pdf.text(
+          `Page ${currentPage}`,
+          totalWidth - 14,
+          totalHeight - 8,
+          {
+            align: 'right'
+          }
+        );
+
+      }
+
+    }
+  );
+
+
+  // ==================================================
+  // Filename
+  // ==================================================
+
+  let filenamePeriod =
+    period;
+
+
+  if (period === 'all') {
+    filenamePeriod = 'all';
+  }
+
+
+  if (period === 'custom') {
+
+    filenamePeriod =
+      `${customStart || 'start'}_${
+        customEnd || 'end'
+      }`;
+
+  }
+
+
+  const filename =
+    `transaction-history_${filenamePeriod}_${getTodayString()}.pdf`;
+
+
+  pdf.save(
+    filename
+  );
+}
+
+
 
 // ======================================================
 // Main History page
@@ -818,17 +1171,34 @@ export async function historyPage({
             }
           </h2>
 
-          <button
-  id="historyExportButton"
-  type="button"
-  class="secondary"
->
-  ${
-    lang === 'zh-TW'
-      ? '匯出 Excel'
-      : 'Export Excel'
-  }
-</button>
+          <div class="history-export-buttons">
+
+  <button
+    id="historyExportExcelButton"
+    type="button"
+    class="secondary"
+  >
+    ${
+      lang === 'zh-TW'
+        ? '匯出 Excel'
+        : 'Export Excel'
+    }
+  </button>
+
+
+  <button
+    id="historyExportPdfButton"
+    type="button"
+    class="secondary"
+  >
+    ${
+      lang === 'zh-TW'
+        ? '匯出 PDF'
+        : 'Export PDF'
+    }
+  </button>
+
+</div>
 
         </div>
 
@@ -1059,9 +1429,15 @@ export async function historyPage({
       );
 
     
-    const exportButton =
+    const exportExcelButton =
   page.querySelector(
-    '#historyExportButton'
+    '#historyExportExcelButton'
+  );
+
+
+const exportPdfButton =
+  page.querySelector(
+    '#historyExportPdfButton'
   );
 
     function syncPeriodDates() {
@@ -1304,9 +1680,35 @@ startDateInput.onchange =
 endDateInput.onchange =
   handleManualDateChange;
 
-    exportButton.onclick = () => {
+    exportExcelButton.onclick = () => {
 
   exportTransactionsToExcel({
+
+    transactions:
+      currentVisibleTransactions,
+
+    period:
+      periodSelect.value,
+
+    type:
+      typeSelect.value,
+
+    customStart:
+      startDateInput.value,
+
+    customEnd:
+      endDateInput.value,
+
+    lang
+
+  });
+
+};
+
+
+exportPdfButton.onclick = () => {
+
+  exportTransactionsToPdf({
 
     transactions:
       currentVisibleTransactions,
