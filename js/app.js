@@ -574,38 +574,58 @@ function dashboardConfirmationCardHtml(
         style="cursor: pointer;"
       >
 
-        <div class="activity">
+        <div
+  style="
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px 12px;
+    text-align: left;
+  "
+>
 
-          <span style="white-space: nowrap;">
-            ${escapeHtml(
-              receipt.purchaseDate || '—'
-            )}
-          </span>
+  <span
+    style="
+      white-space: nowrap;
+      flex: 0 0 auto;
+    "
+  >
+    ${escapeHtml(
+      receipt.purchaseDate || '—'
+    )}
+  </span>
 
-          <span>
-            ${escapeHtml(
-              receipt.store || '—'
-            )}
-          </span>
+  <span
+    style="
+      white-space: nowrap;
+      flex: 0 1 auto;
+    "
+  >
+    ${escapeHtml(
+      receipt.store || '—'
+    )}
+  </span>
 
-          <span>
+  <span
+    style="
+      white-space: nowrap;
+      flex: 0 0 auto;
+    "
+  >
+    ${money(
+      receipt.total || 0,
+      expectedCurrency
+    )}
+    ·
+    ${
+      lang === 'zh-TW'
+        ? '待確認'
+        : 'Pending'
+    }
+  </span>
 
-            ${money(
-              receipt.total || 0,
-              expectedCurrency
-            )}
-
-            ·
-
-            ${
-              lang === 'zh-TW'
-                ? '待確認'
-                : 'Pending'
-            }
-
-          </span>
-
-        </div>
+</div>
 
       </div>
 
