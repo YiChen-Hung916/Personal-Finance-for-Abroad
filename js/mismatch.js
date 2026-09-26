@@ -823,8 +823,22 @@ export async function mismatchPage({
       showResolved;
 
 
-    // Default tab.
-    showPending();
+    // Restore the requested tab from the hash.
+// Example:
+// #mismatches?tab=resolved
+const mismatchParams =
+  new URLSearchParams(
+    location.hash.split('?')[1] || ''
+  );
+
+const requestedTab =
+  mismatchParams.get('tab');
+
+if (requestedTab === 'resolved') {
+  showResolved();
+} else {
+  showPending();
+}
 
 
   } catch (error) {
@@ -1510,13 +1524,15 @@ try {
     // ------------------------------------------------
 
     page.querySelector(
-      '#backToMismatchList'
-    ).onclick =
-      () => {
+  '#backToMismatchList'
+).onclick =
+  () => {
 
-        location.hash =
-          '#mismatches';
-      };
+    location.hash =
+      resolved
+        ? '#mismatches?tab=resolved'
+        : '#mismatches?tab=pending';
+  };
 
 
     // ------------------------------------------------
@@ -1581,9 +1597,9 @@ try {
             });
 
 
-            // Return to unresolved list.
+            // The item is now resolved, so return to the Resolved list.
             location.hash =
-              '#mismatches';
+              '#mismatches?tab=resolved';
 
 
           } catch (error) {
