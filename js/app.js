@@ -25,6 +25,13 @@ import {
 } from './pending.js';
 
 import {
+  mismatchPage,
+  getUnresolvedMismatches,
+  mismatchDashboardCardHtml,
+  bindMismatchViewButtons
+} from './mismatch.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
