@@ -271,3 +271,90 @@
   padding-top: 14px;
   border-top: 1px solid #e5e7eb;
 }
+
+
+
+/* ======================================================
+   Pending Confirmations
+   ====================================================== */
+
+.pending-user-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pending-user-header h2 {
+  margin: 0;
+}
+
+
+.pending-receipt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  padding: 12px 0;
+
+  border-top: 1px solid #f0f0f0;
+
+  cursor: pointer;
+}
+
+
+.pending-receipt:hover {
+  background: #fafafa;
+}
+
+
+.pending-receipt-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+
+  gap: 6px 14px;
+
+  min-width: 0;
+}
+
+
+.pending-receipt-main > span {
+  white-space: nowrap;
+}
+
+
+.pending-receipt-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  flex: 0 0 auto;
+
+  white-space: nowrap;
+}
+
+
+/* Narrow screen */
+
+@media (max-width: 700px) {
+
+  .pending-receipt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+
+  .pending-receipt-main {
+    width: 100%;
+  }
+
+
+  .pending-receipt-status {
+    width: 100%;
+
+    justify-content: flex-start;
+  }
+}
