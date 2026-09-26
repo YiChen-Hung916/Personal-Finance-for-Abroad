@@ -559,7 +559,57 @@ async function loadEligibleUsers() {
         user.role === 'owner' ||
         user.role === 'authorizedUser'
       )
-    );
+    )
+    .sort((a, b) => {
+
+      // -----------------------------------------------
+      // 1. Owner first, AuthorizedUser second
+      // -----------------------------------------------
+
+      const roleOrder = {
+        owner: 0,
+        authorizedUser: 1
+      };
+
+
+      const roleDifference =
+        roleOrder[a.role] -
+        roleOrder[b.role];
+
+
+      if (roleDifference !== 0) {
+        return roleDifference;
+      }
+
+
+      // -----------------------------------------------
+      // 2. Within the same role, sort by display name
+      // -----------------------------------------------
+
+      const nameA =
+        a.displayName ||
+        a.name ||
+        a.email ||
+        a.id;
+
+
+      const nameB =
+        b.displayName ||
+        b.name ||
+        b.email ||
+        b.id;
+
+
+      return nameA.localeCompare(
+        nameB,
+        lang === 'zh-TW'
+          ? 'zh-TW'
+          : 'en',
+        {
+          sensitivity: 'base'
+        }
+      );
+    });
 }
 
 
