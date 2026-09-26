@@ -224,6 +224,16 @@ export async function saveMyConfirmation({
   reportedCurrency = null,
   notes = ''
 }) {
+  console.log(
+  '🔥 saveMyConfirmation CALLED',
+  {
+    receiptId: receipt?.id,
+    notificationCurrencyType,
+    amountMatchStatus,
+    reportedAmount,
+    reportedCurrency
+  }
+);
 
   if (!db || !currentUser || !receipt) {
     throw new Error(
