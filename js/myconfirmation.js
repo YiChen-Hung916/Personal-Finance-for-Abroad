@@ -335,23 +335,42 @@ export async function saveMyConfirmation({
   }
 
 
-  // --------------------------------------------------
-  // Currency-type mismatch
-  // --------------------------------------------------
+// --------------------------------------------------
+// Currency-type mismatch
+//
+// Current rule:
+// - Receipt is expected to be charged in foreign currency.
+// - "以外幣結帳" is kept only as receipt information.
+// - Card notification = foreign -> currency matches.
+// - Card notification = local/TWD -> currency mismatch.
+//
+// IMPORTANT:
+// Currency mismatch and amount mismatch are independent.
+// Example:
+// Receipt USD 7
+// Card notification TWD 210
+// User may answer:
+//   currency = local
+//   amount = match
+//
+// Result:
+//   currencyTypeMismatch = true
+//   amountMismatch = false
+//   hasMismatch = true
+// --------------------------------------------------
 
-  const foreignCurrencyWasSelected =
-    receipt.foreignCurrencySettlementOffered === true;
+const foreignCurrencyWasSelected =
+  receipt.foreignCurrencySettlementOffered === true;
 
 
-  const currencyTypeMismatch =
-    foreignCurrencyWasSelected &&
-    notificationCurrencyType === 'local';
+const currencyTypeMismatch =
+  notificationCurrencyType === 'local';
 
 
-  const currencyTypeMatchStatus =
-    currencyTypeMismatch
-      ? 'mismatch'
-      : 'match';
+const currencyTypeMatchStatus =
+  currencyTypeMismatch
+    ? 'mismatch'
+    : 'match';
 
 
   // --------------------------------------------------
