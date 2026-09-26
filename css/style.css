@@ -805,3 +805,23 @@
   }
 
 }
+
+
+.history-export-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+
+  .history-heading-row {
+    align-items: flex-start;
+  }
+
+  .history-export-buttons {
+    justify-content: flex-end;
+  }
+
+}
