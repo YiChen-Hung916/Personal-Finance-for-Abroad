@@ -825,3 +825,131 @@
   }
 
 }
+
+
+
+/* =====================================================
+   Cards
+   ===================================================== */
+
+.card-page-header {
+  align-items: center;
+}
+
+.card-page-header h1 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+
+/* Slightly smaller Add Card button */
+.compact-card-button {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+
+/* "交易確認人" + multi-user checkbox */
+.card-confirmer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+
+.multi-confirmer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  flex: 0 0 auto;
+
+  font-size: 0.88rem;
+  font-weight: normal;
+  white-space: nowrap;
+
+  cursor: pointer;
+}
+
+
+.multi-confirmer-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+
+/* Additional confirmation users */
+.additional-confirmers-section {
+  margin-top: 8px;
+}
+
+
+.additional-confirmer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin-top: 8px;
+}
+
+
+.additional-confirmer-row select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+
+/* Remove */
+.remove-confirmer-button {
+  width: auto;
+  flex: 0 0 auto;
+
+  padding: 7px 10px;
+  font-size: 0.86rem;
+}
+
+
+/* Small + button */
+.add-confirmer-button {
+  width: 36px;
+  min-width: 36px;
+  height: 34px;
+
+  padding: 0;
+  margin-top: 8px;
+
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+
+/* Mobile */
+@media (max-width: 600px) {
+
+  .compact-card-button {
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 0.88rem;
+  }
+
+
+  .card-confirmer-heading {
+    gap: 8px;
+  }
+
+
+  .multi-confirmer-toggle {
+    font-size: 0.84rem;
+  }
+
+
+  .remove-confirmer-button {
+    padding: 7px 8px;
+    font-size: 0.82rem;
+  }
+}
