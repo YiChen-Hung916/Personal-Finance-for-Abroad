@@ -26,6 +26,7 @@ import {
 
 import {
   mismatchPage,
+  mismatchDetailPage,
   getUnresolvedMismatches,
   mismatchDashboardCardHtml,
   bindMismatchViewButtons
@@ -2302,6 +2303,33 @@ if (r === 'dashboard') {
     currentRole,
     lang,
     page
+  });
+
+
+} else if (
+  r.startsWith('mismatches/')
+) {
+
+  const parts =
+    r.split('/');
+
+
+  const receiptId =
+    parts[1] || null;
+
+
+  const confirmationUserId =
+    parts[2] || null;
+
+
+  mismatchDetailPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    receiptId,
+    confirmationUserId
   });
 
 
