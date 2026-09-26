@@ -827,12 +827,28 @@ function confirmationCardHtml(
     );
 
 
+  const receiptWithReminder =
+    attachPendingReminderInfo(
+      receipt
+    );
+
+
+  const reminderClass =
+    getPendingReminderClass(
+      receiptWithReminder.daysWaiting
+    );
+
+
   return `
     <div
-      class="card my-confirmation-card"
+      class="
+        card
+        my-confirmation-card
+        ${reminderClass}
+      "
       data-receipt-id="${escapeHtml(receipt.id)}"
     >
-
+    
       <div class="my-confirmation-header">
 
         <div>
