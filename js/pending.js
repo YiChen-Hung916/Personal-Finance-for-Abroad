@@ -431,41 +431,41 @@ export async function getAllPendingReceipts({
 
 
   return pendingChecks
-    .filter(Boolean)
-    .sort((a, b) => {
+  .filter(Boolean)
+  .sort((a, b) => {
 
-      const daysA =
-        Number.isFinite(
-          a.daysWaiting
-        )
-          ? a.daysWaiting
-          : -1;
-
-
-      const daysB =
-        Number.isFinite(
-          b.daysWaiting
-        )
-          ? b.daysWaiting
-          : -1;
-
-
-      // Longest waiting first.
-      if (daysA !== daysB) {
-        return daysB - daysA;
-      }
-
-
-      // If same waiting time,
-      // newer purchase date first.
-      return String(
-        b.purchaseDate || ''
-      ).localeCompare(
-        String(
-          a.purchaseDate || ''
-        )
+    // Purchase date:
+    // oldest transaction first.
+    const dateA =
+      String(
+        a.purchaseDate || ''
       );
-    });
+
+    const dateB =
+      String(
+        b.purchaseDate || ''
+      );
+
+
+    // Receipts without a purchase date
+    // go to the bottom.
+    if (!dateA && !dateB) {
+      return 0;
+    }
+
+    if (!dateA) {
+      return 1;
+    }
+
+    if (!dateB) {
+      return -1;
+    }
+
+
+    return dateA.localeCompare(
+      dateB
+    );
+  });
 }
 
 
@@ -803,19 +803,12 @@ function pendingGroupHtml({
       : null;
 
 
-  const groupReminderClass =
-    getPendingReminderClass(
-      oldestDays
-    );
+
 
 
   return `
     <section
-      class="
-        panel
-        pending-user-group
-        ${groupReminderClass}
-      "
+      class="panel pending-user-group"
     >
 
       <div class="pending-user-header">
