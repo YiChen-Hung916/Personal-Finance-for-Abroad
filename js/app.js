@@ -3,7 +3,8 @@ import { firebaseConfig } from './firebase-config.js';
 
 import {
   myConfirmationPage,
-  getMyPendingConfirmations 
+  getMyPendingConfirmations,
+  saveMyConfirmation
 } from './myconfirmation.js';
 
 import {
@@ -245,7 +246,11 @@ function renderMenu() {
 // ======================================================
 
 async function dashboard() {
-  const isOwner = currentRole === 'owner';
+
+  const isOwner =
+    currentRole === 'owner';
+
+
   let myPendingConfirmations = [];
 
 
@@ -265,93 +270,104 @@ async function dashboard() {
     );
   }
 
+
+  // ==================================================
+  // Shared "My Confirmation" panel
+  // ==================================================
+
+  const confirmationPanel = `
+    <section class="panel">
+
+      <h2>
+
+        ${
+          isOwner
+            ? t('myConfirm', lang)
+            : (
+                lang === 'zh-TW'
+                  ? '需要你確認'
+                  : 'Need Your Confirmation'
+              )
+        }
+
+        ${
+          myPendingConfirmations.length > 0
+            ? `
+              <span class="badge">
+                ${myPendingConfirmations.length}
+              </span>
+            `
+            : ''
+        }
+
+      </h2>
+
+
+      ${
+        myPendingConfirmations.length === 0
+
+          ? `
+            <p class="muted">
+              ${
+                lang === 'zh-TW'
+                  ? '目前沒有需要你確認的交易。'
+                  : 'You have no transactions requiring confirmation.'
+              }
+            </p>
+          `
+
+          : myPendingConfirmations
+              .slice(0, 3)
+              .map(receipt =>
+                dashboardConfirmationCardHtml(
+                  receipt
+                )
+              )
+              .join('')
+      }
+
+
+      ${
+        myPendingConfirmations.length > 0
+          ? `
+            <a href="#my-confirmations">
+              ${t('viewAll', lang)}
+            </a>
+          `
+          : ''
+      }
+
+    </section>
+  `;
+
+
+  // ==================================================
+  // Owner Dashboard
+  // ==================================================
+
   if (isOwner) {
+
     page.innerHTML = `
+
       <div class="actions">
-        <button onclick="location.hash='#new-receipt'">
+
+        <button
+          onclick="location.hash='#new-receipt'"
+        >
           ＋ ${t('newReceipt', lang)}
         </button>
+
       </div>
 
+
+      ${confirmationPanel}
+
+
       <section class="panel">
 
-  <h2>
-    ${t('myConfirm', lang)}
-    ${
-      myPendingConfirmations.length > 0
-        ? `<span class="badge">${myPendingConfirmations.length}</span>`
-        : ''
-    }
-  </h2>
-
-
-  ${
-    myPendingConfirmations.length === 0
-
-      ? `
-        <p class="muted">
-          ${
-            lang === 'zh-TW'
-              ? '目前沒有需要你確認的交易。'
-              : 'You have no transactions requiring confirmation.'
-          }
-        </p>
-      `
-
-      : myPendingConfirmations
-          .slice(0, 3)
-          .map(receipt => `
-
-            <div class="activity">
-
-              <span>
-                ${escapeHtml(
-                  receipt.purchaseDate || '—'
-                )}
-              </span>
-
-              <span>
-                ${escapeHtml(
-                  receipt.store || '—'
-                )}
-              </span>
-
-              <span>
-                ${money(
-                  receipt.total || 0,
-                  receipt.expectedSettlementCurrency ||
-                  receipt.currency ||
-                  ''
-                )}
-                ·
-                ${
-                  lang === 'zh-TW'
-                    ? '待確認'
-                    : 'Pending'
-                }
-              </span>
-
-            </div>
-
-          `)
-          .join('')
-  }
-
-
-  ${
-    myPendingConfirmations.length > 0
-      ? `
-        <a href="#my-confirmations">
-          ${t('viewAll', lang)}
-        </a>
-      `
-      : ''
-  }
-
-</section>
-
-      <section class="panel">
-        <h2>${t('waiting', lang)}</h2>
+        <h2>
+          ${t('waiting', lang)}
+        </h2>
 
         <p>
           <b>Mom</b> · 3 pending · oldest 10 days
@@ -364,30 +380,45 @@ async function dashboard() {
         <a href="#pending">
           ${t('viewAll', lang)}
         </a>
+
       </section>
 
+
       <section class="panel">
-        <h2>Refunds</h2>
+
+        <h2>
+          Refunds
+        </h2>
 
         <div class="activity">
           <span>Sep 15</span>
           <span>Target</span>
           <span>USD 24.99 · Pending</span>
         </div>
+
       </section>
 
+
       <section class="panel">
-        <h2>Transfers</h2>
+
+        <h2>
+          Transfers
+        </h2>
 
         <div class="activity">
           <span>Sep 16</span>
           <span>Family → Checking</span>
           <span>USD 1,000 · Received</span>
         </div>
+
       </section>
 
+
       <section class="panel">
-        <h2>${t('recent', lang)}</h2>
+
+        <h2>
+          ${t('recent', lang)}
+        </h2>
 
         ${
           [
@@ -412,116 +443,694 @@ async function dashboard() {
         <a href="#history">
           ${t('viewAll', lang)}
         </a>
+
       </section>
     `;
 
-    return;
   }
 
-  // Authorized User dashboard
-  page.innerHTML = `
-    <section class="panel">
 
-  <h2>
+  // ==================================================
+  // Authorized User Dashboard
+  // ==================================================
 
-    ${
-      lang === 'zh-TW'
-        ? '需要你確認'
-        : 'Need Your Confirmation'
-    }
+  else {
 
-    ${
-      myPendingConfirmations.length > 0
-        ? `<span class="badge">${myPendingConfirmations.length}</span>`
-        : ''
-    }
+    page.innerHTML = `
 
-  </h2>
+      ${confirmationPanel}
 
 
-  ${
-    myPendingConfirmations.length === 0
+      <section class="panel">
 
-      ? `
+        <h2>
+          ${
+            lang === 'zh-TW'
+              ? '最近活動'
+              : 'Recent Activity'
+          }
+        </h2>
+
         <p class="muted">
           ${
             lang === 'zh-TW'
-              ? '目前沒有需要你確認的交易。'
-              : 'You have no transactions requiring confirmation.'
+              ? '你可以查看指派給你的收據並回報信用卡通知。'
+              : 'You can review receipts assigned to you and report the card notification.'
           }
         </p>
-      `
 
-      : myPendingConfirmations
-          .slice(0, 3)
-          .map(receipt => `
-
-            <div class="activity">
-
-              <span>
-                ${escapeHtml(
-                  receipt.purchaseDate || '—'
-                )}
-              </span>
-
-              <span>
-                ${escapeHtml(
-                  receipt.store || '—'
-                )}
-              </span>
-
-              <span>
-                ${money(
-                  receipt.total || 0,
-                  receipt.expectedSettlementCurrency ||
-                  receipt.currency ||
-                  ''
-                )}
-                ·
-                ${
-                  lang === 'zh-TW'
-                    ? '待確認'
-                    : 'Pending'
-                }
-              </span>
-
-            </div>
-
-          `)
-          .join('')
+      </section>
+    `;
   }
 
 
-  ${
-    myPendingConfirmations.length > 0
-      ? `
-        <a href="#my-confirmations">
-          ${t('viewAll', lang)}
-        </a>
-      `
-      : ''
+  // ==================================================
+  // Bind Dashboard Confirmation Events
+  // ==================================================
+
+  bindDashboardConfirmationEvents(
+    myPendingConfirmations
+  );
+}
+
+
+// ======================================================
+// Dashboard Confirmation Card
+// ======================================================
+
+function dashboardConfirmationCardHtml(
+  receipt
+) {
+
+  const receiptId =
+    escapeHtml(
+      receipt.id
+    );
+
+
+  const expectedCurrency =
+    String(
+      receipt.expectedSettlementCurrency ||
+      receipt.currency ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const currencies = [
+    'USD',
+    'TWD',
+    'JPY',
+    'EUR',
+    'GBP',
+    'CAD',
+    'AUD',
+    'KRW',
+    'HKD',
+    'SGD'
+  ];
+
+
+  if (
+    expectedCurrency &&
+    !currencies.includes(
+      expectedCurrency
+    )
+  ) {
+    currencies.unshift(
+      expectedCurrency
+    );
   }
 
-</section>
 
-    <section class="panel">
-      <h2>
-        ${
-          lang === 'zh-TW'
-            ? '最近活動'
-            : 'Recent Activity'
-        }
-      </h2>
+  const currencyOptions =
+    currencies
+      .map(code => `
+        <option
+          value="${escapeHtml(code)}"
+          ${
+            code === expectedCurrency
+              ? 'selected'
+              : ''
+          }
+        >
+          ${escapeHtml(code)}
+        </option>
+      `)
+      .join('');
 
-      <p class="muted">
-        ${
-          lang === 'zh-TW'
-            ? '你可以查看所有收據，但只能回報指派給你的交易。'
-            : 'You may view all receipts, but can only report on transactions assigned to you.'
-        }
-      </p>
-    </section>
+
+  return `
+
+    <div
+      class="card dashboard-confirmation-card"
+      data-receipt-id="${receiptId}"
+    >
+
+      <div
+        class="dashboard-confirmation-open"
+        data-receipt-id="${receiptId}"
+        style="cursor: pointer;"
+      >
+
+        <div class="activity">
+
+          <span>
+            ${escapeHtml(
+              receipt.purchaseDate || '—'
+            )}
+          </span>
+
+          <span>
+            ${escapeHtml(
+              receipt.store || '—'
+            )}
+          </span>
+
+          <span>
+
+            ${money(
+              receipt.total || 0,
+              expectedCurrency
+            )}
+
+            ·
+
+            ${
+              lang === 'zh-TW'
+                ? '待確認'
+                : 'Pending'
+            }
+
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div class="field">
+
+        <span class="field-label">
+
+          ${
+            lang === 'zh-TW'
+              ? '信用卡通知顯示的請款幣值？'
+              : 'Card notification currency type?'
+          }
+
+          <sup class="required-mark">*</sup>
+
+        </span>
+
+
+        <label class="confirmation-choice">
+
+          <input
+            type="radio"
+            class="dashboard-currency-type"
+            name="dashboard-currency-${receiptId}"
+            value="local"
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '台幣'
+              : 'TWD'
+          }
+
+        </label>
+
+
+        <label class="confirmation-choice">
+
+          <input
+            type="radio"
+            class="dashboard-currency-type"
+            name="dashboard-currency-${receiptId}"
+            value="foreign"
+          >
+
+          ${
+            lang === 'zh-TW'
+              ? '外幣'
+              : 'Foreign'
+          }
+
+        </label>
+
+      </div>
+
+
+      <div class="actions">
+
+        <button
+          type="button"
+          class="dashboard-match-btn primary"
+          data-receipt-id="${receiptId}"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '相符'
+              : 'Match'
+          }
+        </button>
+
+
+        <button
+          type="button"
+          class="dashboard-mismatch-btn"
+          data-receipt-id="${receiptId}"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '不符'
+              : 'Mismatch'
+          }
+        </button>
+
+      </div>
+
+
+      <div
+        class="dashboard-mismatch-fields"
+        hidden
+      >
+
+        <hr>
+
+
+        <p class="muted">
+
+          ${
+            lang === 'zh-TW'
+              ? '請輸入信用卡通知中實際顯示的金額與幣值。'
+              : 'Enter the amount and currency shown in the card notification.'
+          }
+
+        </p>
+
+
+        <div class="grid">
+
+          <label class="field">
+
+            <span class="field-label">
+
+              ${
+                lang === 'zh-TW'
+                  ? '信用卡通知金額'
+                  : 'Card Notification Amount'
+              }
+
+              <sup class="required-mark">*</sup>
+
+            </span>
+
+            <input
+              type="number"
+              class="dashboard-reported-amount"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="0.00"
+            >
+
+          </label>
+
+
+          <label class="field">
+
+            <span class="field-label">
+
+              ${
+                lang === 'zh-TW'
+                  ? '信用卡通知幣值'
+                  : 'Card Notification Currency'
+              }
+
+              <sup class="required-mark">*</sup>
+
+            </span>
+
+            <select
+              class="dashboard-reported-currency"
+            >
+              ${currencyOptions}
+            </select>
+
+          </label>
+
+        </div>
+
+
+        <label class="field">
+
+          <span class="field-label">
+
+            ${
+              lang === 'zh-TW'
+                ? '備註（選填）'
+                : 'Notes (optional)'
+            }
+
+          </span>
+
+          <textarea
+            class="dashboard-confirmation-notes"
+            rows="2"
+          ></textarea>
+
+        </label>
+
+
+        <div class="actions">
+
+          <button
+            type="button"
+            class="dashboard-submit-mismatch-btn primary"
+            data-receipt-id="${receiptId}"
+          >
+
+            ${
+              lang === 'zh-TW'
+                ? '送出回報'
+                : 'Submit'
+            }
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
   `;
+}
+
+
+// ======================================================
+// Dashboard Confirmation Events
+// ======================================================
+
+function bindDashboardConfirmationEvents(
+  receipts
+) {
+
+  page
+    .querySelectorAll(
+      '.dashboard-confirmation-card'
+    )
+    .forEach(card => {
+
+      const receiptId =
+        card.dataset.receiptId;
+
+
+      const receipt =
+        receipts.find(
+          item =>
+            item.id === receiptId
+        );
+
+
+      if (!receipt) {
+        return;
+      }
+
+
+      // ------------------------------------------------
+      // Click transaction -> full confirmation page
+      // ------------------------------------------------
+
+      const openArea =
+        card.querySelector(
+          '.dashboard-confirmation-open'
+        );
+
+
+      openArea.onclick =
+        () => {
+
+          location.hash =
+            `#my-confirmations/${receipt.id}`;
+        };
+
+
+      // ------------------------------------------------
+      // Quick Match
+      // ------------------------------------------------
+
+      const matchButton =
+        card.querySelector(
+          '.dashboard-match-btn'
+        );
+
+
+      matchButton.onclick =
+        async () => {
+
+          const currencyChoice =
+            card.querySelector(
+              '.dashboard-currency-type:checked'
+            );
+
+
+          if (!currencyChoice) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請先選擇信用卡通知顯示的是台幣或外幣。'
+                : 'Please select TWD or foreign currency first.'
+            );
+
+            return;
+          }
+
+
+          matchButton.disabled =
+            true;
+
+
+          matchButton.textContent =
+            lang === 'zh-TW'
+              ? '正在送出…'
+              : 'Submitting…';
+
+
+          try {
+
+            await saveMyConfirmation({
+              db,
+              currentUser,
+              receipt,
+
+              notificationCurrencyType:
+                currencyChoice.value,
+
+              amountMatchStatus:
+                'match'
+            });
+
+
+            // Refresh Dashboard.
+            await dashboard();
+
+
+          } catch (error) {
+
+            console.error(
+              'Dashboard quick confirmation failed:',
+              error
+            );
+
+
+            alert(
+              `${
+                lang === 'zh-TW'
+                  ? '送出確認失敗'
+                  : 'Failed to submit confirmation'
+              }: ${error.message}`
+            );
+
+
+            matchButton.disabled =
+              false;
+
+
+            matchButton.textContent =
+              lang === 'zh-TW'
+                ? '相符'
+                : 'Match';
+          }
+        };
+
+
+      // ------------------------------------------------
+      // Show mismatch fields
+      // ------------------------------------------------
+
+      const mismatchButton =
+        card.querySelector(
+          '.dashboard-mismatch-btn'
+        );
+
+
+      const mismatchFields =
+        card.querySelector(
+          '.dashboard-mismatch-fields'
+        );
+
+
+      mismatchButton.onclick =
+        () => {
+
+          mismatchFields.hidden =
+            !mismatchFields.hidden;
+        };
+
+
+      // ------------------------------------------------
+      // Submit mismatch
+      // ------------------------------------------------
+
+      const submitMismatchButton =
+        card.querySelector(
+          '.dashboard-submit-mismatch-btn'
+        );
+
+
+      submitMismatchButton.onclick =
+        async () => {
+
+          const currencyChoice =
+            card.querySelector(
+              '.dashboard-currency-type:checked'
+            );
+
+
+          if (!currencyChoice) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請先選擇信用卡通知顯示的是台幣或外幣。'
+                : 'Please select TWD or foreign currency first.'
+            );
+
+            return;
+          }
+
+
+          const amountInput =
+            card.querySelector(
+              '.dashboard-reported-amount'
+            );
+
+
+          const rawAmount =
+            amountInput.value.trim();
+
+
+          if (rawAmount === '') {
+
+            alert(
+              lang === 'zh-TW'
+                ? '請輸入信用卡通知金額。'
+                : 'Please enter the card notification amount.'
+            );
+
+
+            amountInput.focus();
+
+            return;
+          }
+
+
+          const reportedAmount =
+            Number(rawAmount);
+
+
+          if (
+            !Number.isFinite(
+              reportedAmount
+            ) ||
+            reportedAmount < 0
+          ) {
+
+            alert(
+              lang === 'zh-TW'
+                ? '信用卡通知金額格式不正確。'
+                : 'Invalid card notification amount.'
+            );
+
+
+            amountInput.focus();
+
+            return;
+          }
+
+
+          const reportedCurrency =
+            card
+              .querySelector(
+                '.dashboard-reported-currency'
+              )
+              .value;
+
+
+          const notes =
+            card
+              .querySelector(
+                '.dashboard-confirmation-notes'
+              )
+              .value
+              .trim();
+
+
+          submitMismatchButton.disabled =
+            true;
+
+
+          submitMismatchButton.textContent =
+            lang === 'zh-TW'
+              ? '正在送出…'
+              : 'Submitting…';
+
+
+          try {
+
+            await saveMyConfirmation({
+              db,
+              currentUser,
+              receipt,
+
+              notificationCurrencyType:
+                currencyChoice.value,
+
+              amountMatchStatus:
+                'mismatch',
+
+              reportedAmount,
+
+              reportedCurrency,
+
+              notes
+            });
+
+
+            // Refresh Dashboard.
+            await dashboard();
+
+
+          } catch (error) {
+
+            console.error(
+              'Dashboard mismatch submission failed:',
+              error
+            );
+
+
+            alert(
+              `${
+                lang === 'zh-TW'
+                  ? '送出回報失敗'
+                  : 'Failed to submit report'
+              }: ${error.message}`
+            );
+
+
+            submitMismatchButton.disabled =
+              false;
+
+
+            submitMismatchButton.textContent =
+              lang === 'zh-TW'
+                ? '送出回報'
+                : 'Submit';
+          }
+        };
+    });
 }
 
 
@@ -1442,13 +2051,24 @@ if (r === 'dashboard') {
   formatDisplayName
 });
 
-} else if (r === 'my-confirmations') {
+} else if (
+  r === 'my-confirmations' ||
+  r.startsWith('my-confirmations/')
+) {
+  
+  const receiptId =
+    r.startsWith('my-confirmations/')
+      ? r.substring(
+          'my-confirmations/'.length
+        )
+      : null;
 
   myConfirmationPage({
     db,
     currentUser,
     lang,
-    page
+    page,
+    receiptId
   });
 
 } else if (r.startsWith('receipt-detail/')) {
