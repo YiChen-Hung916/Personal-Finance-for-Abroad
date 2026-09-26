@@ -128,7 +128,12 @@ export async function receiptDetailPage({
   // ----------------------------------------------------
 
   page.innerHTML = `
-    <section class="panel">
+    <section class="
+      panel
+      receipt-detail-panel
+      ${reminderClass}
+    "
+    >
 
       <h1>
         ${
