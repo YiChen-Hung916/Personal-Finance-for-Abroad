@@ -36,35 +36,114 @@ function getExpectedCurrency(receipt) {
 }
 
 
-function daysWaiting(purchaseDate) {
+// ======================================================
+// Calendar Date Helpers
+// ======================================================
 
-  if (!purchaseDate) {
+function localDateString(date) {
+
+  return [
+    date.getFullYear(),
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0'),
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+  ].join('-');
+}
+
+
+function getSubmissionDate(receipt) {
+
+  // New receipts:
+  // exact local calendar date saved when submitted.
+  if (receipt.submittedDate) {
+    return receipt.submittedDate;
+  }
+
+
+  // Old receipts:
+  // fallback to Firestore submittedAt timestamp.
+  if (
+    receipt.submittedAt &&
+    typeof receipt.submittedAt.toDate === 'function'
+  ) {
+
+    return localDateString(
+      receipt.submittedAt.toDate()
+    );
+  }
+
+
+  return null;
+}
+
+
+// ======================================================
+// Calendar-Day Difference
+// ======================================================
+
+function calendarDaysWaiting(
+  submittedDate
+) {
+
+  if (!submittedDate) {
     return null;
   }
 
-  const purchase =
-    new Date(`${purchaseDate}T00:00:00`);
+
+  const parts =
+    submittedDate
+      .split('-')
+      .map(Number);
+
 
   if (
-    Number.isNaN(
-      purchase.getTime()
+    parts.length !== 3 ||
+    parts.some(
+      value =>
+        !Number.isFinite(value)
     )
   ) {
     return null;
   }
 
-  const today = new Date();
 
-  today.setHours(
-    0,
-    0,
-    0,
-    0
-  );
+  const [
+    year,
+    month,
+    day
+  ] = parts;
+
+
+  // Use UTC only for the date arithmetic itself.
+  // This prevents daylight-saving changes from making
+  // one calendar day equal 23 or 25 hours.
+  const submittedDay =
+    Date.UTC(
+      year,
+      month - 1,
+      day
+    );
+
+
+  const today =
+    new Date();
+
+
+  const todayDay =
+    Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
 
   const difference =
-    today.getTime() -
-    purchase.getTime();
+    todayDay -
+    submittedDay;
+
 
   return Math.max(
     0,
@@ -73,6 +152,147 @@ function daysWaiting(purchaseDate) {
       (1000 * 60 * 60 * 24)
     )
   );
+}
+
+
+// ======================================================
+// Reminder Level
+// ======================================================
+
+export function getPendingReminderLevel(
+  daysWaiting
+) {
+
+  if (
+    !Number.isFinite(
+      daysWaiting
+    )
+  ) {
+    return 'normal';
+  }
+
+
+  if (daysWaiting >= 14) {
+    return 'red';
+  }
+
+
+  if (daysWaiting >= 10) {
+    return 'orange';
+  }
+
+
+  if (daysWaiting >= 5) {
+    return 'yellow';
+  }
+
+
+  return 'normal';
+}
+
+
+export function getPendingReminderClass(
+  daysWaiting
+) {
+
+  const level =
+    getPendingReminderLevel(
+      daysWaiting
+    );
+
+
+  return `pending-reminder-${level}`;
+}
+
+
+export function getPendingReminderText({
+  daysWaiting,
+  lang
+}) {
+
+  if (
+    !Number.isFinite(
+      daysWaiting
+    )
+  ) {
+
+    return lang === 'zh-TW'
+      ? '待確認'
+      : 'Pending';
+  }
+
+
+  const level =
+    getPendingReminderLevel(
+      daysWaiting
+    );
+
+
+  if (level === 'red') {
+
+    return lang === 'zh-TW'
+      ? `已等待 ${daysWaiting} 天 · 14 天以上`
+      : `Waiting ${daysWaiting} days · 14+ day reminder`;
+  }
+
+
+  if (level === 'orange') {
+
+    return lang === 'zh-TW'
+      ? `已等待 ${daysWaiting} 天 · 10 天提醒`
+      : `Waiting ${daysWaiting} days · 10-day reminder`;
+  }
+
+
+  if (level === 'yellow') {
+
+    return lang === 'zh-TW'
+      ? `已等待 ${daysWaiting} 天 · 5 天提醒`
+      : `Waiting ${daysWaiting} days · 5-day reminder`;
+  }
+
+
+  return lang === 'zh-TW'
+    ? `已等待 ${daysWaiting} 天`
+    : `Waiting ${daysWaiting} days`;
+}
+
+
+// ======================================================
+// Attach Reminder Information
+// ======================================================
+
+export function attachPendingReminderInfo(
+  receipt
+) {
+
+  const submittedDate =
+    getSubmissionDate(
+      receipt
+    );
+
+
+  const daysWaiting =
+    calendarDaysWaiting(
+      submittedDate
+    );
+
+
+  const reminderLevel =
+    getPendingReminderLevel(
+      daysWaiting
+    );
+
+
+  return {
+    ...receipt,
+
+    submittedDate,
+
+    daysWaiting,
+
+    reminderLevel
+  };
 }
 
 
@@ -89,6 +309,7 @@ async function getUserDisplayName({
     return '—';
   }
 
+
   try {
 
     const userSnapshot =
@@ -100,12 +321,15 @@ async function getUserDisplayName({
         )
       );
 
+
     if (!userSnapshot.exists()) {
       return userId;
     }
 
+
     const user =
       userSnapshot.data();
+
 
     return (
       user.displayAs ||
@@ -114,6 +338,7 @@ async function getUserDisplayName({
       userId
     );
 
+
   } catch (error) {
 
     console.error(
@@ -121,6 +346,7 @@ async function getUserDisplayName({
       userId,
       error
     );
+
 
     return userId;
   }
@@ -195,16 +421,10 @@ export async function getAllPendingReceipts({
             });
 
 
-          return {
+          return attachPendingReminderInfo({
             ...receipt,
-
-            confirmationUserName,
-
-            daysWaiting:
-              daysWaiting(
-                receipt.purchaseDate
-              )
-          };
+            confirmationUserName
+          });
         }
       )
     );
@@ -214,18 +434,36 @@ export async function getAllPendingReceipts({
     .filter(Boolean)
     .sort((a, b) => {
 
-      const dateA =
+      const daysA =
+        Number.isFinite(
+          a.daysWaiting
+        )
+          ? a.daysWaiting
+          : -1;
+
+
+      const daysB =
+        Number.isFinite(
+          b.daysWaiting
+        )
+          ? b.daysWaiting
+          : -1;
+
+
+      // Longest waiting first.
+      if (daysA !== daysB) {
+        return daysB - daysA;
+      }
+
+
+      // If same waiting time,
+      // newer purchase date first.
+      return String(
+        b.purchaseDate || ''
+      ).localeCompare(
         String(
           a.purchaseDate || ''
-        );
-
-      const dateB =
-        String(
-          b.purchaseDate || ''
-        );
-
-      return dateB.localeCompare(
-        dateA
+        )
       );
     });
 }
@@ -421,6 +659,34 @@ export async function pendingPage({
           }
         </p>
 
+        <div class="pending-reminder-legend">
+
+          <span class="pending-legend-yellow">
+            ${
+              lang === 'zh-TW'
+                ? '5 天'
+                : '5 days'
+            }
+          </span>
+
+          <span class="pending-legend-orange">
+            ${
+              lang === 'zh-TW'
+                ? '10 天'
+                : '10 days'
+            }
+          </span>
+
+          <span class="pending-legend-red">
+            ${
+              lang === 'zh-TW'
+                ? '14 天以上'
+                : '14+ days'
+            }
+          </span>
+
+        </div>
+
       </section>
 
 
@@ -450,9 +716,26 @@ export async function pendingPage({
           const receiptId =
             item.dataset.receiptId;
 
+
           location.hash =
             `#receipt-detail/${receiptId}`;
         };
+
+
+        item.onkeydown =
+          event => {
+
+            if (
+              event.key === 'Enter' ||
+              event.key === ' '
+            ) {
+
+              event.preventDefault();
+
+              location.hash =
+                `#receipt-detail/${item.dataset.receiptId}`;
+            }
+          };
       });
 
 
@@ -520,8 +803,20 @@ function pendingGroupHtml({
       : null;
 
 
+  const groupReminderClass =
+    getPendingReminderClass(
+      oldestDays
+    );
+
+
   return `
-    <section class="panel pending-user-group">
+    <section
+      class="
+        panel
+        pending-user-group
+        ${groupReminderClass}
+      "
+    >
 
       <div class="pending-user-header">
 
@@ -545,7 +840,7 @@ function pendingGroupHtml({
       ${
         oldestDays !== null
           ? `
-              <p class="muted">
+              <p class="pending-group-waiting">
                 ${
                   lang === 'zh-TW'
                     ? `最久已等待 ${oldestDays} 天`
@@ -586,25 +881,27 @@ function pendingReceiptHtml({
     );
 
 
-  const waitingText =
-    Number.isFinite(
+  const reminderClass =
+    getPendingReminderClass(
       receipt.daysWaiting
-    )
-      ? (
-          lang === 'zh-TW'
-            ? `已等待 ${receipt.daysWaiting} 天`
-            : `Waiting ${receipt.daysWaiting} days`
-        )
-      : (
-          lang === 'zh-TW'
-            ? '待確認'
-            : 'Pending'
-        );
+    );
+
+
+  const waitingText =
+    getPendingReminderText({
+      daysWaiting:
+        receipt.daysWaiting,
+
+      lang
+    });
 
 
   return `
     <div
-      class="pending-receipt"
+      class="
+        pending-receipt
+        ${reminderClass}
+      "
       data-receipt-id="${escapeHtml(
         receipt.id
       )}"
@@ -640,7 +937,7 @@ function pendingReceiptHtml({
 
       <div class="pending-receipt-status">
 
-        <span class="muted">
+        <span>
           ${escapeHtml(
             waitingText
           )}
