@@ -161,6 +161,27 @@ async function loadCards() {
         ...cardDoc.data()
       }));
 
+    // ----------------------------------------------------
+// Load user names for confirmation-user display
+// ----------------------------------------------------
+
+const eligibleUsers =
+  await loadEligibleUsers();
+
+
+const userNameMap =
+  new Map(
+    eligibleUsers.map(user => [
+      user.id,
+
+      user.displayAs ||
+      user.displayName ||
+      user.name ||
+      user.email ||
+      user.id
+    ])
+  );
+
 
     // 使用中的卡先顯示
     const activeCards =
