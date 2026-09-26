@@ -527,6 +527,18 @@
 }
 
 
+/* ======================================================
+   Pending - Group containers stay neutral
+   ====================================================== */
+
+.pending-user-group,
+.dashboard-pending-user {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+
+
+
 .dashboard-confirmation-card.pending-reminder-red {
   background: #ffe1e1;
   border-color: #ef9a9a;
