@@ -205,6 +205,67 @@
   margin: 0;
 }
 
+
+/* ======================================================
+   Dashboard - Confirmation transaction summary
+   ====================================================== */
+
+.dashboard-confirmation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.dashboard-confirmation-summary > span {
+  white-space: nowrap;
+}
+
+/*
+  Date
+*/
+.dashboard-confirmation-summary > span:first-child {
+  flex: 0 0 auto;
+}
+
+/*
+  Store
+*/
+.dashboard-confirmation-summary > span:nth-child(2) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/*
+  Amount + Pending
+*/
+.dashboard-confirmation-summary > span:last-child {
+  flex: 0 0 auto;
+  margin-left: 0;
+  text-align: left;
+}
+
+
+/* Narrow screen */
+@media (max-width: 700px) {
+
+  .dashboard-confirmation-summary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px 10px;
+  }
+
+  .dashboard-confirmation-summary > span:last-child {
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
 .mismatch-fields {
   margin-top: 14px;
   padding-top: 14px;
