@@ -265,11 +265,40 @@ async function dashboard() {
 
   try {
 
-    myPendingConfirmations =
-      await getMyPendingConfirmations({
-        db,
-        currentUser
-      });
+    const rawMyPendingConfirmations =
+  await getMyPendingConfirmations({
+    db,
+    currentUser
+  });
+
+
+myPendingConfirmations =
+  rawMyPendingConfirmations
+    .map(receipt =>
+      attachPendingReminderInfo(
+        receipt
+      )
+    )
+    .sort((a, b) => {
+
+      const daysA =
+        Number.isFinite(
+          a.daysWaiting
+        )
+          ? a.daysWaiting
+          : -1;
+
+
+      const daysB =
+        Number.isFinite(
+          b.daysWaiting
+        )
+          ? b.daysWaiting
+          : -1;
+
+
+      return daysB - daysA;
+    });
 
     if (isOwner) {
 
@@ -405,35 +434,46 @@ const pendingSummaryHtml =
               : null;
 
 
-          return `
-            <p>
+          const reminderClass =
+  getPendingReminderClass(
+    oldestDays
+  );
 
-              <b>
-                ${escapeHtml(
-                  group.userName
-                )}
-              </b>
 
-              ·
+return `
+  <div
+    class="
+      dashboard-pending-user
+      ${reminderClass}
+    "
+  >
 
-              ${
-                lang === 'zh-TW'
-                  ? `${group.receipts.length} 筆待確認`
-                  : `${group.receipts.length} pending`
-              }
+    <b>
+      ${escapeHtml(
+        group.userName
+      )}
+    </b>
 
-              ${
-                oldestDays !== null
-                  ? (
-                      lang === 'zh-TW'
-                        ? ` · 最久 ${oldestDays} 天`
-                        : ` · oldest ${oldestDays} days`
-                    )
-                  : ''
-              }
+    ·
 
-            </p>
-          `;
+    ${
+      lang === 'zh-TW'
+        ? `${group.receipts.length} 筆待確認`
+        : `${group.receipts.length} pending`
+    }
+
+    ${
+      oldestDays !== null
+        ? (
+            lang === 'zh-TW'
+              ? ` · 最久 ${oldestDays} 天`
+              : ` · oldest ${oldestDays} days`
+          )
+        : ''
+    }
+
+  </div>
+`;
         })
         .join('');
 
@@ -610,6 +650,20 @@ function dashboardConfirmationCardHtml(
   receipt
 ) {
 
+  const reminderClass =
+    getPendingReminderClass(
+      receipt.daysWaiting
+    );
+
+
+  const reminderText =
+    getPendingReminderText({
+      daysWaiting:
+        receipt.daysWaiting,
+
+      lang
+    });
+
   const receiptId =
     escapeHtml(
       receipt.id
@@ -672,7 +726,11 @@ function dashboardConfirmationCardHtml(
   return `
 
     <div
-      class="card dashboard-confirmation-card"
+      class="
+        card
+        dashboard-confirmation-card
+        ${reminderClass}
+      "
       data-receipt-id="${receiptId}"
     >
 
@@ -717,11 +775,9 @@ function dashboardConfirmationCardHtml(
       expectedCurrency
     )}
     ·
-    ${
-      lang === 'zh-TW'
-        ? '待確認'
-        : 'Pending'
-    }
+    ${escapeHtml(
+  reminderText
+)}
   </span>
 
 </div>
