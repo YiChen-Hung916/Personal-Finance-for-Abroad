@@ -174,6 +174,14 @@ function menu(role) {
       <a href="#my-confirmations">
         ${t('myConfirm', lang)}
       </a>
+      
+      <a href="#mismatches">
+        ${
+          lang === 'zh-TW'
+            ? '不符項目'
+            : 'Mismatches'
+        }
+      </a>
 
       <a href="#history">
         ${t('history', lang)}
@@ -269,6 +277,7 @@ async function dashboard() {
 
   let myPendingConfirmations = [];
   let allPendingConfirmations = [];
+  let unresolvedMismatches = [];
 
   try {
 
@@ -321,6 +330,11 @@ myPendingConfirmations =
 
     allPendingConfirmations =
       await getAllPendingReceipts({
+        db
+      });
+    
+    unresolvedMismatches =
+      await getUnresolvedMismatches({
         db
       });
   }
@@ -486,6 +500,81 @@ return `
         })
         .join('');
 
+  
+
+// ==================================================
+// Owner Mismatch Summary
+// ==================================================
+
+const mismatchPanel =
+  isOwner
+    ? `
+        <section class="panel">
+
+          <h2>
+
+            ${
+              lang === 'zh-TW'
+                ? '需要處理'
+                : 'Needs Attention'
+            }
+
+            ${
+              unresolvedMismatches.length > 0
+                ? `
+                    <span class="badge">
+                      ${unresolvedMismatches.length}
+                    </span>
+                  `
+                : ''
+            }
+
+          </h2>
+
+
+          ${
+            unresolvedMismatches.length === 0
+
+              ? `
+                  <p class="muted">
+                    ${
+                      lang === 'zh-TW'
+                        ? '目前沒有需要處理的不符項目。'
+                        : 'There are no unresolved mismatches.'
+                    }
+                  </p>
+                `
+
+              : unresolvedMismatches
+                  .slice(0, 3)
+                  .map(item =>
+                    mismatchDashboardCardHtml({
+                      item,
+                      lang
+                    })
+                  )
+                  .join('')
+          }
+
+
+          ${
+            unresolvedMismatches.length > 0
+              ? `
+                  <a href="#mismatches">
+                    ${
+                      lang === 'zh-TW'
+                        ? '查看全部'
+                        : 'View All'
+                    }
+                  </a>
+                `
+              : ''
+          }
+
+        </section>
+      `
+    : '';
+
 
   
   // ==================================================
@@ -508,6 +597,8 @@ return `
 
 
       ${confirmationPanel}
+      
+      ${mismatchPanel}
 
 
       <section class="panel">
@@ -648,6 +739,14 @@ return `
   bindDashboardConfirmationEvents(
     myPendingConfirmations
   );
+
+
+  if (isOwner) {
+
+  bindMismatchViewButtons(
+    page
+  );
+}
 }
 
 
@@ -2195,6 +2294,16 @@ if (r === 'dashboard') {
     page,
     receiptId
   });
+
+} else if (r === 'mismatches') {
+
+  mismatchPage({
+    db,
+    currentRole,
+    lang,
+    page
+  });
+
 
 } else if (r.startsWith('receipt-detail/')) {
 
