@@ -5,9 +5,9 @@ import {
 
 import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
 
-import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm';
+import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@3.0.3/+esm';
 
-import autoTable from 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/+esm';
+import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
 
 // ======================================================
 // Helpers
@@ -887,107 +887,104 @@ function exportTransactionsToPdf({
   // Table
   // ==================================================
 
-  autoTable(
-    pdf,
-    {
+  pdf.autoTable({
 
-      startY: 43,
+  startY: 43,
 
-      head: [[
-        'Date',
-        'Type',
-        'Store / Branch',
-        'Currency',
-        'Amount',
-        'Category',
-        'Payment'
-      ]],
+  head: [[
+    'Date',
+    'Type',
+    'Store / Branch',
+    'Currency',
+    'Amount',
+    'Category',
+    'Payment'
+  ]],
 
-      body:
-        tableRows,
+  body:
+    tableRows,
 
-      theme:
-        'grid',
+  theme:
+    'grid',
 
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak'
-      },
+  styles: {
+    fontSize: 8,
+    cellPadding: 2,
+    overflow: 'linebreak'
+  },
 
-      headStyles: {
-        fontStyle: 'bold'
-      },
+  headStyles: {
+    fontStyle: 'bold'
+  },
 
-      columnStyles: {
+  columnStyles: {
 
-        0: {
-          cellWidth: 25
-        },
+    0: {
+      cellWidth: 25
+    },
 
-        1: {
-          cellWidth: 22
-        },
+    1: {
+      cellWidth: 22
+    },
 
-        2: {
-          cellWidth: 72
-        },
+    2: {
+      cellWidth: 72
+    },
 
-        3: {
-          cellWidth: 22
-        },
+    3: {
+      cellWidth: 22
+    },
 
-        4: {
-          cellWidth: 28,
-          halign: 'right'
-        },
+    4: {
+      cellWidth: 28,
+      halign: 'right'
+    },
 
-        5: {
-          cellWidth: 38
-        },
+    5: {
+      cellWidth: 38
+    },
 
-        6: {
-          cellWidth: 35
-        }
-
-      },
-
-      didDrawPage: function(data) {
-
-        const currentPage =
-          pdf.internal
-            .getCurrentPageInfo()
-            .pageNumber;
-
-
-        const totalWidth =
-          pdf.internal
-            .pageSize
-            .getWidth();
-
-
-        const totalHeight =
-          pdf.internal
-            .pageSize
-            .getHeight();
-
-
-        pdf.setFontSize(8);
-
-
-        pdf.text(
-          `Page ${currentPage}`,
-          totalWidth - 14,
-          totalHeight - 8,
-          {
-            align: 'right'
-          }
-        );
-
-      }
-
+    6: {
+      cellWidth: 35
     }
-  );
+
+  },
+
+  didDrawPage: function(data) {
+
+    const currentPage =
+      pdf.internal
+        .getCurrentPageInfo()
+        .pageNumber;
+
+
+    const totalWidth =
+      pdf.internal
+        .pageSize
+        .getWidth();
+
+
+    const totalHeight =
+      pdf.internal
+        .pageSize
+        .getHeight();
+
+
+    pdf.setFontSize(8);
+
+
+    pdf.text(
+      `Page ${currentPage}`,
+      totalWidth - 14,
+      totalHeight - 8,
+      {
+        align: 'right'
+      }
+    );
+
+  }
+
+});
 
 
   // ==================================================
