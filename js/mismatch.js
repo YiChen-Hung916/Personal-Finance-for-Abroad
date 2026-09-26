@@ -781,38 +781,46 @@ export async function mismatchPage({
 
     function showPending() {
 
-      pendingButton.classList.add(
-        'primary'
-      );
+  sessionStorage.setItem(
+    'mismatchActiveTab',
+    'pending'
+  );
 
-      resolvedButton.classList.remove(
-        'primary'
-      );
+  pendingButton.classList.add(
+    'primary'
+  );
 
+  resolvedButton.classList.remove(
+    'primary'
+  );
 
-      renderMismatchList(
-        pendingMismatches,
-        'pending'
-      );
-    }
+  renderMismatchList(
+    pendingMismatches,
+    'pending'
+  );
+}
 
 
     function showResolved() {
 
-      resolvedButton.classList.add(
-        'primary'
-      );
+  sessionStorage.setItem(
+    'mismatchActiveTab',
+    'resolved'
+  );
 
-      pendingButton.classList.remove(
-        'primary'
-      );
+  resolvedButton.classList.add(
+    'primary'
+  );
 
+  pendingButton.classList.remove(
+    'primary'
+  );
 
-      renderMismatchList(
-        resolvedMismatches,
-        'resolved'
-      );
-    }
+  renderMismatchList(
+    resolvedMismatches,
+    'resolved'
+  );
+}
 
 
     pendingButton.onclick =
@@ -823,23 +831,16 @@ export async function mismatchPage({
       showResolved;
 
 
-    // Restore the requested tab from the hash.
-// Example:
-// #mismatches?tab=resolved
-const mismatchParams =
-  new URLSearchParams(
-    location.hash.split('?')[1] || ''
-  );
-
+    // Restore the last selected mismatch tab.
 const requestedTab =
-  mismatchParams.get('tab');
+  sessionStorage.getItem('mismatchActiveTab');
 
 if (requestedTab === 'resolved') {
   showResolved();
 } else {
   showPending();
 }
-
+    
 
   } catch (error) {
 
@@ -1529,9 +1530,7 @@ try {
   () => {
 
     location.hash =
-      resolved
-        ? '#mismatches?tab=resolved'
-        : '#mismatches?tab=pending';
+      '#mismatches';
   };
 
 
@@ -1598,8 +1597,13 @@ try {
 
 
             // The item is now resolved, so return to the Resolved list.
-            location.hash =
-              '#mismatches?tab=resolved';
+            sessionStorage.setItem(
+  'mismatchActiveTab',
+  'resolved'
+);
+
+location.hash =
+  '#mismatches';
 
 
           } catch (error) {
