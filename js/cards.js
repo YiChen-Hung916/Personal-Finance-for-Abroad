@@ -155,98 +155,247 @@ async function loadCards() {
     }
 
 
-    cardList.innerHTML =
-      snapshot.docs
-        .map(cardDoc => {
-
-          const card =
-            cardDoc.data();
-
-
-          const confirmationUserIds =
-            getCardConfirmationUserIds(card);
+    const cards =
+      snapshot.docs.map(cardDoc => ({
+        id: cardDoc.id,
+        ...cardDoc.data()
+      }));
 
 
-          return `
-            <div class="item">
-
-              <h3>
-                ${escapeHtml(
-                  card.nickname || ''
-                )}
-              </h3>
+    // 使用中的卡先顯示
+    const activeCards =
+      cards.filter(card =>
+        card.active === true
+      );
 
 
-              <p>
-                ${escapeHtml(
-                  card.issuer || ''
-                )}
-                ·
-                ${escapeHtml(
-                  card.network || ''
-                )}
-              </p>
+    // 未啟用 / 已封存的卡放後面
+    const inactiveCards =
+      cards.filter(card =>
+        card.active !== true
+      );
 
 
-              <p>
-                ••••
-                ${escapeHtml(
-                  card.last4 || ''
-                )}
-              </p>
+    function cardHtml(card) {
+
+      const confirmationUserIds =
+        getCardConfirmationUserIds(
+          card
+        );
 
 
+      return `
+        <div class="item">
+
+          <h3>
+            ${escapeHtml(
+              card.nickname || ''
+            )}
+          </h3>
+
+
+          <p>
+            ${escapeHtml(
+              card.issuer || ''
+            )}
+            ·
+            ${escapeHtml(
+              card.network || ''
+            )}
+          </p>
+
+
+          <p>
+            ••••
+            ${escapeHtml(
+              card.last4 || ''
+            )}
+          </p>
+
+
+          ${
+            confirmationUserIds.length > 1
+              ? `
+                <p class="muted">
+                  ${
+                    lang === 'zh-TW'
+                      ? `${confirmationUserIds.length} 位交易確認人`
+                      : `${confirmationUserIds.length} confirmation users`
+                  }
+                </p>
+              `
+              : ''
+          }
+
+
+          <p class="muted">
+            ${
+              card.active === true
+                ? (
+                    lang === 'zh-TW'
+                      ? '使用中'
+                      : 'Active'
+                  )
+                : (
+                    lang === 'zh-TW'
+                      ? '未啟用'
+                      : 'Inactive'
+                  )
+            }
+          </p>
+
+
+          <button
+            class="editCardBtn"
+            data-id="${escapeHtml(card.id)}"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '編輯'
+                : 'Edit'
+            }
+          </button>
+
+        </div>
+      `;
+    }
+
+
+    const activeHtml =
+      activeCards.length > 0
+
+        ? activeCards
+            .map(cardHtml)
+            .join('')
+
+        : `
+            <p class="muted">
               ${
-                confirmationUserIds.length > 1
-                  ? `
-                    <p class="muted">
-                      ${
-                        lang === 'zh-TW'
-                          ? `${confirmationUserIds.length} 位交易確認人`
-                          : `${confirmationUserIds.length} confirmation users`
-                      }
-                    </p>
-                  `
-                  : ''
+                lang === 'zh-TW'
+                  ? '目前沒有使用中的信用卡。'
+                  : 'There are no active cards.'
               }
-
-
-              <p class="muted">
-                ${
-                  card.active === true
-                    ? (
-                        lang === 'zh-TW'
-                          ? '使用中'
-                          : 'Active'
-                      )
-                    : (
-                        lang === 'zh-TW'
-                          ? '已封存'
-                          : 'Archived'
-                      )
-                }
-              </p>
-
-
-              <button
-                class="editCardBtn"
-                data-id="${escapeHtml(cardDoc.id)}"
-              >
-                ${
-                  lang === 'zh-TW'
-                    ? '編輯'
-                    : 'Edit'
-                }
-              </button>
-
-            </div>
+            </p>
           `;
-        })
+
+
+    const inactivePreviewHtml =
+      inactiveCards.length > 0
+
+        ? cardHtml(
+            inactiveCards[0]
+          )
+
+        : `
+            <p class="muted">
+              ${
+                lang === 'zh-TW'
+                  ? '目前沒有未啟用的信用卡。'
+                  : 'There are no inactive cards.'
+              }
+            </p>
+          `;
+
+
+    const inactiveRemainingHtml =
+      inactiveCards
+        .slice(1)
+        .map(cardHtml)
         .join('');
 
 
+    cardList.innerHTML = `
+
+      <div class="card-list-section">
+
+        <h2>
+          ${
+            lang === 'zh-TW'
+              ? '使用中的信用卡'
+              : 'Active Cards'
+          }
+
+          ${
+            activeCards.length > 0
+              ? `
+                  <span class="badge">
+                    ${activeCards.length}
+                  </span>
+                `
+              : ''
+          }
+        </h2>
+
+
+        ${activeHtml}
+
+      </div>
+
+
+      <div class="card-list-section inactive-card-section">
+
+        <h2>
+          ${
+            lang === 'zh-TW'
+              ? '未啟用的信用卡'
+              : 'Inactive Cards'
+          }
+
+          ${
+            inactiveCards.length > 0
+              ? `
+                  <span class="badge">
+                    ${inactiveCards.length}
+                  </span>
+                `
+              : ''
+          }
+        </h2>
+
+
+        <div id="inactiveCardPreview">
+          ${inactivePreviewHtml}
+        </div>
+
+
+        ${
+          inactiveCards.length > 1
+            ? `
+                <div
+                  id="inactiveCardRemaining"
+                  hidden
+                >
+                  ${inactiveRemainingHtml}
+                </div>
+
+
+                <button
+                  type="button"
+                  id="toggleInactiveCards"
+                  class="card-list-toggle-button"
+                >
+                  ${
+                    lang === 'zh-TW'
+                      ? '查看全部'
+                      : 'View All'
+                  }
+                </button>
+              `
+            : ''
+        }
+
+      </div>
+    `;
+
+
+    // -----------------------------------------------
+    // Edit buttons
+    // -----------------------------------------------
+
     document
-      .querySelectorAll('.editCardBtn')
+      .querySelectorAll(
+        '.editCardBtn'
+      )
       .forEach(button => {
 
         button.onclick = () => {
@@ -256,6 +405,57 @@ async function loadCards() {
           );
         };
       });
+
+
+    // -----------------------------------------------
+    // Inactive cards:
+    // show one by default, expand all when requested.
+    // -----------------------------------------------
+
+    const toggleInactiveButton =
+      document.querySelector(
+        '#toggleInactiveCards'
+      );
+
+
+    const inactiveRemaining =
+      document.querySelector(
+        '#inactiveCardRemaining'
+      );
+
+
+    if (
+      toggleInactiveButton &&
+      inactiveRemaining
+    ) {
+
+      toggleInactiveButton.onclick =
+        () => {
+
+          const willShow =
+            inactiveRemaining.hidden;
+
+
+          inactiveRemaining.hidden =
+            !willShow;
+
+
+          toggleInactiveButton.textContent =
+            willShow
+
+              ? (
+                  lang === 'zh-TW'
+                    ? '收合'
+                    : 'Show Less'
+                )
+
+              : (
+                  lang === 'zh-TW'
+                    ? '查看全部'
+                    : 'View All'
+                );
+        };
+    }
 
 
   } catch (error) {
@@ -277,6 +477,7 @@ async function loadCards() {
     `;
   }
 }
+
 
 
 // ======================================================
@@ -828,11 +1029,15 @@ async function showNewCardForm() {
 
         <label class="field">
 
+        <span>
           ${
             lang === 'zh-TW'
               ? '卡片暱稱'
               : 'Card nickname'
           }
+          
+          <sup class="required-mark">*</sup>
+        </span>
 
           <input
             id="cardNickname"
@@ -844,11 +1049,16 @@ async function showNewCardForm() {
 
         <label class="field">
 
+        <span>
           ${
             lang === 'zh-TW'
               ? '發卡銀行'
               : 'Issuer'
           }
+
+          <sup class="required-mark">*</sup>
+        </span>
+        
 
           <input
             id="cardIssuer"
@@ -864,11 +1074,15 @@ async function showNewCardForm() {
 
         <label class="field">
 
+        <span>
           ${
             lang === 'zh-TW'
               ? '卡別'
               : 'Network'
           }
+
+          <sup class="required-mark">*</sup>
+        </span>
 
           <select id="cardNetwork">
 
@@ -899,11 +1113,15 @@ async function showNewCardForm() {
 
         <label class="field">
 
+        <span>
           ${
             lang === 'zh-TW'
               ? '卡號末四碼'
               : 'Last 4 digits'
           }
+
+          <sup class="required-mark">*</sup>
+        </span>
 
           <input
             id="cardLast4"
@@ -922,10 +1140,29 @@ async function showNewCardForm() {
       })}
 
 
-      <p
-        id="cardFormMessage"
-        class="muted"
-      ></p>
+      <label class="card-active-toggle">
+
+  <input
+    type="checkbox"
+    id="cardActive"
+    checked
+  >
+
+  <span>
+    ${
+      lang === 'zh-TW'
+        ? '使用中'
+        : 'Active'
+    }
+  </span>
+
+</label>
+
+
+<p
+  id="cardFormMessage"
+  class="muted"
+></p>
 
 
       <div class="actions">
@@ -1018,6 +1255,12 @@ async function saveNewCard() {
       .value
       .trim();
 
+  
+  const active =
+  document
+    .querySelector('#cardActive')
+    .checked;
+
 
   const message =
     document.querySelector(
@@ -1045,6 +1288,17 @@ async function saveNewCard() {
 
     return;
   }
+
+
+  if (!network) {
+
+  message.textContent =
+    lang === 'zh-TW'
+      ? '請選擇卡別。'
+      : 'Please select the card network.';
+
+  return;
+}
 
 
   if (!/^\d{4}$/.test(last4)) {
@@ -1216,11 +1470,15 @@ async function editCard(cardId) {
 
           <label class="field">
 
+          <span>
             ${
               lang === 'zh-TW'
                 ? '卡片暱稱'
                 : 'Card nickname'
             }
+
+            <sup class="required-mark">*</sup>
+        </span>
 
             <input
               id="cardNickname"
@@ -1234,11 +1492,15 @@ async function editCard(cardId) {
 
           <label class="field">
 
+          <span>
             ${
               lang === 'zh-TW'
                 ? '發卡銀行'
                 : 'Issuer'
             }
+
+            <sup class="required-mark">*</sup>
+        </span>
 
             <input
               id="cardIssuer"
@@ -1256,11 +1518,15 @@ async function editCard(cardId) {
 
           <label class="field">
 
+          <span>
             ${
               lang === 'zh-TW'
                 ? '卡別'
                 : 'Network'
             }
+
+            <sup class="required-mark">*</sup>
+        </span>
 
             <select id="cardNetwork">
 
@@ -1294,11 +1560,15 @@ async function editCard(cardId) {
 
           <label class="field">
 
+          <span>
             ${
               lang === 'zh-TW'
                 ? '卡號末四碼'
                 : 'Last 4 digits'
             }
+
+            <sup class="required-mark">*</sup>
+        </span>
 
             <input
               id="cardLast4"
@@ -1481,18 +1751,37 @@ async function editCard(cardId) {
             );
 
 
-          if (
-            !nickname ||
-            !issuer
-          ) {
+          if (!nickname) {
 
-            message.textContent =
-              lang === 'zh-TW'
-                ? '請填寫卡片暱稱與發卡銀行。'
-                : 'Please enter nickname and issuer.';
+  message.textContent =
+    lang === 'zh-TW'
+      ? '請輸入卡片暱稱。'
+      : 'Please enter a card nickname.';
 
-            return;
-          }
+  return;
+}
+
+
+if (!issuer) {
+
+  message.textContent =
+    lang === 'zh-TW'
+      ? '請輸入發卡銀行。'
+      : 'Please enter the issuer.';
+
+  return;
+}
+
+
+if (!network) {
+
+  message.textContent =
+    lang === 'zh-TW'
+      ? '請選擇卡別。'
+      : 'Please select the card network.';
+
+  return;
+}
 
 
           if (
