@@ -433,7 +433,22 @@ const currencyTypeMatchStatus =
     );
   }
 
+console.log(
+  '🔥 BEFORE FIRESTORE WRITE',
+  {
+    receiptId: receipt.id,
+    notificationCurrencyType,
+    amountMatchStatus,
+    amountMismatch,
+    foreignCurrencyWasSelected,
+    currencyTypeMismatch,
+    currencyTypeMatchStatus,
+    hasMismatch,
+    mismatchReasons
+  }
+);
 
+  
   await setDoc(
     confirmationRef,
     {
