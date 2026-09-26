@@ -392,48 +392,9 @@ export async function resolveMismatch({
   const confirmation =
     confirmationSnapshot.data();
 
-  // ------------------------------------------------
+// ------------------------------------------------
 // Load confirmer profile
 // ------------------------------------------------
-
-let confirmerName = '';
-
-
-try {
-
-  const confirmerSnapshot =
-    await getDoc(
-      doc(
-        db,
-        'users',
-        confirmationUserId
-      )
-    );
-
-
-  if (confirmerSnapshot.exists()) {
-
-    const confirmerProfile =
-      confirmerSnapshot.data();
-
-
-    confirmerName =
-      String(
-        confirmerProfile.displayName ||
-        confirmerProfile.name ||
-        confirmerProfile.preferredName ||
-        ''
-      ).trim();
-  }
-
-
-} catch (error) {
-
-  console.warn(
-    'Failed to load confirmer profile:',
-    error
-  );
-}
 
 
   if (
@@ -845,6 +806,51 @@ export async function mismatchDetailPage({
 
     const confirmation =
       confirmationSnapshot.data();
+
+
+    // ------------------------------------------------
+// Load confirmer profile
+// ------------------------------------------------
+
+let confirmerName = '';
+
+
+try {
+
+  const confirmerSnapshot =
+    await getDoc(
+      doc(
+        db,
+        'users',
+        confirmationUserId
+      )
+    );
+
+
+  if (confirmerSnapshot.exists()) {
+
+    const confirmerProfile =
+      confirmerSnapshot.data();
+
+
+    confirmerName =
+      String(
+        confirmerProfile.displayName ||
+        confirmerProfile.name ||
+        confirmerProfile.preferredName ||
+        ''
+      ).trim();
+  }
+
+
+} catch (error) {
+
+  console.warn(
+    'Failed to load confirmer profile:',
+    error
+  );
+}
+
 
 
     // ------------------------------------------------
