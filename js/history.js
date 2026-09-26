@@ -7,7 +7,7 @@ import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
 
 import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@3.0.3/+esm';
 
-import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
+// import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
 
 // ======================================================
 // Helpers
@@ -690,6 +690,7 @@ function exportTransactionsToPdf({
     !transactions ||
     transactions.length === 0
   ) {
+
     alert(
       lang === 'zh-TW'
         ? '目前沒有可匯出的交易。'
@@ -701,10 +702,11 @@ function exportTransactionsToPdf({
 
 
   // ==================================================
-  // Period text
+  // Period
   // ==================================================
 
-  let periodText = 'All Transactions';
+  let periodText =
+    'All Transactions';
 
 
   if (period === '1m') {
@@ -738,7 +740,7 @@ function exportTransactionsToPdf({
 
 
   // ==================================================
-  // Type text
+  // Type
   // ==================================================
 
   let typeText = 'All';
@@ -755,7 +757,7 @@ function exportTransactionsToPdf({
 
 
   // ==================================================
-  // Create PDF
+  // PDF
   // ==================================================
 
   const pdf =
@@ -770,187 +772,178 @@ function exportTransactionsToPdf({
     pdf.internal.pageSize.getWidth();
 
 
+  const pageHeight =
+    pdf.internal.pageSize.getHeight();
+
+
+  const leftMargin = 14;
+
+  const rightMargin = 14;
+
+  const bottomMargin = 14;
+
+
   // ==================================================
-  // Header
+  // Column positions
   // ==================================================
 
-  pdf.setFontSize(18);
+  const columns = {
 
-  pdf.text(
-    'Transaction History',
-    14,
-    16
-  );
+    date: 14,
 
+    type: 43,
 
-  pdf.setFontSize(10);
+    store: 70,
 
+    currency: 165,
 
-  pdf.text(
-    `Period: ${periodText}`,
-    14,
-    24
-  );
+    amount: 195,
 
+    category: 225,
 
-  pdf.text(
-    `Type: ${typeText}`,
-    14,
-    30
-  );
+    payment: 260
+
+  };
 
 
-  pdf.text(
-    `Transactions: ${transactions.length}`,
-    14,
-    36
-  );
+  // ==================================================
+  // Helpers
+  // ==================================================
+
+  function drawPageHeader(
+    includeReportHeader = false
+  ) {
+
+    if (includeReportHeader) {
+
+      pdf.setFontSize(18);
+
+      pdf.text(
+        'Transaction History',
+        leftMargin,
+        16
+      );
 
 
-  pdf.text(
-    `Generated: ${getTodayString()}`,
-    pageWidth - 14,
-    16,
-    {
-      align: 'right'
+      pdf.setFontSize(9);
+
+      pdf.text(
+        `Period: ${periodText}`,
+        leftMargin,
+        24
+      );
+
+
+      pdf.text(
+        `Type: ${typeText}`,
+        leftMargin,
+        30
+      );
+
+
+      pdf.text(
+        `Transactions: ${transactions.length}`,
+        leftMargin,
+        36
+      );
+
+
+      pdf.text(
+        `Generated: ${getTodayString()}`,
+        pageWidth - rightMargin,
+        16,
+        {
+          align: 'right'
+        }
+      );
+
     }
-  );
 
 
-  // ==================================================
-  // Table rows
-  // ==================================================
-
-  const tableRows =
-    transactions.map(
-      transaction => {
-
-        const source =
-          transaction.source || {};
+    const headerY =
+      includeReportHeader
+        ? 45
+        : 18;
 
 
-        const transactionType =
-          transaction.type === 'refund'
-            ? 'Refund'
-            : 'Purchase';
+    pdf.setFontSize(8);
 
-
-        const branch =
-          source.branch || '';
-
-
-        const storeAndBranch =
-          branch
-            ? `${transaction.store || ''} / ${branch}`
-            : transaction.store || '';
-
-
-        const amount =
-          transaction.type === 'refund'
-            ? `-${formatMoney(
-                transaction.amount,
-                transaction.currency
-              )}`
-            : formatMoney(
-                transaction.amount,
-                transaction.currency
-              );
-
-
-        return [
-
-          transaction.transactionDate || '',
-
-          transactionType,
-
-          storeAndBranch,
-
-          transaction.currency || '',
-
-          Number(
-            transaction.amount || 0
-          ).toFixed(2),
-
-          source.category || '',
-
-          source.paymentMethod ||
-            transaction.paymentMethod ||
-            ''
-
-        ];
-
-      }
+    pdf.setFont(
+      'helvetica',
+      'bold'
     );
 
 
-  // ==================================================
-  // Table
-  // ==================================================
+    pdf.text(
+      'Date',
+      columns.date,
+      headerY
+    );
 
-  pdf.autoTable({
 
-  startY: 43,
+    pdf.text(
+      'Type',
+      columns.type,
+      headerY
+    );
 
-  head: [[
-    'Date',
-    'Type',
-    'Store / Branch',
-    'Currency',
-    'Amount',
-    'Category',
-    'Payment'
-  ]],
 
-  body:
-    tableRows,
+    pdf.text(
+      'Store / Branch',
+      columns.store,
+      headerY
+    );
 
-  theme:
-    'grid',
 
-  styles: {
-    fontSize: 8,
-    cellPadding: 2,
-    overflow: 'linebreak'
-  },
+    pdf.text(
+      'Currency',
+      columns.currency,
+      headerY
+    );
 
-  headStyles: {
-    fontStyle: 'bold'
-  },
 
-  columnStyles: {
+    pdf.text(
+      'Amount',
+      columns.amount,
+      headerY
+    );
 
-    0: {
-      cellWidth: 25
-    },
 
-    1: {
-      cellWidth: 22
-    },
+    pdf.text(
+      'Category',
+      columns.category,
+      headerY
+    );
 
-    2: {
-      cellWidth: 72
-    },
 
-    3: {
-      cellWidth: 22
-    },
+    pdf.text(
+      'Payment',
+      columns.payment,
+      headerY
+    );
 
-    4: {
-      cellWidth: 28,
-      halign: 'right'
-    },
 
-    5: {
-      cellWidth: 38
-    },
+    pdf.setDrawColor(180);
 
-    6: {
-      cellWidth: 35
-    }
+    pdf.line(
+      leftMargin,
+      headerY + 2,
+      pageWidth - rightMargin,
+      headerY + 2
+    );
 
-  },
 
-  didDrawPage: function(data) {
+    pdf.setFont(
+      'helvetica',
+      'normal'
+    );
+
+
+    return headerY + 7;
+  }
+
+
+  function addPageNumber() {
 
     const currentPage =
       pdf.internal
@@ -958,25 +951,12 @@ function exportTransactionsToPdf({
         .pageNumber;
 
 
-    const totalWidth =
-      pdf.internal
-        .pageSize
-        .getWidth();
-
-
-    const totalHeight =
-      pdf.internal
-        .pageSize
-        .getHeight();
-
-
     pdf.setFontSize(8);
-
 
     pdf.text(
       `Page ${currentPage}`,
-      totalWidth - 14,
-      totalHeight - 8,
+      pageWidth - rightMargin,
+      pageHeight - 7,
       {
         align: 'right'
       }
@@ -984,7 +964,195 @@ function exportTransactionsToPdf({
 
   }
 
-});
+
+  function safeText(
+    value,
+    maxLength
+  ) {
+
+    const text =
+      String(value ?? '');
+
+
+    if (
+      text.length <= maxLength
+    ) {
+      return text;
+    }
+
+
+    return (
+      text.slice(
+        0,
+        Math.max(
+          0,
+          maxLength - 3
+        )
+      ) +
+      '...'
+    );
+  }
+
+
+  // ==================================================
+  // First page
+  // ==================================================
+
+  let y =
+    drawPageHeader(true);
+
+
+  pdf.setFontSize(8);
+
+
+  // ==================================================
+  // Transactions
+  // ==================================================
+
+  transactions.forEach(
+    transaction => {
+
+      const source =
+        transaction.source || {};
+
+
+      // New page if needed
+      if (
+        y >
+        pageHeight - bottomMargin - 6
+      ) {
+
+        addPageNumber();
+
+        pdf.addPage();
+
+        y =
+          drawPageHeader(false);
+
+        pdf.setFontSize(8);
+
+      }
+
+
+      const transactionType =
+        transaction.type === 'refund'
+          ? 'Refund'
+          : 'Purchase';
+
+
+      const branch =
+        source.branch || '';
+
+
+      const storeAndBranch =
+        branch
+          ? `${
+              transaction.store || ''
+            } / ${branch}`
+          : transaction.store || '';
+
+
+      const amount =
+        Number(
+          transaction.amount || 0
+        ).toFixed(2);
+
+
+      const category =
+        source.category || '';
+
+
+      const paymentMethod =
+        source.paymentMethod ||
+        transaction.paymentMethod ||
+        '';
+
+
+      pdf.text(
+        safeText(
+          transaction.transactionDate,
+          12
+        ),
+        columns.date,
+        y
+      );
+
+
+      pdf.text(
+        transactionType,
+        columns.type,
+        y
+      );
+
+
+      pdf.text(
+        safeText(
+          storeAndBranch,
+          42
+        ),
+        columns.store,
+        y
+      );
+
+
+      pdf.text(
+        safeText(
+          transaction.currency,
+          8
+        ),
+        columns.currency,
+        y
+      );
+
+
+      pdf.text(
+        amount,
+        columns.amount,
+        y,
+        {
+          align: 'right'
+        }
+      );
+
+
+      pdf.text(
+        safeText(
+          category,
+          16
+        ),
+        columns.category,
+        y
+      );
+
+
+      pdf.text(
+        safeText(
+          paymentMethod,
+          14
+        ),
+        columns.payment,
+        y
+      );
+
+
+      pdf.setDrawColor(225);
+
+      pdf.line(
+        leftMargin,
+        y + 2,
+        pageWidth - rightMargin,
+        y + 2
+      );
+
+
+      y += 7;
+
+    }
+  );
+
+
+  // Last page number
+  addPageNumber();
 
 
   // ==================================================
