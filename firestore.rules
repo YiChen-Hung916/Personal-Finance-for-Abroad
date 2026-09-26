@@ -94,40 +94,51 @@ service cloud.firestore {
 
     function assignedToMe(receiptId) {
 
-      let receipt =
-        get(
-          /databases/$(database)/documents/receipts/$(receiptId)
-        ).data;
+  let receipt =
+    get(
+      /databases/$(database)/documents/receipts/$(receiptId)
+    ).data;
 
 
-      return authorized()
+  let confirmationUserIds =
+    receipt.get(
+      "confirmationUserIds",
+      []
+    );
 
-        && (
 
-          (
-            receipt.confirmationUserIds is list
+  let confirmationUserId =
+    receipt.get(
+      "confirmationUserId",
+      null
+    );
 
-            &&
 
-            request.auth.uid in
-              receipt.confirmationUserIds
-          )
+  return authorized()
 
-          ||
+    && (
 
-          (
-            !(
-              receipt.confirmationUserIds is list
-            )
+      (
+        confirmationUserIds is list
 
-            &&
+        &&
 
-            receipt.confirmationUserId ==
-              request.auth.uid
-          )
-        );
-    }
+        request.auth.uid in
+          confirmationUserIds
+      )
 
+      ||
+
+      (
+        confirmationUserIds.size() == 0
+
+        &&
+
+        confirmationUserId ==
+          request.auth.uid
+      )
+    );
+}
 
     // ==================================================
     // Users
