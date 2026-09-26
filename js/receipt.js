@@ -1770,7 +1770,20 @@ async function saveReceipt(status) {
     return;
   }
 
+// ------------------------------------------------------
+  // Submission calendar date
+  // ------------------------------------------------------
 
+  const now = new Date();
+
+  const localSubmittedDate =
+    [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-');
+
+  
   // ------------------------------------------------------
   // Basic Receipt Fields
   // ------------------------------------------------------
