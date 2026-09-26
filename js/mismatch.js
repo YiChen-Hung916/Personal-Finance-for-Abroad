@@ -392,11 +392,14 @@ export function mismatchDashboardCardHtml({
       .trim()
       .toUpperCase();
 
+  const resolved =
+  confirmation.mismatchResolved === true;
 
+  
   return `
 
     <div
-      class="card mismatch-card"
+      class="card${resolved ? '' : ' mismatch-card'}"
       data-receipt-id="${escapeHtml(
         receipt.id
       )}"
@@ -439,7 +442,7 @@ export function mismatchDashboardCardHtml({
         ${
           reasons
             .map(reason => `
-              <span class="mismatch-reason-badge">
+              <span class="${resolved ? 'badge' : 'mismatch-reason-badge'}">
                 ${escapeHtml(reason)}
               </span>
             `)
