@@ -588,33 +588,56 @@ export async function myConfirmationPage({
     }
 
 
-    let currentIndex = 0;
+    // --------------------------------------------------
+// No receiptId:
+// show the list of all pending confirmations.
+// --------------------------------------------------
+
+if (!receiptId) {
+
+  renderConfirmationList({
+    list,
+    receipts,
+    lang
+  });
+
+  return;
+}
 
 
-    if (receiptId) {
+// --------------------------------------------------
+// receiptId provided:
+// show one full confirmation.
+// --------------------------------------------------
 
-      const requestedIndex =
-        receipts.findIndex(
-          receipt =>
-            receipt.id === receiptId
-        );
-
-
-      if (requestedIndex !== -1) {
-        currentIndex =
-          requestedIndex;
-      }
-    }
+const requestedIndex =
+  receipts.findIndex(
+    receipt =>
+      receipt.id === receiptId
+  );
 
 
-    renderSingleConfirmation({
-      db,
-      currentUser,
-      lang,
-      list,
-      receipts,
-      currentIndex
-    });
+if (requestedIndex === -1) {
+
+  renderConfirmationList({
+    list,
+    receipts,
+    lang
+  });
+
+  return;
+}
+
+
+renderSingleConfirmation({
+  db,
+  currentUser,
+  lang,
+  list,
+  receipts,
+  currentIndex:
+    requestedIndex
+});
 
 
   } catch (error) {
@@ -644,6 +667,176 @@ export async function myConfirmationPage({
     `;
   }
 }
+
+
+// ======================================================
+// Render Confirmation List
+// ======================================================
+
+function renderConfirmationList({
+  list,
+  receipts,
+  lang
+}) {
+
+  const sortedReceipts =
+    [...receipts]
+      .map(receipt =>
+        attachPendingReminderInfo(
+          receipt
+        )
+      )
+      .sort((a, b) => {
+
+        const dateA =
+          String(
+            a.purchaseDate || ''
+          );
+
+        const dateB =
+          String(
+            b.purchaseDate || ''
+          );
+
+
+        if (!dateA && !dateB) {
+          return 0;
+        }
+
+        if (!dateA) {
+          return 1;
+        }
+
+        if (!dateB) {
+          return -1;
+        }
+
+
+        return dateA.localeCompare(
+          dateB
+        );
+      });
+
+
+  list.innerHTML = `
+
+    <div class="my-confirmation-list">
+
+      ${
+        sortedReceipts
+          .map(receipt => {
+
+            const reminderClass =
+              getPendingReminderClass(
+                receipt.daysWaiting
+              );
+
+
+            const receiptCurrency =
+              getExpectedCurrency(
+                receipt
+              );
+
+
+            return `
+
+              <button
+                type="button"
+                class="
+                  my-confirmation-list-item
+                  ${reminderClass}
+                "
+                data-receipt-id="${escapeHtml(
+                  receipt.id
+                )}"
+              >
+
+                <div
+                  class="my-confirmation-list-main"
+                >
+
+                  <strong>
+                    ${escapeHtml(
+                      receipt.store || '—'
+                    )}
+                  </strong>
+
+                  <span class="muted">
+                    ${escapeHtml(
+                      receipt.purchaseDate || '—'
+                    )}
+                  </span>
+
+                </div>
+
+
+                <div
+                  class="my-confirmation-list-side"
+                >
+
+                  <strong>
+                    ${formatMoney(
+                      receipt.total || 0,
+                      receiptCurrency
+                    )}
+                  </strong>
+
+                  ${
+                    Number.isFinite(
+                      receipt.daysWaiting
+                    )
+                      ? `
+                          <span class="muted">
+                            ${
+                              lang === 'zh-TW'
+                                ? `已等待 ${receipt.daysWaiting} 天`
+                                : `${receipt.daysWaiting} days waiting`
+                            }
+                          </span>
+                        `
+                      : ''
+                  }
+
+                </div>
+
+              </button>
+
+            `;
+
+          })
+          .join('')
+      }
+
+    </div>
+
+  `;
+
+
+  list
+    .querySelectorAll(
+      '.my-confirmation-list-item'
+    )
+    .forEach(item => {
+
+      item.onclick =
+        () => {
+
+          const selectedReceiptId =
+            item.dataset.receiptId;
+
+
+          if (!selectedReceiptId) {
+            return;
+          }
+
+
+          location.hash =
+            `#my-confirmations/${selectedReceiptId}`;
+        };
+
+    });
+}
+
 
 
 // ======================================================
