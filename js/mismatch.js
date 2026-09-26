@@ -229,6 +229,141 @@ export async function getUnresolvedMismatches({
 
 
 // ======================================================
+// Load All Mismatches
+// Used by the full mismatch page.
+// Dashboard should continue using getUnresolvedMismatches().
+// ======================================================
+
+async function getAllMismatches({
+  db
+}) {
+
+  if (!db) {
+    return [];
+  }
+
+
+  const mismatchQuery =
+    query(
+      collectionGroup(
+        db,
+        'confirmations'
+      ),
+      where(
+        'hasMismatch',
+        '==',
+        true
+      )
+    );
+
+
+  const mismatchSnapshot =
+    await getDocs(
+      mismatchQuery
+    );
+
+
+  const mismatches = [];
+
+
+  for (
+    const confirmationDoc
+    of mismatchSnapshot.docs
+  ) {
+
+    const confirmation =
+      confirmationDoc.data();
+
+
+    const receiptId =
+      confirmation.receiptId ||
+      confirmationDoc.ref.parent.parent?.id;
+
+
+    if (!receiptId) {
+      continue;
+    }
+
+
+    const receiptSnapshot =
+      await getDoc(
+        doc(
+          db,
+          'receipts',
+          receiptId
+        )
+      );
+
+
+    if (!receiptSnapshot.exists()) {
+      continue;
+    }
+
+
+    const receipt = {
+      id: receiptSnapshot.id,
+      ...receiptSnapshot.data()
+    };
+
+
+    mismatches.push({
+      id:
+        confirmationDoc.id,
+
+      confirmationId:
+        confirmationDoc.id,
+
+      confirmationPath:
+        confirmationDoc.ref.path,
+
+      confirmation,
+
+      receipt
+    });
+  }
+
+
+  // Oldest transaction first.
+  mismatches.sort(
+    (a, b) => {
+
+      const dateA =
+        String(
+          a.receipt.purchaseDate || ''
+        );
+
+      const dateB =
+        String(
+          b.receipt.purchaseDate || ''
+        );
+
+
+      if (!dateA && !dateB) {
+        return 0;
+      }
+
+      if (!dateA) {
+        return 1;
+      }
+
+      if (!dateB) {
+        return -1;
+      }
+
+
+      return dateA.localeCompare(
+        dateB
+      );
+    }
+  );
+
+
+  return mismatches;
+}
+
+
+
+// ======================================================
 // Compact Owner Dashboard Card
 // ======================================================
 
@@ -484,13 +619,37 @@ export async function mismatchPage({
         }
       </h1>
 
-      <p class="muted">
-        ${
-          lang === 'zh-TW'
-            ? '查看已回報但尚未處理的不符項目。'
-            : 'Review reported mismatches that still require resolution.'
-        }
-      </p>
+
+      <div class="actions">
+
+        <button
+          type="button"
+          id="showPendingMismatches"
+          class="primary"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '待處理'
+              : 'Pending'
+          }
+          <span id="pendingMismatchCount"></span>
+        </button>
+
+
+        <button
+          type="button"
+          id="showResolvedMismatches"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '已處理'
+              : 'Resolved'
+          }
+          <span id="resolvedMismatchCount"></span>
+        </button>
+
+      </div>
+
 
       <div id="mismatchList">
 
@@ -514,48 +673,158 @@ export async function mismatchPage({
     );
 
 
+  const pendingButton =
+    page.querySelector(
+      '#showPendingMismatches'
+    );
+
+
+  const resolvedButton =
+    page.querySelector(
+      '#showResolvedMismatches'
+    );
+
+
+  const pendingCount =
+    page.querySelector(
+      '#pendingMismatchCount'
+    );
+
+
+  const resolvedCount =
+    page.querySelector(
+      '#resolvedMismatchCount'
+    );
+
+
   try {
 
-    const mismatches =
-      await getUnresolvedMismatches({
+    const allMismatches =
+      await getAllMismatches({
         db
       });
 
 
-    if (mismatches.length === 0) {
+    const pendingMismatches =
+      allMismatches.filter(
+        item =>
+          item.confirmation
+            .mismatchResolved !== true
+      );
 
-      list.innerHTML = `
-        <div class="card">
 
-          <p>
-            ${
-              lang === 'zh-TW'
-                ? '目前沒有需要處理的不符項目。'
-                : 'There are currently no unresolved mismatches.'
-            }
-          </p>
+    const resolvedMismatches =
+      allMismatches.filter(
+        item =>
+          item.confirmation
+            .mismatchResolved === true
+      );
 
-        </div>
-      `;
 
-      return;
+    pendingCount.textContent =
+      ` ${pendingMismatches.length}`;
+
+
+    resolvedCount.textContent =
+      ` ${resolvedMismatches.length}`;
+
+
+    function renderMismatchList(
+      items,
+      type
+    ) {
+
+      if (items.length === 0) {
+
+        list.innerHTML = `
+          <div class="card">
+
+            <p>
+              ${
+                type === 'pending'
+                  ? (
+                      lang === 'zh-TW'
+                        ? '目前沒有需要處理的不符項目。'
+                        : 'There are currently no unresolved mismatches.'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '目前沒有已處理的不符項目。'
+                        : 'There are currently no resolved mismatches.'
+                    )
+              }
+            </p>
+
+          </div>
+        `;
+
+        return;
+      }
+
+
+      list.innerHTML =
+        items
+          .map(item =>
+            mismatchDashboardCardHtml({
+              item,
+              lang
+            })
+          )
+          .join('');
+
+
+      bindMismatchViewButtons(
+        list
+      );
     }
 
 
-    list.innerHTML =
-      mismatches
-        .map(item =>
-          mismatchDashboardCardHtml({
-            item,
-            lang
-          })
-        )
-        .join('');
+    function showPending() {
+
+      pendingButton.classList.add(
+        'primary'
+      );
+
+      resolvedButton.classList.remove(
+        'primary'
+      );
 
 
-    bindMismatchViewButtons(
-      list
-    );
+      renderMismatchList(
+        pendingMismatches,
+        'pending'
+      );
+    }
+
+
+    function showResolved() {
+
+      resolvedButton.classList.add(
+        'primary'
+      );
+
+      pendingButton.classList.remove(
+        'primary'
+      );
+
+
+      renderMismatchList(
+        resolvedMismatches,
+        'resolved'
+      );
+    }
+
+
+    pendingButton.onclick =
+      showPending;
+
+
+    resolvedButton.onclick =
+      showResolved;
+
+
+    // Default tab.
+    showPending();
 
 
   } catch (error) {
