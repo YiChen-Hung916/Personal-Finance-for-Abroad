@@ -16,6 +16,12 @@ import {
 } from './receiptdetail.js';
 
 import {
+  pendingPage,
+  getAllPendingReceipts,
+  groupPendingByUser
+} from './pending.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -252,7 +258,7 @@ async function dashboard() {
 
 
   let myPendingConfirmations = [];
-
+  let allPendingConfirmations = [];
 
   try {
 
@@ -261,6 +267,14 @@ async function dashboard() {
         db,
         currentUser
       });
+
+    if (isOwner) {
+
+    allPendingConfirmations =
+      await getAllPendingReceipts({
+        db
+      });
+  }
 
   } catch (error) {
 
@@ -342,6 +356,87 @@ async function dashboard() {
 
 
   // ==================================================
+// Owner Pending Summary
+// ==================================================
+
+const pendingGroups =
+  isOwner
+    ? groupPendingByUser(
+        allPendingConfirmations
+      )
+    : [];
+
+
+const pendingSummaryHtml =
+
+  pendingGroups.length === 0
+
+    ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前沒有等待確認的交易。'
+              : 'There are no pending confirmations.'
+          }
+        </p>
+      `
+
+    : pendingGroups
+        .map(group => {
+
+          const waitingValues =
+            group.receipts
+              .map(receipt =>
+                receipt.daysWaiting
+              )
+              .filter(value =>
+                Number.isFinite(value)
+              );
+
+
+          const oldestDays =
+            waitingValues.length > 0
+              ? Math.max(
+                  ...waitingValues
+                )
+              : null;
+
+
+          return `
+            <p>
+
+              <b>
+                ${escapeHtml(
+                  group.userName
+                )}
+              </b>
+
+              ·
+
+              ${
+                lang === 'zh-TW'
+                  ? `${group.receipts.length} 筆待確認`
+                  : `${group.receipts.length} pending`
+              }
+
+              ${
+                oldestDays !== null
+                  ? (
+                      lang === 'zh-TW'
+                        ? ` · 最久 ${oldestDays} 天`
+                        : ` · oldest ${oldestDays} days`
+                    )
+                  : ''
+              }
+
+            </p>
+          `;
+        })
+        .join('');
+
+
+  
+  // ==================================================
   // Owner Dashboard
   // ==================================================
 
@@ -367,21 +462,31 @@ async function dashboard() {
 
         <h2>
           ${t('waiting', lang)}
+          ${
+      allPendingConfirmations.length > 0
+        ? `
+            <span class="badge">
+              ${allPendingConfirmations.length}
+            </span>
+          `
+        : ''
+    }
+    
         </h2>
 
-        <p>
-          <b>Mom</b> · 3 pending · oldest 10 days
-        </p>
+        ${pendingSummaryHtml}
 
-        <p>
-          <b>Dad</b> · 1 pending · oldest 2 days
-        </p>
+        ${
+    allPendingConfirmations.length > 0
+      ? `
+          <a href="#pending">
+            ${t('viewAll', lang)}
+          </a>
+        `
+      : ''
+  }
 
-        <a href="#pending">
-          ${t('viewAll', lang)}
-        </a>
-
-      </section>
+</section>
 
 
       <section class="panel">
@@ -2048,6 +2153,15 @@ function route() {
 if (r === 'dashboard') {
 
   dashboard();
+
+} else if (r === 'pending') {
+
+  pendingPage({
+    db,
+    currentRole,
+    lang,
+    page
+  });
 
 } else if (r === 'new-receipt') {
 
