@@ -99,20 +99,9 @@ function fxReferenceHtml(
       </div>
 
       <div>
-        1 ${escapeHtml(fxDisplay.currency)}
-        ≈
-        ${escapeHtml(fxDisplay.formattedRate)}
-        ${escapeHtml(fxDisplay.homeCurrency)}
-
-        <span class="muted">
-          （${escapeHtml(
-            fxDisplay.sourceLabel
-          )}）
-        </span>
-      </div>
-
-      <div>
-        ${escapeHtml(fxDisplay.currency)}
+        ${escapeHtml(
+          fxDisplay.currency
+        )}
         ${Number(
           fxDisplay.foreignAmount
         ).toLocaleString(
@@ -128,6 +117,27 @@ function fxReferenceHtml(
         ${escapeHtml(
           fxDisplay.formattedConvertedAmount
         )}
+      </div>
+
+
+      <div>
+        1
+        ${escapeHtml(
+          fxDisplay.currency
+        )}
+        ≈
+        ${escapeHtml(
+          fxDisplay.formattedRate
+        )}
+        ${escapeHtml(
+          fxDisplay.homeCurrency
+        )}
+
+        <span class="muted">
+          （${escapeHtml(
+            fxDisplay.sourceLabel
+          )}）
+        </span>
       </div>
     </div>
   `;
