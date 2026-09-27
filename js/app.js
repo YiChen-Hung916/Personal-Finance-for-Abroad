@@ -164,46 +164,46 @@ function dashboardFxReferenceHtml(
 
 
       <div>
-        1
-        ${escapeHtml(
-          fxDisplay.currency
-        )}
-        ≈
-        ${escapeHtml(
-          fxDisplay.formattedRate
-        )}
-        ${escapeHtml(
-          fxDisplay.homeCurrency
-        )}
+  ${escapeHtml(
+    fxDisplay.currency
+  )}
+  ${Number(
+    fxDisplay.foreignAmount
+  ).toLocaleString(
+    'en-US',
+    {
+      maximumFractionDigits: 2
+    }
+  )}
+  ≈
+  ${escapeHtml(
+    fxDisplay.homeCurrency
+  )}
+  ${escapeHtml(
+    fxDisplay.formattedConvertedAmount
+  )}
+</div>
 
-        <span class="muted">
-          （${escapeHtml(
-            fxDisplay.sourceLabel
-          )}）
-        </span>
-      </div>
 
+<div>
+  1
+  ${escapeHtml(
+    fxDisplay.currency
+  )}
+  ≈
+  ${escapeHtml(
+    fxDisplay.formattedRate
+  )}
+  ${escapeHtml(
+    fxDisplay.homeCurrency
+  )}
 
-      <div>
-        ${escapeHtml(
-          fxDisplay.currency
-        )}
-        ${Number(
-          fxDisplay.foreignAmount
-        ).toLocaleString(
-          'en-US',
-          {
-            maximumFractionDigits: 2
-          }
-        )}
-        ≈
-        ${escapeHtml(
-          fxDisplay.homeCurrency
-        )}
-        ${escapeHtml(
-          fxDisplay.formattedConvertedAmount
-        )}
-      </div>
+  <span class="muted">
+    （${escapeHtml(
+      fxDisplay.sourceLabel
+    )}）
+  </span>
+</div>
 
     </div>
   `;
