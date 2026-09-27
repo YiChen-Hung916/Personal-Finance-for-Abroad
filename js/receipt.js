@@ -2521,10 +2521,18 @@ if (paymentMethod === 'card') {
           foreignCurrencySettlementOffered,
 
 
+          // Expected card-notification currency.
+          //
+          // This is independent from whether the merchant
+          // explicitly offered a currency choice.
+          //
+          // TWD receipt:
+          //   expected notification type = local
+          //
+          // Foreign-currency receipt:
+          //   expected notification type = foreign
           expectedSettlementCurrency:
-            foreignCurrencySettlementOffered
-              ? currency
-              : null,
+            currency,
 
 
           categories,
