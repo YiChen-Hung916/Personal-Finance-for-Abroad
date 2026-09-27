@@ -288,23 +288,13 @@ def get_first_bank_rates(session):
     if response.status_code != 200:
         return {}
 
-    html = response.text
-
     soup = BeautifulSoup(
-        html,
+        response.text,
         "html.parser"
     )
 
     rates = {}
 
-
-    # -----------------------------------------------------
-    # Look through table rows.
-    #
-    # We intentionally do not depend on one specific
-    # CSS class so minor page styling changes are less
-    # likely to break the parser.
-    # -----------------------------------------------------
 
     for row in soup.find_all("tr"):
 
@@ -320,10 +310,44 @@ def get_first_bank_rates(session):
             )
         ]
 
-        if not cells:
+        # Expected First Bank spot-rate row:
+        #
+        # [0] 美金(USD)
+        # [1] 即期
+        # [2] 31.xxxxx   <- buy
+        # [3] 31.xxxxx   <- sell
+        #
+        # We need spot SELL because the reference
+        # calculation is:
+        #
+        # foreign currency -> amount of TWD needed
+        #
+        # e.g.
+        # USD 100 × spot sell rate
+        # = approximate TWD amount
+
+        if len(cells) < 4:
             continue
 
-        row_text = " ".join(cells).upper()
+
+        rate_type = (
+            cells[1]
+            .replace(" ", "")
+            .strip()
+        )
+
+
+        # Critical:
+        # Ignore cash rates, time-deposit rates,
+        # 180-day rates, etc.
+        if rate_type != "即期":
+            continue
+
+
+        row_text = (
+            " ".join(cells)
+            .upper()
+        )
 
 
         for currency in TEST_CURRENCIES:
@@ -332,33 +356,27 @@ def get_first_bank_rates(session):
                 continue
 
 
-            numeric_values = []
+            buy_rate = parse_number(
+                cells[2]
+            )
 
-            for cell in cells:
-
-                value = parse_number(cell)
-
-                if value is not None:
-                    numeric_values.append(
-                        value
-                    )
+            sell_rate = parse_number(
+                cells[3]
+            )
 
 
-            # We only record the raw numbers here.
-            #
-            # This checkpoint is intentionally testing
-            # the page structure first.
-            #
-            # We will decide exactly which column is
-            # the correct spot selling rate AFTER we
-            # inspect the actual output.
-            if numeric_values:
+            if sell_rate is None:
+                continue
 
-                rates[currency] = {
-                    "cells": cells,
-                    "numbers":
-                        numeric_values,
-                }
+
+            rates[currency] = {
+                "buyRate": buy_rate,
+                "sellRate": sell_rate,
+                "rate": sell_rate,
+                "source": "First Bank",
+                "rateType": "spot-sell",
+                "cells": cells,
+            }
 
 
     return rates
@@ -609,7 +627,7 @@ def main():
 
         print(
             "First Bank parser: "
-            "NO RATE ROWS FOUND"
+            "NO SPOT RATE ROWS FOUND"
         )
 
     else:
@@ -638,26 +656,36 @@ def main():
 
 
             print(
-                "  Cells:"
-            )
-
-            for index, cell in enumerate(
-                info["cells"]
-            ):
-
-                print(
-                    f"    [{index}] "
-                    f"{cell}"
-                )
-
-
-            print(
-                "  Numeric values:"
+                f"  Spot buy: "
+                f"{info['buyRate']}"
             )
 
             print(
-                "   ",
-                info["numbers"]
+                f"  Spot sell: "
+                f"{info['sellRate']}"
+            )
+
+            print(
+                f"  Reference rate: "
+                f"1 {currency} "
+                f"≈ {info['rate']:.6f} "
+                f"{HOME_CURRENCY}"
+            )
+
+            print(
+                f"  {currency} 100 "
+                f"≈ {HOME_CURRENCY} "
+                f"{info['rate'] * 100:,.2f}"
+            )
+
+            print(
+                f"  Source: "
+                f"{info['source']}"
+            )
+
+            print(
+                f"  Rate type: "
+                f"{info['rateType']}"
             )
 
 
