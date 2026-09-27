@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 import json
 
@@ -621,7 +621,7 @@ def build_currency_data(
 
 def save_json(
     data,
-    rate_date,
+    archive_date,
 ):
 
     output_dir = Path(
@@ -636,7 +636,7 @@ def save_json(
 
     historical_file = (
         output_dir
-        / f"{rate_date.isoformat()}.json"
+        / f"{archive_date.isoformat()}.json"
     )
 
 
@@ -684,21 +684,38 @@ def save_json(
 def main():
 
     # -----------------------------------------------------
-    # Current collection strategy:
+    # Archive date
     #
-    # Use the previous UTC calendar date because Visa /
-    # Mastercard may not yet have today's finalized rate
-    # when GitHub Actions runs.
+    # From now on, create one FX snapshot per Taiwan
+    # calendar day.
     #
-    # Later, historical lookup can request an explicit
-    # receipt purchaseDate.
+    # Receipt lookup will later start from purchaseDate.
+    # If that date has no usable FX data, fx.js will move
+    # backward until it finds the most recent available
+    # snapshot.
     # -----------------------------------------------------
 
-    rate_date = (
-        date.today()
-        - __import__(
-            "datetime"
-        ).timedelta(days=1)
+    taiwan_now = (
+        datetime.now(timezone.utc)
+        + timedelta(hours=8)
+    )
+
+    # -----------------------------------------------------
+    # Visa / Mastercard reference date
+    #
+    # Try today's date first.
+    #
+    # If a card network does not provide today's rate yet,
+    # the request functions will return None and First Bank
+    # can still be stored as today's fallback snapshot.
+    #
+    # We do NOT pretend that yesterday is today's rate.
+    # -----------------------------------------------------
+
+    rate_date = archive_date
+
+    archive_date = (
+        taiwan_now.date()
     )
 
 
@@ -722,7 +739,12 @@ def main():
     print("=" * 60)
 
     print(
-        f"Rate date: "
+        f"Archive date: "
+        f"{archive_date}"
+    )
+
+    print(
+        f"Visa / Mastercard request date: "
         f"{rate_date}"
     )
 
@@ -802,8 +824,9 @@ def main():
     data = {
         "schemaVersion": 1,
 
-        "rateDate":
-            rate_date.isoformat(),
+        # Date of this archived snapshot.
+        "archiveDate":
+            archive_date.isoformat(),
 
         "homeCurrency":
             HOME_CURRENCY,
@@ -818,7 +841,7 @@ def main():
 
     save_json(
         data,
-        rate_date,
+        archive_date,
     )
 
 
