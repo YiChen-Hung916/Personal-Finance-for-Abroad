@@ -28,6 +28,10 @@ import {
   getPendingReminderClass
 } from './pending.js';
 
+import {
+  getFxReference,
+  buildFxDisplay
+} from './fx.js';
 
 
 // ======================================================
@@ -48,6 +52,86 @@ function formatMoney(value, currency) {
   return `${escapeHtml(currency || '')} ${Number(value || 0).toFixed(2)}`;
 }
 
+function fxReferenceHtml(
+  fxDisplay,
+  network,
+  lang
+) {
+
+  if (!fxDisplay) {
+    return '';
+  }
+
+
+  const networkLabel =
+    String(
+      network || ''
+    ).trim() ||
+    fxDisplay.source ||
+    'FX';
+
+
+  return `
+    <div
+      class="fx-reference"
+      style="
+        margin-top: 8px;
+        font-size: 0.9rem;
+        line-height: 1.45;
+      "
+    >
+      <div>
+        <strong>
+          ${escapeHtml(networkLabel)}
+        </strong>
+
+        <span class="muted">
+          ${
+            lang === 'zh-TW'
+              ? `參考日期：${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+              : `Reference date: ${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+          }
+        </span>
+      </div>
+
+      <div>
+        1 ${escapeHtml(fxDisplay.currency)}
+        ≈
+        ${escapeHtml(fxDisplay.formattedRate)}
+        ${escapeHtml(fxDisplay.homeCurrency)}
+
+        <span class="muted">
+          （${escapeHtml(
+            fxDisplay.sourceLabel
+          )}）
+        </span>
+      </div>
+
+      <div>
+        ${escapeHtml(fxDisplay.currency)}
+        ${Number(
+          fxDisplay.foreignAmount
+        ).toLocaleString(
+          'en-US',
+          {
+            maximumFractionDigits: 2
+          }
+        )}
+        ≈
+        ${escapeHtml(
+          fxDisplay.homeCurrency
+        )}
+        ${escapeHtml(
+          fxDisplay.formattedConvertedAmount
+        )}
+      </div>
+    </div>
+  `;
+}
 
 function getExpectedCurrency(receipt) {
   return String(
@@ -77,6 +161,110 @@ function getCurrencyOptions(
     'SGD'
   ];
 
+
+  async function renderFxReferenceForConfirmation({
+  receipt,
+  container,
+  lang
+}) {
+
+  if (
+    !receipt ||
+    !container ||
+    receipt.paymentMethod !== 'card'
+  ) {
+    return;
+  }
+
+
+  const currency =
+    String(
+      receipt.currency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  // TWD does not need FX reference.
+  if (
+    !currency ||
+    currency === 'TWD'
+  ) {
+    return;
+  }
+
+
+  const network =
+    receipt.cardSnapshot?.network ||
+    '';
+
+
+  if (!network) {
+    return;
+  }
+
+
+  const fxTarget =
+    container.querySelector(
+      '.my-confirmation-fx-reference'
+    );
+
+
+  if (!fxTarget) {
+    return;
+  }
+
+
+  try {
+
+    const fxReference =
+      await getFxReference({
+        purchaseDate:
+          receipt.purchaseDate,
+
+        currency,
+
+        network
+      });
+
+
+    if (!fxReference.available) {
+      fxTarget.innerHTML = '';
+      return;
+    }
+
+
+    const fxDisplay =
+      buildFxDisplay(
+        fxReference,
+        receipt.total
+      );
+
+
+    if (!fxDisplay) {
+      fxTarget.innerHTML = '';
+      return;
+    }
+
+
+    fxTarget.innerHTML =
+      fxReferenceHtml(
+        fxDisplay,
+        network,
+        lang
+      );
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load FX reference:',
+      error
+    );
+
+    fxTarget.innerHTML = '';
+  }
+}
 
   const normalized =
     String(selectedCurrency || '')
@@ -463,8 +651,23 @@ const foreignCurrencyWasSelected =
   receipt.foreignCurrencySettlementOffered === true;
 
 
+const receiptCurrency =
+  String(
+    receipt.currency || ''
+  )
+    .trim()
+    .toUpperCase();
+
+
+const expectedNotificationCurrencyType =
+  receiptCurrency === 'TWD'
+    ? 'local'
+    : 'foreign';
+
+
 const currencyTypeMismatch =
-  notificationCurrencyType === 'local';
+  notificationCurrencyType !==
+  expectedNotificationCurrencyType;
 
 
 const currencyTypeMatchStatus =
@@ -1012,6 +1215,12 @@ function renderSingleConfirmation({
       lang
     );
 
+  renderFxReferenceForConfirmation({
+    receipt,
+    container: list,
+    lang
+  });
+
 // --------------------------------------------------
 // Restore Dashboard quick-confirmation draft
 // --------------------------------------------------
@@ -1331,6 +1540,10 @@ function confirmationCardHtml(
               expectedCurrency
             )}
           </strong>
+
+          <div
+            class="my-confirmation-fx-reference"
+          ></div>
 
         </div>
 
