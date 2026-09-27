@@ -1,25 +1,58 @@
 from datetime import date, timedelta
 from curl_cffi import requests
+from bs4 import BeautifulSoup
 
 
 # =========================================================
-# FX Test
-# Spend currency: USD
-# Billing currency: TWD
+# FX SOURCE TEST
 #
-# This is only a connectivity test.
-# It does NOT save anything to Firebase or JSON yet.
+# Priority:
+#
+# Visa
+#   Visa calculator
+#   -> First Bank fallback
+#
+# Mastercard
+#   Mastercard calculator
+#   -> First Bank fallback
+#
+# JCB / Other
+#   First Bank
+#
+# This version only TESTS the sources.
+# It does NOT write JSON yet.
 # =========================================================
+
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
+
+HOME_CURRENCY = "TWD"
+
+TEST_CURRENCIES = [
+    "USD",
+    "JPY",
+    "EUR",
+    "GBP",
+]
 
 
 VISA_URL = (
     "https://www.visa.co.in/cmsapi/fx/rates"
 )
 
+
 MASTERCARD_URL = (
     "https://www.mastercard.com/"
     "marketingservices/public/mccom-services/"
     "currency-conversions/conversion-rates"
+)
+
+
+FIRST_BANK_URL = (
+    "https://www.firstbank.com.tw/"
+    "sites/fcb/ForExRatesInquiry"
 )
 
 
@@ -41,29 +74,56 @@ MASTERCARD_HEADERS = {
 }
 
 
+FIRST_BANK_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 "
+        "(Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 "
+        "(KHTML, like Gecko) "
+        "Chrome/140.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,"
+        "application/xml;q=0.9,*/*;q=0.8"
+    ),
+}
+
+
+# ---------------------------------------------------------
+# Session
+# ---------------------------------------------------------
+
 def create_session():
+
     return requests.Session(
         impersonate="chrome"
     )
 
 
+# ---------------------------------------------------------
+# Visa
+# ---------------------------------------------------------
+
 def get_visa_rate(
     session,
     rate_date,
+    spend_currency,
     home_currency="TWD",
-    spend_currency="USD",
-    amount=100
 ):
-    formatted_date = rate_date.strftime("%m/%d/%Y")
+
+    formatted_date = (
+        rate_date.strftime("%m/%d/%Y")
+    )
 
     params = {
-        "amount": str(amount),
+        "amount": "1",
         "fee": "0",
         "utcConvertedDate": formatted_date,
         "exchangedate": formatted_date,
 
-        # Visa calculator uses these in this direction
-        # to obtain HOME currency per SPEND currency.
+        # Visa calculator direction:
+        # fromCurr = billing/home currency
+        # toCurr   = transaction/spend currency
         "fromCurr": home_currency,
         "toCurr": spend_currency,
     }
@@ -72,18 +132,22 @@ def get_visa_rate(
         VISA_URL,
         headers=VISA_HEADERS,
         params=params,
-        timeout=30
+        timeout=30,
     )
 
     print(
-        f"Visa HTTP status: "
+        f"  Visa HTTP: "
         f"{response.status_code}"
     )
 
     if response.status_code != 200:
         return None
 
-    data = response.json()
+    try:
+        data = response.json()
+
+    except Exception:
+        return None
 
     if data.get("status") != "success":
         return None
@@ -100,16 +164,24 @@ def get_visa_rate(
     if rate is None:
         return None
 
-    return float(rate)
+    try:
+        return float(rate)
 
+    except (TypeError, ValueError):
+        return None
+
+
+# ---------------------------------------------------------
+# Mastercard
+# ---------------------------------------------------------
 
 def get_mastercard_rate(
     session,
     rate_date,
+    spend_currency,
     home_currency="TWD",
-    spend_currency="USD",
-    amount=100
 ):
+
     params = {
         "exchange_date":
             rate_date.strftime("%Y-%m-%d"),
@@ -122,26 +194,29 @@ def get_mastercard_rate(
 
         "bank_fee": "0",
 
-        "transaction_amount":
-            str(amount),
+        "transaction_amount": "1",
     }
 
     response = session.get(
         MASTERCARD_URL,
         headers=MASTERCARD_HEADERS,
         params=params,
-        timeout=30
+        timeout=30,
     )
 
     print(
-        f"Mastercard HTTP status: "
+        f"  Mastercard HTTP: "
         f"{response.status_code}"
     )
 
     if response.status_code != 200:
         return None
 
-    data = response.json()
+    try:
+        data = response.json()
+
+    except Exception:
+        return None
 
     result = data.get(
         "data",
@@ -158,134 +233,438 @@ def get_mastercard_rate(
     if rate is None:
         return None
 
-    return float(rate)
+    try:
+        return float(rate)
 
+    except (TypeError, ValueError):
+        return None
+
+
+# ---------------------------------------------------------
+# First Bank
+# ---------------------------------------------------------
+
+def normalize_text(text):
+
+    return (
+        text
+        .replace("\xa0", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace("\t", " ")
+        .strip()
+    )
+
+
+def parse_number(text):
+
+    cleaned = (
+        text
+        .replace(",", "")
+        .strip()
+    )
+
+    try:
+        return float(cleaned)
+
+    except (TypeError, ValueError):
+        return None
+
+
+def get_first_bank_rates(session):
+
+    response = session.get(
+        FIRST_BANK_URL,
+        headers=FIRST_BANK_HEADERS,
+        timeout=30,
+    )
+
+    print()
+    print(
+        f"First Bank HTTP: "
+        f"{response.status_code}"
+    )
+
+    if response.status_code != 200:
+        return {}
+
+    html = response.text
+
+    soup = BeautifulSoup(
+        html,
+        "html.parser"
+    )
+
+    rates = {}
+
+
+    # -----------------------------------------------------
+    # Look through table rows.
+    #
+    # We intentionally do not depend on one specific
+    # CSS class so minor page styling changes are less
+    # likely to break the parser.
+    # -----------------------------------------------------
+
+    for row in soup.find_all("tr"):
+
+        cells = [
+            normalize_text(
+                cell.get_text(
+                    " ",
+                    strip=True
+                )
+            )
+            for cell in row.find_all(
+                ["th", "td"]
+            )
+        ]
+
+        if not cells:
+            continue
+
+        row_text = " ".join(cells).upper()
+
+
+        for currency in TEST_CURRENCIES:
+
+            if currency not in row_text:
+                continue
+
+
+            numeric_values = []
+
+            for cell in cells:
+
+                value = parse_number(cell)
+
+                if value is not None:
+                    numeric_values.append(
+                        value
+                    )
+
+
+            # We only record the raw numbers here.
+            #
+            # This checkpoint is intentionally testing
+            # the page structure first.
+            #
+            # We will decide exactly which column is
+            # the correct spot selling rate AFTER we
+            # inspect the actual output.
+            if numeric_values:
+
+                rates[currency] = {
+                    "cells": cells,
+                    "numbers":
+                        numeric_values,
+                }
+
+
+    return rates
+
+
+# ---------------------------------------------------------
+# Source selection test
+# ---------------------------------------------------------
+
+def test_network_rate(
+    network,
+    session,
+    rate_date,
+    currency,
+):
+
+    network_lower = network.lower()
+
+
+    if network_lower == "visa":
+
+        rate = get_visa_rate(
+            session,
+            rate_date,
+            currency,
+            HOME_CURRENCY,
+        )
+
+        if rate is not None:
+
+            return {
+                "rate": rate,
+                "source": "Visa",
+            }
+
+
+    elif network_lower == "mastercard":
+
+        rate = get_mastercard_rate(
+            session,
+            rate_date,
+            currency,
+            HOME_CURRENCY,
+        )
+
+        if rate is not None:
+
+            return {
+                "rate": rate,
+                "source": "Mastercard",
+            }
+
+
+    # First Bank fallback is deliberately
+    # NOT returned here yet.
+    #
+    # We first need to verify First Bank's
+    # current HTML structure and identify the
+    # correct spot-rate column.
+
+    return {
+        "rate": None,
+        "source": "First Bank fallback needed",
+    }
+
+
+# ---------------------------------------------------------
+# Main
+# ---------------------------------------------------------
 
 def main():
 
-    home_currency = "TWD"
-    spend_currency = "USD"
-
-    # Use yesterday first.
-    # This avoids today's rate possibly not being
-    # available yet because of timezone/update timing.
+    # For this test only, use yesterday.
+    #
+    # Formal historical storage will use an
+    # explicit requested date instead.
     rate_date = (
         date.today()
         - timedelta(days=1)
     )
 
-    print("=" * 50)
-    print("FX TEST")
-    print("=" * 50)
+
+    print("=" * 60)
+    print("FX SOURCE TEST")
+    print("=" * 60)
 
     print(
-        f"Date: {rate_date}"
+        f"Reference date: {rate_date}"
     )
 
     print(
-        f"Spend: {spend_currency}"
+        f"Home currency: {HOME_CURRENCY}"
     )
 
     print(
-        f"Billing: {home_currency}"
+        "Currencies: "
+        + ", ".join(TEST_CURRENCIES)
     )
 
     print()
 
+
     session = create_session()
 
-    # -------------------------
-    # Visa
-    # -------------------------
 
-    try:
+    # -----------------------------------------------------
+    # Visa / Mastercard multi-currency test
+    # -----------------------------------------------------
 
-        visa_rate = get_visa_rate(
-            session,
-            rate_date,
-            home_currency,
-            spend_currency
-        )
+    for currency in TEST_CURRENCIES:
 
-    except Exception as error:
-
-        visa_rate = None
+        print("=" * 60)
 
         print(
-            f"Visa error: {error}"
+            f"{currency} -> "
+            f"{HOME_CURRENCY}"
         )
 
-    # -------------------------
-    # Mastercard
-    # -------------------------
+        print("=" * 60)
+
+
+        # Visa
+
+        try:
+
+            visa_result = (
+                test_network_rate(
+                    "Visa",
+                    session,
+                    rate_date,
+                    currency,
+                )
+            )
+
+        except Exception as error:
+
+            visa_result = {
+                "rate": None,
+                "source":
+                    "First Bank fallback needed",
+            }
+
+            print(
+                f"  Visa error: {error}"
+            )
+
+
+        if visa_result["rate"] is not None:
+
+            print(
+                f"  Visa result: "
+                f"1 {currency} "
+                f"≈ "
+                f"{visa_result['rate']:.6f} "
+                f"{HOME_CURRENCY}"
+            )
+
+        else:
+
+            print(
+                "  Visa result: FAILED "
+                "-> First Bank fallback"
+            )
+
+
+        # Mastercard
+
+        try:
+
+            mastercard_result = (
+                test_network_rate(
+                    "Mastercard",
+                    session,
+                    rate_date,
+                    currency,
+                )
+            )
+
+        except Exception as error:
+
+            mastercard_result = {
+                "rate": None,
+                "source":
+                    "First Bank fallback needed",
+            }
+
+            print(
+                f"  Mastercard error: "
+                f"{error}"
+            )
+
+
+        if (
+            mastercard_result["rate"]
+            is not None
+        ):
+
+            print(
+                f"  Mastercard result: "
+                f"1 {currency} "
+                f"≈ "
+                f"{mastercard_result['rate']:.6f} "
+                f"{HOME_CURRENCY}"
+            )
+
+        else:
+
+            print(
+                "  Mastercard result: FAILED "
+                "-> First Bank fallback"
+            )
+
+
+        print()
+
+
+    # -----------------------------------------------------
+    # First Bank page test
+    # -----------------------------------------------------
+
+    print("=" * 60)
+    print("FIRST BANK FALLBACK TEST")
+    print("=" * 60)
+
 
     try:
 
-        mastercard_rate = (
-            get_mastercard_rate(
-                session,
-                rate_date,
-                home_currency,
-                spend_currency
+        first_bank_rates = (
+            get_first_bank_rates(
+                session
             )
         )
 
     except Exception as error:
 
-        mastercard_rate = None
+        first_bank_rates = {}
 
         print(
-            f"Mastercard error: {error}"
+            f"First Bank error: "
+            f"{error}"
         )
+
 
     print()
-    print("=" * 50)
-    print("RESULT")
-    print("=" * 50)
 
-    if visa_rate is not None:
+
+    if not first_bank_rates:
 
         print(
-            f"Visa: "
-            f"1 {spend_currency} "
-            f"≈ {visa_rate:.4f} "
-            f"{home_currency}"
-        )
-
-        print(
-            f"{spend_currency} 100 "
-            f"≈ {home_currency} "
-            f"{visa_rate * 100:,.2f}"
+            "First Bank parser: "
+            "NO RATE ROWS FOUND"
         )
 
     else:
 
-        print(
-            "Visa: FAILED"
-        )
+        for currency in TEST_CURRENCIES:
+
+            print("-" * 60)
+
+            print(
+                f"First Bank {currency}"
+            )
+
+
+            info = first_bank_rates.get(
+                currency
+            )
+
+
+            if info is None:
+
+                print(
+                    "  NOT FOUND"
+                )
+
+                continue
+
+
+            print(
+                "  Cells:"
+            )
+
+            for index, cell in enumerate(
+                info["cells"]
+            ):
+
+                print(
+                    f"    [{index}] "
+                    f"{cell}"
+                )
+
+
+            print(
+                "  Numeric values:"
+            )
+
+            print(
+                "   ",
+                info["numbers"]
+            )
+
 
     print()
-
-    if mastercard_rate is not None:
-
-        print(
-            f"Mastercard: "
-            f"1 {spend_currency} "
-            f"≈ {mastercard_rate:.4f} "
-            f"{home_currency}"
-        )
-
-        print(
-            f"{spend_currency} 100 "
-            f"≈ {home_currency} "
-            f"{mastercard_rate * 100:,.2f}"
-        )
-
-    else:
-
-        print(
-            "Mastercard: FAILED"
-        )
+    print("=" * 60)
+    print("TEST COMPLETE")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
