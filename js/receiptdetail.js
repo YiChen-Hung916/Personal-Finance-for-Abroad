@@ -33,6 +33,10 @@ import {
   getPendingReminderClass
 } from './pending.js';
 
+import {
+  getFxReference,
+  buildFxDisplay
+} from './fx.js';
 
 
 // ======================================================
@@ -87,6 +91,87 @@ function displayValue(value) {
   }
 
   return escapeHtml(value);
+}
+
+function fxReferenceHtml(
+  fxDisplay,
+  network,
+  lang
+) {
+
+  if (!fxDisplay) {
+    return '';
+  }
+
+
+  const networkLabel =
+    String(
+      network || ''
+    ).trim() ||
+    fxDisplay.source ||
+    'FX';
+
+
+  return `
+    <div
+      class="fx-reference"
+      style="
+        margin-top: 10px;
+        font-size: 0.9rem;
+        line-height: 1.45;
+      "
+    >
+      <div>
+        <strong>
+          ${escapeHtml(networkLabel)}
+        </strong>
+
+        <span class="muted">
+          ${
+            lang === 'zh-TW'
+              ? `參考日期：${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+              : `Reference date: ${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+          }
+        </span>
+      </div>
+
+      <div>
+        1 ${escapeHtml(fxDisplay.currency)}
+        ≈
+        ${escapeHtml(fxDisplay.formattedRate)}
+        ${escapeHtml(fxDisplay.homeCurrency)}
+
+        <span class="muted">
+          （${escapeHtml(
+            fxDisplay.sourceLabel
+          )}）
+        </span>
+      </div>
+
+      <div>
+        ${escapeHtml(fxDisplay.currency)}
+        ${Number(
+          fxDisplay.foreignAmount
+        ).toLocaleString(
+          'en-US',
+          {
+            maximumFractionDigits: 2
+          }
+        )}
+        ≈
+        ${escapeHtml(
+          fxDisplay.homeCurrency
+        )}
+        ${escapeHtml(
+          fxDisplay.formattedConvertedAmount
+        )}
+      </div>
+    </div>
+  `;
 }
 
 
@@ -189,6 +274,68 @@ page.innerHTML = `
       id: receiptSnapshot.id,
       ...receiptSnapshot.data()
     };
+
+
+    // ==================================================
+    // FX Reference
+    // ==================================================
+
+    let fxDisplay =
+      null;
+
+
+    const receiptCurrency =
+      String(
+        receipt.currency || ''
+      )
+        .trim()
+        .toUpperCase();
+
+
+    const receiptNetwork =
+      receipt.cardSnapshot?.network ||
+      '';
+
+
+    if (
+      receipt.paymentMethod === 'card' &&
+      receiptCurrency &&
+      receiptCurrency !== 'TWD' &&
+      receiptNetwork
+    ) {
+
+      try {
+
+        const fxReference =
+          await getFxReference({
+            purchaseDate:
+              receipt.purchaseDate,
+
+            currency:
+              receiptCurrency,
+
+            network:
+              receiptNetwork
+          });
+
+
+        if (fxReference.available) {
+
+          fxDisplay =
+            buildFxDisplay(
+              fxReference,
+              receipt.total
+            );
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load receipt FX reference:',
+          error
+        );
+      }
+    }
 
 
     // ==================================================
@@ -367,6 +514,7 @@ const reminderClass =
       cardDisplay,
       confirmationUserDisplay,
       reminderClass,
+      fxDisplay,
       lang
     });
 
@@ -434,6 +582,7 @@ function renderReceiptDetail({
   cardDisplay,
   confirmationUserDisplay,
   reminderClass,
+  fxDisplay,
   lang
 }) {
 
@@ -734,6 +883,16 @@ function renderReceiptDetail({
             )}
 
           </strong>
+
+          ${
+            fxDisplay
+              ? fxReferenceHtml(
+                  fxDisplay,
+                  receipt.cardSnapshot?.network,
+                  lang
+                )
+              : ''
+          }
 
         </div>
 
