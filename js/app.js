@@ -37,6 +37,11 @@ import {
 } from './history.js';
 
 import {
+  getFxReference,
+  buildFxDisplay
+} from './fx.js';
+
+import {
   cardsPage
 } from './cards.js';
 
@@ -106,6 +111,256 @@ const googleLoginButton = document.querySelector('#googleLogin');
 
 function money(v, c = 'USD') {
   return `${c} ${Number(v).toFixed(2)}`;
+}
+
+// ======================================================
+// Dashboard FX Reference
+// ======================================================
+
+function dashboardFxReferenceHtml(
+  fxDisplay,
+  network
+) {
+
+  if (!fxDisplay) {
+    return '';
+  }
+
+
+  const networkLabel =
+    String(
+      network || ''
+    ).trim() ||
+    fxDisplay.source ||
+    'FX';
+
+
+  return `
+    <div
+      style="
+        margin-top: 6px;
+        font-size: 0.9rem;
+        line-height: 1.45;
+      "
+    >
+
+      <div>
+        <strong>
+          ${escapeHtml(networkLabel)}
+        </strong>
+
+        <span class="muted">
+          ${
+            lang === 'zh-TW'
+              ? `參考日期：${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+              : `Reference date: ${escapeHtml(
+                  fxDisplay.formattedReferenceDate
+                )}`
+          }
+        </span>
+      </div>
+
+
+      <div>
+        1
+        ${escapeHtml(
+          fxDisplay.currency
+        )}
+        ≈
+        ${escapeHtml(
+          fxDisplay.formattedRate
+        )}
+        ${escapeHtml(
+          fxDisplay.homeCurrency
+        )}
+
+        <span class="muted">
+          （${escapeHtml(
+            fxDisplay.sourceLabel
+          )}）
+        </span>
+      </div>
+
+
+      <div>
+        ${escapeHtml(
+          fxDisplay.currency
+        )}
+        ${Number(
+          fxDisplay.foreignAmount
+        ).toLocaleString(
+          'en-US',
+          {
+            maximumFractionDigits: 2
+          }
+        )}
+        ≈
+        ${escapeHtml(
+          fxDisplay.homeCurrency
+        )}
+        ${escapeHtml(
+          fxDisplay.formattedConvertedAmount
+        )}
+      </div>
+
+    </div>
+  `;
+}
+
+
+async function loadDashboardFxReference({
+  receipt,
+  container
+}) {
+
+  if (
+    !receipt ||
+    !container
+  ) {
+    return;
+  }
+
+
+  const referenceRate =
+    container.querySelector(
+      '.dashboard-reference-rate'
+    );
+
+
+  if (!referenceRate) {
+    return;
+  }
+
+
+  const currency =
+    String(
+      receipt.currency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const network =
+    receipt.cardSnapshot?.network ||
+    '';
+
+
+  // No FX for:
+  // - cash
+  // - TWD receipt
+  // - missing currency
+  // - missing historical card network
+  if (
+    receipt.paymentMethod !== 'card' ||
+    !currency ||
+    currency === 'TWD' ||
+    !network
+  ) {
+
+    referenceRate.innerHTML = '';
+    referenceRate.dataset.fxAvailable =
+      'false';
+
+    return;
+  }
+
+
+  referenceRate.innerHTML = `
+    <span class="muted">
+      ${
+        lang === 'zh-TW'
+          ? '正在載入參考匯率…'
+          : 'Loading reference rate…'
+      }
+    </span>
+  `;
+
+
+  try {
+
+    const fxReference =
+      await getFxReference({
+        purchaseDate:
+          receipt.purchaseDate,
+
+        currency,
+
+        network
+      });
+
+
+    if (!fxReference.available) {
+
+      referenceRate.innerHTML = `
+        <span class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '此明細日期目前沒有可用的參考匯率。'
+              : 'No reference rate is available for this transaction date.'
+          }
+        </span>
+      `;
+
+      referenceRate.dataset.fxAvailable =
+        'false';
+
+      return;
+    }
+
+
+    const fxDisplay =
+      buildFxDisplay(
+        fxReference,
+        receipt.total
+      );
+
+
+    if (!fxDisplay) {
+
+      referenceRate.innerHTML = '';
+
+      referenceRate.dataset.fxAvailable =
+        'false';
+
+      return;
+    }
+
+
+    referenceRate.innerHTML =
+      dashboardFxReferenceHtml(
+        fxDisplay,
+        network
+      );
+
+
+    referenceRate.dataset.fxAvailable =
+      'true';
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Dashboard FX reference:',
+      error
+    );
+
+
+    referenceRate.innerHTML = `
+      <span class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '目前無法載入參考匯率。'
+            : 'Unable to load the reference rate.'
+        }
+      </span>
+    `;
+
+
+    referenceRate.dataset.fxAvailable =
+      'false';
+  }
 }
 
 function resetLoginView() {
@@ -749,15 +1004,58 @@ const mismatchPanel =
     myPendingConfirmations
   );
 
+  bindDashboardConfirmationEvents(
+    myPendingConfirmations
+  );
+
+
+  // Preload FX reference for Dashboard
+  // confirmation cards.
+  //
+  // The FX area remains hidden until the
+  // user selects TWD/local for a foreign-
+  // currency Receipt.
+  myPendingConfirmations
+    .slice(0, 3)
+    .forEach(receipt => {
+
+      const receiptId =
+        String(
+          receipt.id || ''
+        );
+
+
+      const card =
+        Array.from(
+          page.querySelectorAll(
+            '.dashboard-confirmation-card'
+          )
+        )
+          .find(element =>
+            element.dataset.receiptId ===
+            receiptId
+          );
+
+
+      if (!card) {
+        return;
+      }
+
+
+      loadDashboardFxReference({
+        receipt,
+        container: card
+      });
+    });
+
 
   if (isOwner) {
 
-  bindMismatchViewButtons(
-    page
-  );
+    bindMismatchViewButtons(
+      page
+    );
+  }
 }
-}
-
 
 // ======================================================
 // Dashboard Confirmation Card
@@ -1013,16 +1311,6 @@ function dashboardConfirmationCardHtml(
   hidden
 >
 
-  <span class="muted">
-
-    ${
-      lang === 'zh-TW'
-        ? '參考換算：匯率功能尚未啟用'
-        : 'Reference conversion: exchange-rate feature not yet available'
-    }
-
-  </span>
-
 </div>
 
 
@@ -1155,11 +1443,14 @@ function bindDashboardConfirmationEvents(
       // ------------------------------------------------
       // Currency choice
       //
-      // Local/TWD:
-      // show reference conversion area.
+      // Foreign-currency Receipt + TWD/local:
+      // show FX reference.
       //
-      // Foreign:
-      // hide reference conversion area.
+      // Foreign-currency Receipt + foreign:
+      // hide FX reference.
+      //
+      // TWD Receipt:
+      // never show FX reference.
       // ------------------------------------------------
 
       currencyChoices.forEach(
@@ -1169,8 +1460,22 @@ function bindDashboardConfirmationEvents(
             'change',
             () => {
 
+              const receiptCurrency =
+                String(
+                  receipt.currency || ''
+                )
+                  .trim()
+                  .toUpperCase();
+
+
+              const shouldShowFx =
+                receiptCurrency !== '' &&
+                receiptCurrency !== 'TWD' &&
+                radio.value === 'local';
+
+
               referenceRate.hidden =
-                radio.value !== 'local';
+                !shouldShowFx;
             }
           );
         }
