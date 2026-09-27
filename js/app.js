@@ -164,9 +164,6 @@ function dashboardFxReferenceHtml(
 
 
       <div>
-  ${escapeHtml(
-    fxDisplay.currency
-  )}
   ${Number(
     fxDisplay.foreignAmount
   ).toLocaleString(
@@ -175,12 +172,15 @@ function dashboardFxReferenceHtml(
       maximumFractionDigits: 2
     }
   )}
+  ${escapeHtml(
+    fxDisplay.currency
+  )}
   ≈
   ${escapeHtml(
-    fxDisplay.homeCurrency
+    fxDisplay.formattedConvertedAmount
   )}
   ${escapeHtml(
-    fxDisplay.formattedConvertedAmount
+    fxDisplay.homeCurrency
   )}
 </div>
 
