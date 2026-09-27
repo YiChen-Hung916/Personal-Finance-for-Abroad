@@ -162,7 +162,45 @@ function getCurrencyOptions(
   ];
 
 
-  async function renderFxReferenceForConfirmation({
+  const normalized =
+    String(selectedCurrency || '')
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    normalized &&
+    !currencies.includes(normalized)
+  ) {
+
+    currencies.unshift(
+      normalized
+    );
+  }
+
+
+  return currencies
+    .map(code => `
+      <option
+        value="${escapeHtml(code)}"
+        ${
+          code === normalized
+            ? 'selected'
+            : ''
+        }
+      >
+        ${escapeHtml(code)}
+      </option>
+    `)
+    .join('');
+}
+
+
+// ======================================================
+// FX Reference
+// ======================================================
+
+async function renderFxReferenceForConfirmation({
   receipt,
   container,
   lang
@@ -173,6 +211,7 @@ function getCurrencyOptions(
     !container ||
     receipt.paymentMethod !== 'card'
   ) {
+
     return;
   }
 
@@ -190,6 +229,7 @@ function getCurrencyOptions(
     !currency ||
     currency === 'TWD'
   ) {
+
     return;
   }
 
@@ -200,6 +240,7 @@ function getCurrencyOptions(
 
 
   if (!network) {
+
     return;
   }
 
@@ -211,6 +252,7 @@ function getCurrencyOptions(
 
 
   if (!fxTarget) {
+
     return;
   }
 
@@ -229,7 +271,9 @@ function getCurrencyOptions(
 
 
     if (!fxReference.available) {
+
       fxTarget.innerHTML = '';
+
       return;
     }
 
@@ -242,7 +286,9 @@ function getCurrencyOptions(
 
 
     if (!fxDisplay) {
+
       fxTarget.innerHTML = '';
+
       return;
     }
 
@@ -262,38 +308,9 @@ function getCurrencyOptions(
       error
     );
 
+
     fxTarget.innerHTML = '';
   }
-}
-
-  const normalized =
-    String(selectedCurrency || '')
-      .trim()
-      .toUpperCase();
-
-
-  if (
-    normalized &&
-    !currencies.includes(normalized)
-  ) {
-    currencies.unshift(normalized);
-  }
-
-
-  return currencies
-    .map(code => `
-      <option
-        value="${escapeHtml(code)}"
-        ${
-          code === normalized
-            ? 'selected'
-            : ''
-        }
-      >
-        ${escapeHtml(code)}
-      </option>
-    `)
-    .join('');
 }
 
 
