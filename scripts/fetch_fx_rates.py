@@ -129,135 +129,244 @@ def parse_number(text):
     except (TypeError, ValueError):
         return None
 
-
 # ---------------------------------------------------------
-# Visa
+# Previous-date lookup helper
 # ---------------------------------------------------------
 
-def get_visa_rate(
+NETWORK_RATE_LOOKBACK_DAYS = 7
+
+
+def find_previous_network_rate(
+    fetch_function,
     session,
-    rate_date,
+    requested_date,
     spend_currency,
-    home_currency="TWD",
+    home_currency,
+    network_name,
 ):
 
-    formatted_date = (
-        rate_date.strftime("%m/%d/%Y")
+    for days_back in range(
+        NETWORK_RATE_LOOKBACK_DAYS + 1
+    ):
+
+        candidate_date = (
+            requested_date
+            - timedelta(
+                days=days_back
+            )
+        )
+
+
+        try:
+
+            rate = fetch_function(
+                session,
+                candidate_date,
+                spend_currency,
+                home_currency,
+            )
+
+
+        except Exception as error:
+
+            rate = None
+
+            print(
+                f"{network_name} "
+                f"{spend_currency} "
+                f"{candidate_date} error: "
+                f"{error}"
+            )
+
+
+        if (
+            rate is not None
+            and rate > 0
+        ):
+
+            if days_back > 0:
+
+                print(
+                    f"{network_name} "
+                    f"{spend_currency}: "
+                    f"using previous available "
+                    f"date {candidate_date}"
+                )
+
+
+            return {
+                "rate": rate,
+                "rateDate":
+                    candidate_date,
+            }
+
+
+    return None
+
+
+
+# -----------------------------------------------------
+    # Visa
+    #
+    # Try the requested date first.
+    # If unavailable, move backward until the most recent
+    # Visa rate is found.
+    #
+    # Only use First Bank if Visa remains unavailable.
+    # -----------------------------------------------------
+
+    visa_result = (
+        find_previous_network_rate(
+            get_visa_rate,
+            session,
+            rate_date,
+            currency,
+            HOME_CURRENCY,
+            "Visa",
+        )
     )
 
-    params = {
-        "amount": "1",
-        "fee": "0",
-        "utcConvertedDate": formatted_date,
-        "exchangedate": formatted_date,
-        "fromCurr": home_currency,
-        "toCurr": spend_currency,
-    }
 
-    response = session.get(
-        VISA_URL,
-        headers=VISA_HEADERS,
-        params=params,
-        timeout=30,
+    if visa_result is not None:
+
+        result["visa"] = {
+            "rate":
+                visa_result["rate"],
+
+            "source":
+                "Visa",
+
+            "rateDate":
+                visa_result[
+                    "rateDate"
+                ].isoformat(),
+
+            "fallbackUsed":
+                False,
+        }
+
+
+    elif first_bank is not None:
+
+        result["visa"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            "rateDate":
+                None,
+
+            "fetchedAt":
+                fetched_at,
+
+            "fallbackUsed":
+                True,
+        }
+
+
+    else:
+
+        result["visa"] = {
+            "rate":
+                None,
+
+            "source":
+                None,
+
+            "rateDate":
+                None,
+
+            "fallbackUsed":
+                True,
+        }
+
+
+
+# -----------------------------------------------------
+    # Mastercard
+    #
+    # Try the requested date first.
+    # If unavailable, move backward until the most recent
+    # Mastercard rate is found.
+    #
+    # Only use First Bank if Mastercard remains unavailable.
+    # -----------------------------------------------------
+
+    mastercard_result = (
+        find_previous_network_rate(
+            get_mastercard_rate,
+            session,
+            rate_date,
+            currency,
+            HOME_CURRENCY,
+            "Mastercard",
+        )
     )
 
-    print(
-        f"Visa {spend_currency}: "
-        f"HTTP {response.status_code}"
-    )
 
-    if response.status_code != 200:
-        return None
+    if mastercard_result is not None:
 
-    try:
-        data = response.json()
+        result["mastercard"] = {
+            "rate":
+                mastercard_result["rate"],
 
-    except Exception:
-        return None
+            "source":
+                "Mastercard",
 
-    if data.get("status") != "success":
-        return None
+            "rateDate":
+                mastercard_result[
+                    "rateDate"
+                ].isoformat(),
 
-    original_values = data.get(
-        "originalValues",
-        {}
-    )
-
-    rate = original_values.get(
-        "fxRateVisa"
-    )
-
-    rate = parse_number(rate)
-
-    if rate is None or rate <= 0:
-        return None
-
-    return rate
+            "fallbackUsed":
+                False,
+        }
 
 
-# ---------------------------------------------------------
-# Mastercard
-# ---------------------------------------------------------
+    elif first_bank is not None:
 
-def get_mastercard_rate(
-    session,
-    rate_date,
-    spend_currency,
-    home_currency="TWD",
-):
+        result["mastercard"] = {
+            "rate":
+                first_bank["sellRate"],
 
-    params = {
-        "exchange_date":
-            rate_date.strftime("%Y-%m-%d"),
+            "source":
+                "First Bank",
 
-        "transaction_currency":
-            spend_currency,
+            "rateType":
+                "spot-sell",
 
-        "cardholder_billing_currency":
-            home_currency,
+            "rateDate":
+                None,
 
-        "bank_fee": "0",
+            "fetchedAt":
+                fetched_at,
 
-        "transaction_amount": "1",
-    }
+            "fallbackUsed":
+                True,
+        }
 
-    response = session.get(
-        MASTERCARD_URL,
-        headers=MASTERCARD_HEADERS,
-        params=params,
-        timeout=30,
-    )
 
-    print(
-        f"Mastercard {spend_currency}: "
-        f"HTTP {response.status_code}"
-    )
+    else:
 
-    if response.status_code != 200:
-        return None
+        result["mastercard"] = {
+            "rate":
+                None,
 
-    try:
-        data = response.json()
+            "source":
+                None,
 
-    except Exception:
-        return None
+            "rateDate":
+                None,
 
-    result = data.get(
-        "data",
-        {}
-    )
+            "fallbackUsed":
+                True,
+        }
 
-    if result.get("errorCode"):
-        return None
-
-    rate = parse_number(
-        result.get("conversionRate")
-    )
-
-    if rate is None or rate <= 0:
-        return None
-
-    return rate
 
 
 # ---------------------------------------------------------
