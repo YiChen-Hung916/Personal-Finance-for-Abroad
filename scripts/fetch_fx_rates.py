@@ -700,24 +700,20 @@ def main():
         + timedelta(hours=8)
     )
 
-    # -----------------------------------------------------
-    # Visa / Mastercard reference date
-    #
-    # Try today's date first.
-    #
-    # If a card network does not provide today's rate yet,
-    # the request functions will return None and First Bank
-    # can still be stored as today's fallback snapshot.
-    #
-    # We do NOT pretend that yesterday is today's rate.
-    # -----------------------------------------------------
-
-    rate_date = archive_date
-
     archive_date = (
         taiwan_now.date()
     )
 
+    # -----------------------------------------------------
+    # Visa / Mastercard reference date
+    #
+    # Use today's Taiwan calendar date.
+    #
+    # From now on, one FX snapshot is archived for each
+    # Taiwan calendar day.
+    # -----------------------------------------------------
+
+    rate_date = archive_date
 
     fetched_at = (
         datetime.now(
