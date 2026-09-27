@@ -7,6 +7,11 @@ import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
 
 import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@3.0.3/+esm';
 
+import {
+  getFxReference,
+  buildFxDisplay
+} from './fx.js';
+
 // import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
 
 // ======================================================
@@ -152,10 +157,107 @@ function receiptToTransaction(
     paymentMethod:
       receipt.paymentMethod || '',
 
+    fxDisplay:
+      null,
+
     source:
       receipt
   };
 }
+
+
+async function attachFxToTransaction(
+  transaction
+) {
+
+  if (
+    !transaction ||
+    transaction.type !== 'receipt'
+  ) {
+    return transaction;
+  }
+
+
+  const receipt =
+    transaction.source;
+
+
+  if (
+    !receipt ||
+    receipt.paymentMethod !== 'card'
+  ) {
+    return transaction;
+  }
+
+
+  const currency =
+    String(
+      receipt.currency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    !currency ||
+    currency === 'TWD'
+  ) {
+    return transaction;
+  }
+
+
+  const network =
+    receipt.cardSnapshot?.network ||
+    '';
+
+
+  if (!network) {
+    return transaction;
+  }
+
+
+  try {
+
+    const fxReference =
+      await getFxReference({
+        purchaseDate:
+          receipt.purchaseDate,
+
+        currency,
+
+        network
+      });
+
+
+    if (!fxReference.available) {
+      return transaction;
+    }
+
+
+    const fxDisplay =
+      buildFxDisplay(
+        fxReference,
+        receipt.total
+      );
+
+
+    return {
+      ...transaction,
+      fxDisplay
+    };
+
+
+  } catch (error) {
+
+    console.error(
+      `Failed to load FX for receipt ${receipt.id}:`,
+      error
+    );
+
+    return transaction;
+  }
+}
+
 
 
 // ======================================================
@@ -372,6 +474,84 @@ function transactionCardHtml({
         <strong>
           ${escapeHtml(amountText)}
         </strong>
+
+        ${
+            transaction.fxDisplay
+              ? `
+                  <div
+                    class="muted"
+                    style="
+                      margin-top: 4px;
+                      font-size: 0.82rem;
+                      line-height: 1.35;
+                    "
+                  >
+
+                    <div>
+                      ${escapeHtml(
+                        transaction.source
+                          ?.cardSnapshot
+                          ?.network ||
+                        transaction.fxDisplay.source ||
+                        'FX'
+                      )}
+                      ·
+                      ${
+                        lang === 'zh-TW'
+                          ? '參考日期'
+                          : 'Reference'
+                      }:
+                      ${escapeHtml(
+                        transaction.fxDisplay
+                          .formattedReferenceDate
+                      )}
+                    </div>
+
+                    <div>
+                      1
+                      ${escapeHtml(
+                        transaction.fxDisplay.currency
+                      )}
+                      ≈
+                      ${escapeHtml(
+                        transaction.fxDisplay.formattedRate
+                      )}
+                      ${escapeHtml(
+                        transaction.fxDisplay.homeCurrency
+                      )}
+                      （${escapeHtml(
+                        transaction.fxDisplay.sourceLabel
+                      )}）
+                    </div>
+
+                    <div>
+                      ${escapeHtml(
+                        transaction.fxDisplay.currency
+                      )}
+                      ${Number(
+                        transaction.fxDisplay.foreignAmount
+                      ).toLocaleString(
+                        'en-US',
+                        {
+                          maximumFractionDigits: 2
+                        }
+                      )}
+                      ≈
+                      ${escapeHtml(
+                        transaction.fxDisplay.homeCurrency
+                      )}
+                      ${escapeHtml(
+                        transaction.fxDisplay
+                          .formattedConvertedAmount
+                      )}
+                    </div>
+
+                  </div>
+                `
+              : ''
+          }
+
+        </div>
 
       </div>
 
@@ -1252,12 +1432,23 @@ export async function historyPage({
     // Normalize
     // ==================================================
 
-    const receiptTransactions =
+    const basicReceiptTransactions =
       receipts.map(
         receipt =>
           receiptToTransaction(
             receipt
           )
+      );
+
+
+    const receiptTransactions =
+      await Promise.all(
+        basicReceiptTransactions.map(
+          transaction =>
+            attachFxToTransaction(
+              transaction
+            )
+        )
       );
 
 
