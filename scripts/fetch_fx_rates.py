@@ -1,26 +1,29 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timezone
+from pathlib import Path
+import json
+
 from curl_cffi import requests
 from bs4 import BeautifulSoup
 
 
 # =========================================================
-# FX SOURCE TEST
+# FX Rate Collector
 #
-# Priority:
+# Primary sources:
+#   Visa       -> Visa calculator
+#   Mastercard -> Mastercard calculator
 #
-# Visa
-#   Visa calculator
-#   -> First Bank fallback
+# Fallback:
+#   First Bank spot sell rate
 #
-# Mastercard
-#   Mastercard calculator
-#   -> First Bank fallback
+# Output:
+#   data/fx/YYYY-MM-DD.json
+#   data/fx/latest.json
 #
-# JCB / Other
-#   First Bank
-#
-# This version only TESTS the sources.
-# It does NOT write JSON yet.
+# IMPORTANT:
+# - Visa / Mastercard use RATE_DATE.
+# - First Bank currently represents the rate available
+#   when this script runs.
 # =========================================================
 
 
@@ -30,7 +33,7 @@ from bs4 import BeautifulSoup
 
 HOME_CURRENCY = "TWD"
 
-TEST_CURRENCIES = [
+CURRENCIES = [
     "USD",
     "JPY",
     "EUR",
@@ -90,7 +93,7 @@ FIRST_BANK_HEADERS = {
 
 
 # ---------------------------------------------------------
-# Session
+# Helpers
 # ---------------------------------------------------------
 
 def create_session():
@@ -98,6 +101,33 @@ def create_session():
     return requests.Session(
         impersonate="chrome"
     )
+
+
+def normalize_text(text):
+
+    return (
+        text
+        .replace("\xa0", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .replace("\t", " ")
+        .strip()
+    )
+
+
+def parse_number(text):
+
+    cleaned = (
+        str(text)
+        .replace(",", "")
+        .strip()
+    )
+
+    try:
+        return float(cleaned)
+
+    except (TypeError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------
@@ -120,10 +150,6 @@ def get_visa_rate(
         "fee": "0",
         "utcConvertedDate": formatted_date,
         "exchangedate": formatted_date,
-
-        # Visa calculator direction:
-        # fromCurr = billing/home currency
-        # toCurr   = transaction/spend currency
         "fromCurr": home_currency,
         "toCurr": spend_currency,
     }
@@ -136,8 +162,8 @@ def get_visa_rate(
     )
 
     print(
-        f"  Visa HTTP: "
-        f"{response.status_code}"
+        f"Visa {spend_currency}: "
+        f"HTTP {response.status_code}"
     )
 
     if response.status_code != 200:
@@ -161,14 +187,12 @@ def get_visa_rate(
         "fxRateVisa"
     )
 
-    if rate is None:
+    rate = parse_number(rate)
+
+    if rate is None or rate <= 0:
         return None
 
-    try:
-        return float(rate)
-
-    except (TypeError, ValueError):
-        return None
+    return rate
 
 
 # ---------------------------------------------------------
@@ -205,8 +229,8 @@ def get_mastercard_rate(
     )
 
     print(
-        f"  Mastercard HTTP: "
-        f"{response.status_code}"
+        f"Mastercard {spend_currency}: "
+        f"HTTP {response.status_code}"
     )
 
     if response.status_code != 200:
@@ -226,50 +250,19 @@ def get_mastercard_rate(
     if result.get("errorCode"):
         return None
 
-    rate = result.get(
-        "conversionRate"
+    rate = parse_number(
+        result.get("conversionRate")
     )
 
-    if rate is None:
+    if rate is None or rate <= 0:
         return None
 
-    try:
-        return float(rate)
-
-    except (TypeError, ValueError):
-        return None
+    return rate
 
 
 # ---------------------------------------------------------
 # First Bank
 # ---------------------------------------------------------
-
-def normalize_text(text):
-
-    return (
-        text
-        .replace("\xa0", " ")
-        .replace("\n", " ")
-        .replace("\r", " ")
-        .replace("\t", " ")
-        .strip()
-    )
-
-
-def parse_number(text):
-
-    cleaned = (
-        text
-        .replace(",", "")
-        .strip()
-    )
-
-    try:
-        return float(cleaned)
-
-    except (TypeError, ValueError):
-        return None
-
 
 def get_first_bank_rates(session):
 
@@ -279,10 +272,9 @@ def get_first_bank_rates(session):
         timeout=30,
     )
 
-    print()
     print(
-        f"First Bank HTTP: "
-        f"{response.status_code}"
+        f"First Bank: "
+        f"HTTP {response.status_code}"
     )
 
     if response.status_code != 200:
@@ -310,21 +302,6 @@ def get_first_bank_rates(session):
             )
         ]
 
-        # Expected First Bank spot-rate row:
-        #
-        # [0] 美金(USD)
-        # [1] 即期
-        # [2] 31.xxxxx   <- buy
-        # [3] 31.xxxxx   <- sell
-        #
-        # We need spot SELL because the reference
-        # calculation is:
-        #
-        # foreign currency -> amount of TWD needed
-        #
-        # e.g.
-        # USD 100 × spot sell rate
-        # = approximate TWD amount
 
         if len(cells) < 4:
             continue
@@ -337,9 +314,7 @@ def get_first_bank_rates(session):
         )
 
 
-        # Critical:
-        # Ignore cash rates, time-deposit rates,
-        # 180-day rates, etc.
+        # Only use spot rates.
         if rate_type != "即期":
             continue
 
@@ -350,7 +325,7 @@ def get_first_bank_rates(session):
         )
 
 
-        for currency in TEST_CURRENCIES:
+        for currency in CURRENCIES:
 
             if currency not in row_text:
                 continue
@@ -365,17 +340,16 @@ def get_first_bank_rates(session):
             )
 
 
-            if sell_rate is None:
+            if (
+                sell_rate is None
+                or sell_rate <= 0
+            ):
                 continue
 
 
             rates[currency] = {
                 "buyRate": buy_rate,
                 "sellRate": sell_rate,
-                "rate": sell_rate,
-                "source": "First Bank",
-                "rateType": "spot-sell",
-                "cells": cells,
             }
 
 
@@ -383,64 +357,324 @@ def get_first_bank_rates(session):
 
 
 # ---------------------------------------------------------
-# Source selection test
+# Build one currency
 # ---------------------------------------------------------
 
-def test_network_rate(
-    network,
+def build_currency_data(
     session,
     rate_date,
     currency,
+    first_bank_rates,
+    fetched_at,
 ):
 
-    network_lower = network.lower()
+    result = {}
 
 
-    if network_lower == "visa":
+    # -----------------------------------------------------
+    # First Bank fallback
+    # -----------------------------------------------------
 
-        rate = get_visa_rate(
+    first_bank = (
+        first_bank_rates.get(
+            currency
+        )
+    )
+
+
+    if first_bank is not None:
+
+        result["firstBank"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "buyRate":
+                first_bank["buyRate"],
+
+            "sellRate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            # This is deliberately NOT rate_date.
+            # It represents the rate fetched when
+            # this workflow ran.
+            "fetchedAt":
+                fetched_at,
+        }
+
+
+    # -----------------------------------------------------
+    # Visa
+    # -----------------------------------------------------
+
+    try:
+
+        visa_rate = get_visa_rate(
             session,
             rate_date,
             currency,
             HOME_CURRENCY,
         )
 
-        if rate is not None:
+    except Exception as error:
 
-            return {
-                "rate": rate,
-                "source": "Visa",
-            }
+        visa_rate = None
 
-
-    elif network_lower == "mastercard":
-
-        rate = get_mastercard_rate(
-            session,
-            rate_date,
-            currency,
-            HOME_CURRENCY,
+        print(
+            f"Visa {currency} error: "
+            f"{error}"
         )
 
-        if rate is not None:
 
-            return {
-                "rate": rate,
-                "source": "Mastercard",
-            }
+    if visa_rate is not None:
+
+        result["visa"] = {
+            "rate": visa_rate,
+            "source": "Visa",
+            "rateDate":
+                rate_date.isoformat(),
+            "fallbackUsed": False,
+        }
+
+    elif first_bank is not None:
+
+        result["visa"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            "rateDate": None,
+
+            "fetchedAt":
+                fetched_at,
+
+            "fallbackUsed": True,
+        }
+
+    else:
+
+        result["visa"] = {
+            "rate": None,
+            "source": None,
+            "rateDate": None,
+            "fallbackUsed": True,
+        }
 
 
-    # First Bank fallback is deliberately
-    # NOT returned here yet.
+    # -----------------------------------------------------
+    # Mastercard
+    # -----------------------------------------------------
+
+    try:
+
+        mastercard_rate = (
+            get_mastercard_rate(
+                session,
+                rate_date,
+                currency,
+                HOME_CURRENCY,
+            )
+        )
+
+    except Exception as error:
+
+        mastercard_rate = None
+
+        print(
+            f"Mastercard {currency} error: "
+            f"{error}"
+        )
+
+
+    if mastercard_rate is not None:
+
+        result["mastercard"] = {
+            "rate":
+                mastercard_rate,
+
+            "source":
+                "Mastercard",
+
+            "rateDate":
+                rate_date.isoformat(),
+
+            "fallbackUsed": False,
+        }
+
+    elif first_bank is not None:
+
+        result["mastercard"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            "rateDate": None,
+
+            "fetchedAt":
+                fetched_at,
+
+            "fallbackUsed": True,
+        }
+
+    else:
+
+        result["mastercard"] = {
+            "rate": None,
+            "source": None,
+            "rateDate": None,
+            "fallbackUsed": True,
+        }
+
+
+    # -----------------------------------------------------
+    # JCB
     #
-    # We first need to verify First Bank's
-    # current HTML structure and identify the
-    # correct spot-rate column.
+    # No reliable JCB source is being used yet.
+    # Therefore First Bank is the reference source.
+    # -----------------------------------------------------
 
-    return {
-        "rate": None,
-        "source": "First Bank fallback needed",
-    }
+    if first_bank is not None:
+
+        result["jcb"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            "rateDate": None,
+
+            "fetchedAt":
+                fetched_at,
+
+            "fallbackUsed": True,
+        }
+
+    else:
+
+        result["jcb"] = {
+            "rate": None,
+            "source": None,
+            "rateDate": None,
+            "fallbackUsed": True,
+        }
+
+
+    # -----------------------------------------------------
+    # Other card networks
+    # -----------------------------------------------------
+
+    if first_bank is not None:
+
+        result["other"] = {
+            "rate":
+                first_bank["sellRate"],
+
+            "source":
+                "First Bank",
+
+            "rateType":
+                "spot-sell",
+
+            "rateDate": None,
+
+            "fetchedAt":
+                fetched_at,
+
+            "fallbackUsed": True,
+        }
+
+    else:
+
+        result["other"] = {
+            "rate": None,
+            "source": None,
+            "rateDate": None,
+            "fallbackUsed": True,
+        }
+
+
+    return result
+
+
+# ---------------------------------------------------------
+# Save JSON
+# ---------------------------------------------------------
+
+def save_json(
+    data,
+    rate_date,
+):
+
+    output_dir = Path(
+        "data/fx"
+    )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+
+    historical_file = (
+        output_dir
+        / f"{rate_date.isoformat()}.json"
+    )
+
+
+    latest_file = (
+        output_dir
+        / "latest.json"
+    )
+
+
+    json_text = json.dumps(
+        data,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
+    historical_file.write_text(
+        json_text + "\n",
+        encoding="utf-8",
+    )
+
+
+    latest_file.write_text(
+        json_text + "\n",
+        encoding="utf-8",
+    )
+
+
+    print()
+    print(
+        f"Saved: "
+        f"{historical_file}"
+    )
+
+    print(
+        f"Saved: "
+        f"{latest_file}"
+    )
 
 
 # ---------------------------------------------------------
@@ -449,31 +683,64 @@ def test_network_rate(
 
 def main():
 
-    # For this test only, use yesterday.
+    # -----------------------------------------------------
+    # Current collection strategy:
     #
-    # Formal historical storage will use an
-    # explicit requested date instead.
+    # Use the previous UTC calendar date because Visa /
+    # Mastercard may not yet have today's finalized rate
+    # when GitHub Actions runs.
+    #
+    # Later, historical lookup can request an explicit
+    # receipt purchaseDate.
+    # -----------------------------------------------------
+
     rate_date = (
         date.today()
-        - timedelta(days=1)
+        - __import__(
+            "datetime"
+        ).timedelta(days=1)
+    )
+
+
+    fetched_at = (
+        datetime.now(
+            timezone.utc
+        )
+        .replace(
+            microsecond=0
+        )
+        .isoformat()
+        .replace(
+            "+00:00",
+            "Z"
+        )
     )
 
 
     print("=" * 60)
-    print("FX SOURCE TEST")
+    print("FX RATE COLLECTION")
     print("=" * 60)
 
     print(
-        f"Reference date: {rate_date}"
+        f"Rate date: "
+        f"{rate_date}"
     )
 
     print(
-        f"Home currency: {HOME_CURRENCY}"
+        f"Fetched at: "
+        f"{fetched_at}"
+    )
+
+    print(
+        f"Home currency: "
+        f"{HOME_CURRENCY}"
     )
 
     print(
         "Currencies: "
-        + ", ".join(TEST_CURRENCIES)
+        + ", ".join(
+            CURRENCIES
+        )
     )
 
     print()
@@ -483,124 +750,8 @@ def main():
 
 
     # -----------------------------------------------------
-    # Visa / Mastercard multi-currency test
+    # First Bank is fetched once.
     # -----------------------------------------------------
-
-    for currency in TEST_CURRENCIES:
-
-        print("=" * 60)
-
-        print(
-            f"{currency} -> "
-            f"{HOME_CURRENCY}"
-        )
-
-        print("=" * 60)
-
-
-        # Visa
-
-        try:
-
-            visa_result = (
-                test_network_rate(
-                    "Visa",
-                    session,
-                    rate_date,
-                    currency,
-                )
-            )
-
-        except Exception as error:
-
-            visa_result = {
-                "rate": None,
-                "source":
-                    "First Bank fallback needed",
-            }
-
-            print(
-                f"  Visa error: {error}"
-            )
-
-
-        if visa_result["rate"] is not None:
-
-            print(
-                f"  Visa result: "
-                f"1 {currency} "
-                f"≈ "
-                f"{visa_result['rate']:.6f} "
-                f"{HOME_CURRENCY}"
-            )
-
-        else:
-
-            print(
-                "  Visa result: FAILED "
-                "-> First Bank fallback"
-            )
-
-
-        # Mastercard
-
-        try:
-
-            mastercard_result = (
-                test_network_rate(
-                    "Mastercard",
-                    session,
-                    rate_date,
-                    currency,
-                )
-            )
-
-        except Exception as error:
-
-            mastercard_result = {
-                "rate": None,
-                "source":
-                    "First Bank fallback needed",
-            }
-
-            print(
-                f"  Mastercard error: "
-                f"{error}"
-            )
-
-
-        if (
-            mastercard_result["rate"]
-            is not None
-        ):
-
-            print(
-                f"  Mastercard result: "
-                f"1 {currency} "
-                f"≈ "
-                f"{mastercard_result['rate']:.6f} "
-                f"{HOME_CURRENCY}"
-            )
-
-        else:
-
-            print(
-                "  Mastercard result: FAILED "
-                "-> First Bank fallback"
-            )
-
-
-        print()
-
-
-    # -----------------------------------------------------
-    # First Bank page test
-    # -----------------------------------------------------
-
-    print("=" * 60)
-    print("FIRST BANK FALLBACK TEST")
-    print("=" * 60)
-
 
     try:
 
@@ -623,75 +774,130 @@ def main():
     print()
 
 
-    if not first_bank_rates:
+    rates = {}
+
+
+    for currency in CURRENCIES:
+
+        print("-" * 60)
 
         print(
-            "First Bank parser: "
-            "NO SPOT RATE ROWS FOUND"
+            f"Collecting "
+            f"{currency} -> "
+            f"{HOME_CURRENCY}"
         )
 
-    else:
 
-        for currency in TEST_CURRENCIES:
+        rates[currency] = (
+            build_currency_data(
+                session,
+                rate_date,
+                currency,
+                first_bank_rates,
+                fetched_at,
+            )
+        )
 
-            print("-" * 60)
 
-            print(
-                f"First Bank {currency}"
+    data = {
+        "schemaVersion": 1,
+
+        "rateDate":
+            rate_date.isoformat(),
+
+        "homeCurrency":
+            HOME_CURRENCY,
+
+        "fetchedAt":
+            fetched_at,
+
+        "rates":
+            rates,
+    }
+
+
+    save_json(
+        data,
+        rate_date,
+    )
+
+
+    print()
+    print("=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+
+
+    for currency in CURRENCIES:
+
+        currency_data = (
+            rates[currency]
+        )
+
+
+        print()
+
+        print(
+            f"{currency} -> "
+            f"{HOME_CURRENCY}"
+        )
+
+
+        for network in [
+            "visa",
+            "mastercard",
+            "jcb",
+        ]:
+
+            info = (
+                currency_data[
+                    network
+                ]
+            )
+
+            rate = info.get(
+                "rate"
+            )
+
+            source = info.get(
+                "source"
+            )
+
+            fallback_used = (
+                info.get(
+                    "fallbackUsed"
+                )
             )
 
 
-            info = first_bank_rates.get(
-                currency
-            )
-
-
-            if info is None:
+            if rate is None:
 
                 print(
-                    "  NOT FOUND"
+                    f"  {network}: "
+                    f"UNAVAILABLE"
                 )
 
                 continue
 
 
-            print(
-                f"  Spot buy: "
-                f"{info['buyRate']}"
+            fallback_text = (
+                " [fallback]"
+                if fallback_used
+                else ""
             )
 
-            print(
-                f"  Spot sell: "
-                f"{info['sellRate']}"
-            )
 
             print(
-                f"  Reference rate: "
-                f"1 {currency} "
-                f"≈ {info['rate']:.6f} "
-                f"{HOME_CURRENCY}"
-            )
-
-            print(
-                f"  {currency} 100 "
-                f"≈ {HOME_CURRENCY} "
-                f"{info['rate'] * 100:,.2f}"
-            )
-
-            print(
-                f"  Source: "
-                f"{info['source']}"
-            )
-
-            print(
-                f"  Rate type: "
-                f"{info['rateType']}"
+                f"  {network}: "
+                f"{rate:.6f} "
+                f"({source})"
+                f"{fallback_text}"
             )
 
 
     print()
     print("=" * 60)
-    print("TEST COMPLETE")
+    print("COLLECTION COMPLETE")
     print("=" * 60)
 
 
