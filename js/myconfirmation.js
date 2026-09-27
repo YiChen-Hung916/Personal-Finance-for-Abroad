@@ -99,25 +99,25 @@ function fxReferenceHtml(
       </div>
 
       <div>
-        ${escapeHtml(
-          fxDisplay.currency
-        )}
-        ${Number(
-          fxDisplay.foreignAmount
-        ).toLocaleString(
-          'en-US',
-          {
-            maximumFractionDigits: 2
-          }
-        )}
-        ≈
-        ${escapeHtml(
-          fxDisplay.homeCurrency
-        )}
-        ${escapeHtml(
-          fxDisplay.formattedConvertedAmount
-        )}
-      </div>
+  ${Number(
+    fxDisplay.foreignAmount
+  ).toLocaleString(
+    'en-US',
+    {
+      maximumFractionDigits: 2
+    }
+  )}
+  ${escapeHtml(
+    fxDisplay.currency
+  )}
+  ≈
+  ${escapeHtml(
+    fxDisplay.formattedConvertedAmount
+  )}
+  ${escapeHtml(
+    fxDisplay.homeCurrency
+  )}
+</div>
 
 
       <div>
