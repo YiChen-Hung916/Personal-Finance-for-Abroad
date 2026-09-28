@@ -1687,24 +1687,7 @@ const canResolveMismatch =
         }
 
 
-        <div class="actions">
-
-          <button
-            type="button"
-            onclick="location.hash='#dashboard'"
-          >
-            ${
-              lang === 'zh-TW'
-                ? '返回首頁'
-                : 'Back to Dashboard'
-            }
-          </button>
-
-        </div>
-
-      </section>
-
-      ${
+        ${
         currentRole === 'owner' &&
         isTransferMismatch
           ? `
@@ -1784,6 +1767,26 @@ const canResolveMismatch =
             `
           : ''
       }
+
+
+        <div class="actions">
+
+          <button
+            type="button"
+            onclick="location.hash='#dashboard'"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '返回首頁'
+                : 'Back to Dashboard'
+            }
+          </button>
+
+        </div>
+
+      </section>
+
+      
       
     `;
 
