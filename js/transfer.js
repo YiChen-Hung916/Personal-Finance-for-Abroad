@@ -818,6 +818,151 @@ export async function getMyReceivedTransferUpdates({
 
 
 // ======================================================
+// All Transfers Related To Current User
+// ======================================================
+
+export async function getMyTransferHistory({
+  db,
+  currentUser
+}) {
+
+  if (!currentUser?.uid) {
+    return [];
+  }
+
+
+  // ----------------------------------------------------
+  // Transfers sent by current user
+  // ----------------------------------------------------
+
+  const sentQuery =
+    query(
+      collection(
+        db,
+        'transfers'
+      ),
+      where(
+        'senderUserId',
+        '==',
+        currentUser.uid
+      )
+    );
+
+
+  // ----------------------------------------------------
+  // Transfers received by current user
+  // ----------------------------------------------------
+
+  const receivedQuery =
+    query(
+      collection(
+        db,
+        'transfers'
+      ),
+      where(
+        'receiverUserId',
+        '==',
+        currentUser.uid
+      )
+    );
+
+
+  const [
+    sentSnapshot,
+    receivedSnapshot
+  ] =
+    await Promise.all([
+      getDocs(sentQuery),
+      getDocs(receivedQuery)
+    ]);
+
+
+  // ----------------------------------------------------
+  // Merge + mark direction
+  // ----------------------------------------------------
+
+  const transferMap =
+    new Map();
+
+
+  sentSnapshot.docs.forEach(
+    transferDoc => {
+
+      transferMap.set(
+        transferDoc.id,
+        {
+          id:
+            transferDoc.id,
+
+          ...transferDoc.data(),
+
+          direction:
+            'outgoing'
+        }
+      );
+    }
+  );
+
+
+  receivedSnapshot.docs.forEach(
+    transferDoc => {
+
+      transferMap.set(
+        transferDoc.id,
+        {
+          id:
+            transferDoc.id,
+
+          ...transferDoc.data(),
+
+          direction:
+            'incoming'
+        }
+      );
+    }
+  );
+
+
+  // ----------------------------------------------------
+  // Newest first
+  // ----------------------------------------------------
+
+  return Array.from(
+    transferMap.values()
+  )
+    .sort((a, b) => {
+
+      const dateA =
+        String(
+          a.transferDate || ''
+        );
+
+      const dateB =
+        String(
+          b.transferDate || ''
+        );
+
+
+      if (dateA !== dateB) {
+        return dateB.localeCompare(
+          dateA
+        );
+      }
+
+
+      const createdA =
+        a.createdAt?.seconds || 0;
+
+      const createdB =
+        b.createdAt?.seconds || 0;
+
+
+      return createdB - createdA;
+    });
+}
+
+
+// ======================================================
 // Confirm Transfer
 // ======================================================
 
