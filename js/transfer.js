@@ -620,6 +620,15 @@ export async function transferPage({
                 receiverNotes:
                   '',
 
+                transferMismatchResolved:
+                  false,
+
+                transferMismatchResolvedAt:
+                  null,
+
+                transferMismatchResolvedBy:
+                  null,
+
                 createdBy:
                   currentUser.uid,
 
