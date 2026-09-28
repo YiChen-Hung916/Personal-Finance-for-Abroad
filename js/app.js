@@ -47,7 +47,10 @@ import {
 
 import {
   transferPage,
-  transferDetailPage
+  transferDetailPage,
+  getMyPendingTransfers,
+  getMyReceivedTransferUpdates,
+  confirmTransfer
 } from './transfer.js';
 
 import {
@@ -1889,6 +1892,7 @@ if (r === 'dashboard') {
     db,
     currentUser,
     currentRole,
+    currentProfile,
     lang,
     page,
     escapeHtml
@@ -1907,6 +1911,7 @@ if (r === 'dashboard') {
 
   transferDetailPage({
     db,
+    currentUser,
     currentRole,
     lang,
     page,
