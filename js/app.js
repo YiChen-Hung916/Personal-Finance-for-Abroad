@@ -2263,6 +2263,7 @@ if (r === 'dashboard') {
 
   historyPage({
     db,
+    currentUser,
     currentRole,
     lang,
     page
