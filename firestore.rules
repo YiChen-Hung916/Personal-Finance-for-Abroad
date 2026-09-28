@@ -187,6 +187,20 @@ service cloud.firestore {
           if assignedToMe(rid)
           && request.auth.uid == cid;
 
+// ------------------------------------------------
+// OWNER RESOLVE TRANSFER MISMATCH
+// ------------------------------------------------
+//
+// Owner may only change the three resolution fields.
+// The original mismatch record remains unchanged.
+// ------------------------------------------------
+
+allow update:
+  if owner()
+
+  && resource.data.status ==
+    "mismatch"
+
 
         allow delete:
           if owner();
@@ -296,6 +310,15 @@ service cloud.firestore {
         && request.resource.data.confirmedAt ==
           null;
 
+        && request.resource.data.transferMismatchResolved ==
+          false
+
+        && request.resource.data.transferMismatchResolvedAt ==
+          null
+
+        && request.resource.data.transferMismatchResolvedBy ==
+          null;
+
 
       // ------------------------------------------------
       // UPDATE
@@ -352,6 +375,15 @@ service cloud.firestore {
 
         && request.resource.data.createdAt ==
           resource.data.createdAt
+
+        && request.resource.data.transferMismatchResolved ==
+          resource.data.transferMismatchResolved
+
+        && request.resource.data.transferMismatchResolvedAt ==
+          resource.data.transferMismatchResolvedAt
+
+        && request.resource.data.transferMismatchResolvedBy ==
+          resource.data.transferMismatchResolvedBy
 
         && request.resource.data.confirmedBy ==
           request.auth.uid
@@ -412,12 +444,16 @@ service cloud.firestore {
 
     // ==================================================
     // Other Collections
+    //
+    // Transfers already have their own explicit rules.
+    // Do not let the Owner fallback bypass those rules.
     // ==================================================
 
-    match /{document=**} {
+    match /{collection}/{document=**} {
 
-      allow read, write:
-        if owner();
-    }
+  allow read, write:
+    if owner()
+    && collection != "transfers";
+}
   }
 }
