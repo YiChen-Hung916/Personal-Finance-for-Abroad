@@ -563,6 +563,9 @@ async function dashboard() {
   let allPendingConfirmations = [];
   let unresolvedMismatches = [];
 
+  let myPendingTransfers = [];
+  let myReceivedTransferUpdates = [];
+
   try {
 
     const rawMyPendingConfirmations =
@@ -612,18 +615,37 @@ myPendingConfirmations =
 
     if (isOwner) {
 
-    allPendingConfirmations =
-      await getAllPendingReceipts({
-        db
-      });
-    
-    unresolvedMismatches =
-      await getUnresolvedMismatches({
-        db
-      });
-  }
+  allPendingConfirmations =
+    await getAllPendingReceipts({
+      db
+    });
 
-  } catch (error) {
+  unresolvedMismatches =
+    await getUnresolvedMismatches({
+      db
+    });
+}
+
+
+// ==================================================
+// Transfer data
+// ==================================================
+
+myPendingTransfers =
+  await getMyPendingTransfers({
+    db,
+    currentUser
+  });
+
+
+myReceivedTransferUpdates =
+  await getMyReceivedTransferUpdates({
+    db,
+    currentUser
+  });
+
+
+} catch (error) {
 
     console.error(
       'Failed to load dashboard confirmations:',
@@ -860,6 +882,137 @@ const mismatchPanel =
     : '';
 
 
+
+  // ==================================================
+// Transfer Confirmation Panel
+// ==================================================
+
+const transferConfirmationPanel = `
+
+  <section class="panel">
+
+    <h2>
+
+      ${
+        lang === 'zh-TW'
+          ? '需要確認收款'
+          : 'Transfers to Confirm'
+      }
+
+      ${
+        myPendingTransfers.length > 0
+          ? `
+              <span class="badge">
+                ${myPendingTransfers.length}
+              </span>
+            `
+          : ''
+      }
+
+    </h2>
+
+
+    ${
+      myPendingTransfers.length === 0
+
+        ? `
+            <p class="muted">
+              ${
+                lang === 'zh-TW'
+                  ? '目前沒有需要你確認的轉帳。'
+                  : 'You have no transfers requiring confirmation.'
+              }
+            </p>
+          `
+
+        : myPendingTransfers
+            .slice(0, 3)
+            .map(transfer => `
+
+              <div
+                class="card dashboard-transfer-card"
+                data-transfer-id="${escapeHtml(
+                  transfer.id
+                )}"
+              >
+
+                <div>
+
+                  <strong>
+                    ${escapeHtml(
+                      transfer.senderName || '—'
+                    )}
+                    →
+                    ${
+                      lang === 'zh-TW'
+                        ? '你'
+                        : 'You'
+                    }
+                  </strong>
+
+                </div>
+
+
+                <div class="muted">
+
+                  ${escapeHtml(
+                    transfer.transferDate || '—'
+                  )}
+
+                </div>
+
+
+                <div>
+
+                  <strong>
+
+                    ${Number(
+                      transfer.amount || 0
+                    ).toLocaleString(
+                      'en-US',
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      }
+                    )}
+
+                    ${escapeHtml(
+                      transfer.currency || ''
+                    )}
+
+                  </strong>
+
+                </div>
+
+
+                <div class="actions">
+
+                  <button
+                    type="button"
+                    class="dashboard-transfer-review-btn"
+                    data-transfer-id="${escapeHtml(
+                      transfer.id
+                    )}"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '確認收款'
+                        : 'Confirm Receipt'
+                    }
+                  </button>
+
+                </div>
+
+              </div>
+
+            `)
+            .join('')
+    }
+
+  </section>
+`;
+
+
   
   // ==================================================
   // Owner Dashboard
@@ -881,6 +1034,8 @@ const mismatchPanel =
 
 
       ${confirmationPanel}
+
+      ${transferConfirmationPanel}
       
       ${mismatchPanel}
 
@@ -992,6 +1147,8 @@ const mismatchPanel =
 
       ${confirmationPanel}
 
+      ${transferConfirmationPanel}
+
 
       <section class="panel">
 
@@ -1024,10 +1181,31 @@ const mismatchPanel =
     myPendingConfirmations
   );
 
-  bindDashboardConfirmationEvents(
-    myPendingConfirmations
-  );
+// ==================================================
+// Bind Transfer Review Buttons
+// ==================================================
 
+page
+  .querySelectorAll(
+    '.dashboard-transfer-review-btn'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      const transferId =
+        button.dataset.transferId;
+
+
+      if (!transferId) {
+        return;
+      }
+
+
+      location.hash =
+        `#transfer-detail/${transferId}`;
+    };
+  });
 
   // Preload FX reference for Dashboard
   // confirmation cards.
