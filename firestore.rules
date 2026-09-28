@@ -187,21 +187,6 @@ service cloud.firestore {
           if assignedToMe(rid)
           && request.auth.uid == cid;
 
-// ------------------------------------------------
-// OWNER RESOLVE TRANSFER MISMATCH
-// ------------------------------------------------
-//
-// Owner may only change the three resolution fields.
-// The original mismatch record remains unchanged.
-// ------------------------------------------------
-
-allow update:
-  if owner()
-
-  && resource.data.status ==
-    "mismatch"
-
-
         allow delete:
           if owner();
       }
@@ -445,6 +430,48 @@ allow update:
             request.resource.data.reportedAmount >= 0
           )
         );
+
+
+
+// ------------------------------------------------
+// OWNER RESOLVE TRANSFER MISMATCH
+// ------------------------------------------------
+//
+// Owner may only change the three resolution fields.
+// The original mismatch record remains unchanged.
+// ------------------------------------------------
+
+allow update:
+  if owner()
+
+  && resource.data.status ==
+    "mismatch"
+
+&& resource.data.confirmationStatus ==
+          "mismatch"
+
+        && resource.data.get(
+          "transferMismatchResolved",
+          false
+        ) != true
+
+        && request.resource.data.transferMismatchResolved ==
+          true
+
+        && request.resource.data.transferMismatchResolvedAt !=
+          null
+
+        && request.resource.data.transferMismatchResolvedBy ==
+          request.auth.uid
+
+        && request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          "transferMismatchResolved",
+          "transferMismatchResolvedAt",
+          "transferMismatchResolvedBy",
+          "updatedAt"
+        ]);
 
 
       // ------------------------------------------------
