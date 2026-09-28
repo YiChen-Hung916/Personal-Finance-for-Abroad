@@ -106,7 +106,11 @@ export async function getUnresolvedMismatches({
   }
 
 
-  const mismatchQuery =
+  // ==================================================
+  // 1. Receipt mismatches
+  // ==================================================
+
+  const receiptMismatchQuery =
     query(
       collectionGroup(
         db,
@@ -125,9 +129,9 @@ export async function getUnresolvedMismatches({
     );
 
 
-  const mismatchSnapshot =
+  const receiptMismatchSnapshot =
     await getDocs(
-      mismatchQuery
+      receiptMismatchQuery
     );
 
 
@@ -136,7 +140,7 @@ export async function getUnresolvedMismatches({
 
   for (
     const confirmationDoc
-    of mismatchSnapshot.docs
+    of receiptMismatchSnapshot.docs
   ) {
 
     const confirmation =
@@ -144,7 +148,8 @@ export async function getUnresolvedMismatches({
 
 
     const receiptId =
-      confirmation.receiptId;
+      confirmation.receiptId ||
+      confirmationDoc.ref.parent.parent?.id;
 
 
     if (!receiptId) {
@@ -174,7 +179,12 @@ export async function getUnresolvedMismatches({
 
 
     mismatches.push({
-      id: confirmationDoc.id,
+
+      type:
+        'receipt',
+
+      id:
+        confirmationDoc.id,
 
       confirmationId:
         confirmationDoc.id,
@@ -185,22 +195,88 @@ export async function getUnresolvedMismatches({
       confirmation,
 
       receipt
+
     });
   }
 
 
-  // Oldest transaction first.
+  // ==================================================
+  // 2. Transfer mismatches
+  // ==================================================
+  //
+  // Query by status only, then filter resolution
+  // client-side for backward compatibility with
+  // older Transfer documents that may not contain
+  // transferMismatchResolved.
+  // ==================================================
+
+  const transferMismatchQuery =
+    query(
+      collection(
+        db,
+        'transfers'
+      ),
+      where(
+        'status',
+        '==',
+        'mismatch'
+      )
+    );
+
+
+  const transferMismatchSnapshot =
+    await getDocs(
+      transferMismatchQuery
+    );
+
+
+  transferMismatchSnapshot.docs
+    .map(transferDoc => ({
+      id:
+        transferDoc.id,
+
+      ...transferDoc.data()
+    }))
+    .filter(transfer =>
+      transfer.transferMismatchResolved !== true
+    )
+    .forEach(transfer => {
+
+      mismatches.push({
+
+        type:
+          'transfer',
+
+        id:
+          transfer.id,
+
+        transfer
+
+      });
+
+    });
+
+
+  // ==================================================
+  // 3. Oldest transaction first
+  // ==================================================
+
   mismatches.sort(
     (a, b) => {
 
       const dateA =
         String(
-          a.receipt.purchaseDate || ''
+          a.type === 'transfer'
+            ? a.transfer?.transferDate || ''
+            : a.receipt?.purchaseDate || ''
         );
+
 
       const dateB =
         String(
-          b.receipt.purchaseDate || ''
+          b.type === 'transfer'
+            ? b.transfer?.transferDate || ''
+            : b.receipt?.purchaseDate || ''
         );
 
 
@@ -243,7 +319,14 @@ async function getAllMismatches({
   }
 
 
-  const mismatchQuery =
+  const mismatches = [];
+
+
+  // ==================================================
+  // 1. Receipt mismatches
+  // ==================================================
+
+  const receiptMismatchQuery =
     query(
       collectionGroup(
         db,
@@ -257,18 +340,15 @@ async function getAllMismatches({
     );
 
 
-  const mismatchSnapshot =
+  const receiptMismatchSnapshot =
     await getDocs(
-      mismatchQuery
+      receiptMismatchQuery
     );
-
-
-  const mismatches = [];
 
 
   for (
     const confirmationDoc
-    of mismatchSnapshot.docs
+    of receiptMismatchSnapshot.docs
   ) {
 
     const confirmation =
@@ -301,12 +381,18 @@ async function getAllMismatches({
 
 
     const receipt = {
-      id: receiptSnapshot.id,
+      id:
+        receiptSnapshot.id,
+
       ...receiptSnapshot.data()
     };
 
 
     mismatches.push({
+
+      type:
+        'receipt',
+
       id:
         confirmationDoc.id,
 
@@ -319,22 +405,81 @@ async function getAllMismatches({
       confirmation,
 
       receipt
+
     });
   }
 
 
-  // Oldest transaction first.
+  // ==================================================
+  // 2. Transfer mismatches
+  // ==================================================
+
+  const transferMismatchQuery =
+    query(
+      collection(
+        db,
+        'transfers'
+      ),
+      where(
+        'status',
+        '==',
+        'mismatch'
+      )
+    );
+
+
+  const transferMismatchSnapshot =
+    await getDocs(
+      transferMismatchQuery
+    );
+
+
+  transferMismatchSnapshot.docs
+    .forEach(transferDoc => {
+
+      const transfer = {
+        id:
+          transferDoc.id,
+
+        ...transferDoc.data()
+      };
+
+
+      mismatches.push({
+
+        type:
+          'transfer',
+
+        id:
+          transfer.id,
+
+        transfer
+
+      });
+
+    });
+
+
+  // ==================================================
+  // 3. Oldest transaction first
+  // ==================================================
+
   mismatches.sort(
     (a, b) => {
 
       const dateA =
         String(
-          a.receipt.purchaseDate || ''
+          a.type === 'transfer'
+            ? a.transfer?.transferDate || ''
+            : a.receipt?.purchaseDate || ''
         );
+
 
       const dateB =
         String(
-          b.receipt.purchaseDate || ''
+          b.type === 'transfer'
+            ? b.transfer?.transferDate || ''
+            : b.receipt?.purchaseDate || ''
         );
 
 
@@ -361,8 +506,6 @@ async function getAllMismatches({
   return mismatches;
 }
 
-
-
 // ======================================================
 // Compact Owner Dashboard Card
 // ======================================================
@@ -372,10 +515,175 @@ export function mismatchDashboardCardHtml({
   lang
 }) {
 
+  // ==================================================
+  // Transfer mismatch
+  // ==================================================
+
+  if (item.type === 'transfer') {
+
+    const transfer =
+      item.transfer;
+
+
+    if (!transfer) {
+      return '';
+    }
+
+
+    const resolved =
+      transfer.transferMismatchResolved === true;
+
+
+    const currency =
+      String(
+        transfer.currency || ''
+      )
+        .trim()
+        .toUpperCase();
+
+
+    return `
+
+      <div
+        class="card${resolved ? '' : ' mismatch-card'}"
+        data-mismatch-type="transfer"
+        data-transfer-id="${escapeHtml(
+          transfer.id
+        )}"
+      >
+
+        <div class="mismatch-card-main">
+
+          <div>
+
+            <strong>
+              ${escapeHtml(
+                lang === 'zh-TW'
+                  ? '轉帳'
+                  : 'Transfer'
+              )}
+            </strong>
+
+            <span class="muted">
+              ${escapeHtml(
+                transfer.transferDate || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <strong>
+            ${formatMoney(
+              transfer.amount || 0,
+              currency
+            )}
+          </strong>
+
+        </div>
+
+
+        <div class="field">
+
+          <span class="field-label">
+            ${
+              lang === 'zh-TW'
+                ? '轉帳'
+                : 'Transfer'
+            }
+          </span>
+
+          <span>
+            ${escapeHtml(
+              transfer.senderName || '—'
+            )}
+            →
+            ${escapeHtml(
+              transfer.receiverName || '—'
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="field">
+
+          <span class="field-label">
+            ${
+              lang === 'zh-TW'
+                ? '實際收到'
+                : 'Actually Received'
+            }
+          </span>
+
+          <strong>
+            ${formatMoney(
+              transfer.reportedAmount || 0,
+              currency
+            )}
+          </strong>
+
+        </div>
+
+
+        <div class="mismatch-reasons">
+
+          <span class="${
+            resolved
+              ? 'badge'
+              : 'mismatch-reason-badge'
+          }">
+            ${
+              lang === 'zh-TW'
+                ? '轉帳金額不符'
+                : 'Transfer amount mismatch'
+            }
+          </span>
+
+        </div>
+
+
+        <div class="actions">
+
+          <button
+            type="button"
+            class="view-mismatch-btn"
+            data-mismatch-type="transfer"
+            data-transfer-id="${escapeHtml(
+              transfer.id
+            )}"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '查看'
+                : 'View'
+            }
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+  }
+
+
+  // ==================================================
+  // Receipt mismatch
+  // ==================================================
+
   const {
     receipt,
     confirmation
   } = item;
+
+
+  if (
+    !receipt ||
+    !confirmation
+  ) {
+    return '';
+  }
 
 
   const reasons =
@@ -392,14 +700,16 @@ export function mismatchDashboardCardHtml({
       .trim()
       .toUpperCase();
 
-  const resolved =
-  confirmation.mismatchResolved === true;
 
-  
+  const resolved =
+    confirmation.mismatchResolved === true;
+
+
   return `
 
     <div
       class="card${resolved ? '' : ' mismatch-card'}"
+      data-mismatch-type="receipt"
       data-receipt-id="${escapeHtml(
         receipt.id
       )}"
@@ -442,7 +752,11 @@ export function mismatchDashboardCardHtml({
         ${
           reasons
             .map(reason => `
-              <span class="${resolved ? 'badge' : 'mismatch-reason-badge'}">
+              <span class="${
+                resolved
+                  ? 'badge'
+                  : 'mismatch-reason-badge'
+              }">
                 ${escapeHtml(reason)}
               </span>
             `)
@@ -457,6 +771,7 @@ export function mismatchDashboardCardHtml({
         <button
           type="button"
           class="view-mismatch-btn"
+          data-mismatch-type="receipt"
           data-receipt-id="${escapeHtml(
             receipt.id
           )}"
@@ -709,19 +1024,45 @@ export async function mismatchPage({
 
 
     const pendingMismatches =
-      allMismatches.filter(
-        item =>
-          item.confirmation
-            .mismatchResolved !== true
-      );
+  allMismatches.filter(
+    item => {
+
+      if (item.type === 'transfer') {
+
+        return (
+          item.transfer
+            ?.transferMismatchResolved !== true
+        );
+      }
 
 
-    const resolvedMismatches =
-      allMismatches.filter(
-        item =>
-          item.confirmation
-            .mismatchResolved === true
+      return (
+        item.confirmation
+          ?.mismatchResolved !== true
       );
+    }
+  );
+
+
+const resolvedMismatches =
+  allMismatches.filter(
+    item => {
+
+      if (item.type === 'transfer') {
+
+        return (
+          item.transfer
+            ?.transferMismatchResolved === true
+        );
+      }
+
+
+      return (
+        item.confirmation
+          ?.mismatchResolved === true
+      );
+    }
+  );
 
 
     pendingCount.textContent =
@@ -896,6 +1237,38 @@ export function bindMismatchViewButtons(
       button.onclick =
         () => {
 
+          const mismatchType =
+            button.dataset.mismatchType;
+
+
+          // ==========================================
+          // Transfer mismatch
+          // ==========================================
+
+          if (
+            mismatchType === 'transfer'
+          ) {
+
+            const transferId =
+              button.dataset.transferId;
+
+
+            if (!transferId) {
+              return;
+            }
+
+
+            location.hash =
+              `#transfer-detail/${transferId}`;
+
+            return;
+          }
+
+
+          // ==========================================
+          // Receipt mismatch
+          // ==========================================
+
           const receiptId =
             button.dataset.receiptId;
 
@@ -918,7 +1291,6 @@ export function bindMismatchViewButtons(
 
     });
 }
-
 
 // ======================================================
 // Owner Mismatch Detail Page
