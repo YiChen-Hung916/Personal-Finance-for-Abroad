@@ -1094,6 +1094,78 @@ export async function confirmTransfer({
 
 
 // ======================================================
+// Resolve Transfer Mismatch
+// ======================================================
+
+export async function resolveTransferMismatch({
+  db,
+  currentUser,
+  transfer
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !transfer?.id
+  ) {
+
+    throw new Error(
+      'Missing transfer mismatch resolution data.'
+    );
+  }
+
+
+  if (
+    transfer.status !== 'mismatch' ||
+    transfer.confirmationStatus !== 'mismatch'
+  ) {
+
+    throw new Error(
+      'This transfer does not contain a mismatch.'
+    );
+  }
+
+
+  if (
+    transfer.transferMismatchResolved === true
+  ) {
+
+    throw new Error(
+      'This transfer mismatch has already been resolved.'
+    );
+  }
+
+
+  const transferRef =
+    doc(
+      db,
+      'transfers',
+      transfer.id
+    );
+
+
+  await updateDoc(
+    transferRef,
+    {
+
+      transferMismatchResolved:
+        true,
+
+      transferMismatchResolvedAt:
+        serverTimestamp(),
+
+      transferMismatchResolvedBy:
+        currentUser.uid,
+
+      updatedAt:
+        serverTimestamp()
+
+    }
+  );
+}
+
+
+// ======================================================
 // Transfer Detail Page
 // ======================================================
 
@@ -1253,6 +1325,20 @@ export async function transferDetailPage({
     const canConfirm =
       isReceiver &&
       transfer.status === 'pending';
+
+    const isTransferMismatch =
+  transfer.status === 'mismatch' &&
+  transfer.confirmationStatus === 'mismatch';
+
+
+const transferMismatchResolved =
+  transfer.transferMismatchResolved === true;
+
+
+const canResolveMismatch =
+  currentRole === 'owner' &&
+  isTransferMismatch &&
+  !transferMismatchResolved;
 
 
     page.innerHTML = `
@@ -1617,7 +1703,190 @@ export async function transferDetailPage({
         </div>
 
       </section>
+
+      ${
+        currentRole === 'owner' &&
+        isTransferMismatch
+          ? `
+
+              <section class="panel">
+
+                <h2>
+                  ${
+                    lang === 'zh-TW'
+                      ? '不符項目處理'
+                      : 'Mismatch Resolution'
+                  }
+                </h2>
+
+
+                ${
+                  transferMismatchResolved
+                    ? `
+
+                        <div class="card">
+
+                          <p>
+                            <strong>
+                              ${
+                                lang === 'zh-TW'
+                                  ? '此轉帳金額不符已處理。'
+                                  : 'This transfer mismatch has been resolved.'
+                              }
+                            </strong>
+                          </p>
+
+                        </div>
+
+                      `
+                    : `
+
+                        <div class="card mismatch-card">
+
+                          <p>
+                            ${
+                              lang === 'zh-TW'
+                                ? '收款人回報實際收到的金額與原轉帳金額不符。確認問題已處理後，可將此項目標記為已處理。'
+                                : 'The receiver reported an amount different from the original transfer. Mark this item as resolved after the issue has been handled.'
+                            }
+                          </p>
+
+
+                          <div class="actions">
+
+                            <button
+                              type="button"
+                              id="resolveTransferMismatchBtn"
+                              class="primary"
+                            >
+                              ${
+                                lang === 'zh-TW'
+                                  ? '標記已處理'
+                                  : 'Mark as Resolved'
+                              }
+                            </button>
+
+                          </div>
+
+
+                          <p
+                            id="resolveTransferMismatchMessage"
+                            class="muted"
+                          ></p>
+
+                        </div>
+
+                      `
+                }
+
+              </section>
+
+            `
+          : ''
+      }
+      
     `;
+
+
+    if (canResolveMismatch) {
+
+  const resolveButton =
+    page.querySelector(
+      '#resolveTransferMismatchBtn'
+    );
+
+
+  const resolveMessage =
+    page.querySelector(
+      '#resolveTransferMismatchMessage'
+    );
+
+
+  if (resolveButton) {
+
+    resolveButton.addEventListener(
+      'click',
+      async () => {
+
+        const confirmed =
+          window.confirm(
+            lang === 'zh-TW'
+              ? '確定要將這筆轉帳金額不符標記為已處理嗎？'
+              : 'Mark this transfer mismatch as resolved?'
+          );
+
+
+        if (!confirmed) {
+          return;
+        }
+
+
+        resolveButton.disabled =
+          true;
+
+
+        resolveButton.textContent =
+          lang === 'zh-TW'
+            ? '處理中…'
+            : 'Resolving…';
+
+
+        if (resolveMessage) {
+          resolveMessage.textContent = '';
+        }
+
+
+        try {
+
+          await resolveTransferMismatch({
+            db,
+            currentUser,
+            transfer
+          });
+
+
+          sessionStorage.setItem(
+            'mismatchActiveTab',
+            'resolved'
+          );
+
+
+          location.hash =
+            '#mismatches';
+
+
+        } catch (error) {
+
+          console.error(
+            'Failed to resolve transfer mismatch:',
+            error
+          );
+
+
+          if (resolveMessage) {
+
+            resolveMessage.textContent =
+              `${
+                lang === 'zh-TW'
+                  ? '標記已處理失敗'
+                  : 'Failed to resolve mismatch'
+              }: ${error.message}`;
+          }
+
+
+          resolveButton.disabled =
+            false;
+
+
+          resolveButton.textContent =
+            lang === 'zh-TW'
+              ? '標記已處理'
+              : 'Mark as Resolved';
+        }
+      }
+    );
+  }
+}
 
 
     if (canConfirm) {
