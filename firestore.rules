@@ -308,7 +308,7 @@ allow update:
           null
 
         && request.resource.data.confirmedAt ==
-          null;
+          null
 
         && request.resource.data.transferMismatchResolved ==
           false
