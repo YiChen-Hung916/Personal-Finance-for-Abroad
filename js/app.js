@@ -46,6 +46,11 @@ import {
 } from './cards.js';
 
 import {
+  transferPage,
+  transferDetailPage
+} from './transfer.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -431,6 +436,14 @@ function menu(role) {
         ＋ ${t('newReceipt', lang)}
       </a>
 
+      <a href="#transfer">
+  ＋ ${
+    lang === 'zh-TW'
+      ? '記錄轉帳'
+      : 'Record Transfer'
+  }
+</a>
+
       <a href="#pending">
         ${t('pendingAll', lang)}
       </a>
@@ -475,7 +488,11 @@ function menu(role) {
       </a>
 
       <a href="#transfer">
-        ＋ Record Transfer
+        ＋ ${
+    lang === 'zh-TW'
+      ? '記錄轉帳'
+      : 'Record Transfer'
+  }
       </a>
 
       <a href="#unmatched">
@@ -1865,6 +1882,38 @@ if (r === 'dashboard') {
     lang,
     page
   });
+
+} else if (r === 'transfer') {
+
+  transferPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    escapeHtml
+  });
+
+
+} else if (
+  r.startsWith('transfer-detail/')
+) {
+
+  const transferId =
+    r.substring(
+      'transfer-detail/'.length
+    );
+
+
+  transferDetailPage({
+    db,
+    currentRole,
+    lang,
+    page,
+    transferId,
+    escapeHtml
+  });
+
 
 } else if (r === 'cards') {
 
