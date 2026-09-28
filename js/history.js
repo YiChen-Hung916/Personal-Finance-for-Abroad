@@ -12,6 +12,10 @@ import {
   buildFxDisplay
 } from './fx.js';
 
+import {
+  getMyTransferHistory
+} from './transfer.js';
+
 // import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
 
 // ======================================================
@@ -1375,6 +1379,7 @@ function exportTransactionsToPdf({
 
 export async function historyPage({
   db,
+  currentUser,
   currentRole,
   lang,
   page
@@ -1405,6 +1410,17 @@ export async function historyPage({
 
 
   try {
+
+    // ==================================================
+    // Load transfers
+    // ==================================================
+
+  const transfers =
+    await getMyTransferHistory({
+      db,
+      currentUser
+    });
+
 
     // ==================================================
     // Load receipts
@@ -1488,6 +1504,230 @@ export async function historyPage({
 
 
     // ==================================================
+// Transfer Records
+// ==================================================
+
+const transferRecordsHtml =
+
+  transfers.length === 0
+
+    ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '尚無轉帳紀錄。'
+              : 'No transfer records yet.'
+          }
+        </p>
+      `
+
+    : transfers
+        .map(transfer => {
+
+          const isIncoming =
+            transfer.direction ===
+            'incoming';
+
+
+          const directionText =
+            isIncoming
+              ? (
+                  lang === 'zh-TW'
+                    ? '轉入'
+                    : 'Incoming'
+                )
+              : (
+                  lang === 'zh-TW'
+                    ? '轉出'
+                    : 'Outgoing'
+                );
+
+
+          let statusText = '—';
+
+
+          if (
+            transfer.status ===
+            'pending'
+          ) {
+
+            statusText =
+              isIncoming
+                ? (
+                    lang === 'zh-TW'
+                      ? '等待你確認'
+                      : 'Waiting for your confirmation'
+                  )
+                : (
+                    lang === 'zh-TW'
+                      ? '等待收款人確認'
+                      : 'Waiting for receiver confirmation'
+                  );
+
+          } else if (
+            transfer.status ===
+            'received'
+          ) {
+
+            statusText =
+              isIncoming
+                ? (
+                    lang === 'zh-TW'
+                      ? '已確認收到'
+                      : 'Received'
+                  )
+                : (
+                    lang === 'zh-TW'
+                      ? '轉帳已接收'
+                      : 'Transfer received'
+                  );
+
+          } else if (
+            transfer.status ===
+            'mismatch'
+          ) {
+
+            statusText =
+              lang === 'zh-TW'
+                ? '金額不符'
+                : 'Amount mismatch';
+          }
+
+
+          return `
+
+            <div
+              class="card history-transfer-card"
+              data-transfer-id="${escapeHtml(
+                transfer.id
+              )}"
+              style="cursor: pointer;"
+            >
+
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  gap: 12px;
+                  align-items: flex-start;
+                "
+              >
+
+                <div>
+
+                  <div>
+
+                    <strong>
+                      ${escapeHtml(
+                        directionText
+                      )}
+                    </strong>
+
+                    ·
+
+                    ${escapeHtml(
+                      transfer.senderName ||
+                      '—'
+                    )}
+
+                    →
+
+                    ${escapeHtml(
+                      transfer.receiverName ||
+                      '—'
+                    )}
+
+                  </div>
+
+
+                  <div class="muted">
+
+                    ${escapeHtml(
+                      transfer.transferDate ||
+                      '—'
+                    )}
+
+                    ·
+
+                    ${escapeHtml(
+                      statusText
+                    )}
+
+                  </div>
+
+
+                  ${
+                    transfer.status ===
+                    'mismatch'
+
+                      ? `
+                          <div
+                            class="muted"
+                            style="
+                              margin-top: 4px;
+                            "
+                          >
+
+                            ${
+                              lang === 'zh-TW'
+                                ? '實際收到：'
+                                : 'Actually received: '
+                            }
+
+                            ${escapeHtml(
+                              transfer.currency ||
+                              ''
+                            )}
+
+                            ${Number(
+                              transfer.reportedAmount ||
+                              0
+                            ).toLocaleString(
+                              'en-US',
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              }
+                            )}
+
+                          </div>
+                        `
+
+                      : ''
+                  }
+
+                </div>
+
+
+                <strong>
+
+                  ${escapeHtml(
+                    transfer.currency ||
+                    ''
+                  )}
+
+                  ${Number(
+                    transfer.amount || 0
+                  ).toLocaleString(
+                    'en-US',
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }
+                  )}
+
+                </strong>
+
+              </div>
+
+            </div>
+
+          `;
+        })
+        .join('');
+
+    
+    // ==================================================
     // Page
     // ==================================================
 
@@ -1503,14 +1743,7 @@ export async function historyPage({
           }
         </h2>
 
-
-        <p class="muted">
-          ${
-            lang === 'zh-TW'
-              ? '尚無轉帳紀錄。'
-              : 'No transfer records yet.'
-          }
-        </p>
+        ${transferRecordsHtml}
 
       </section>
 
@@ -2125,3 +2358,31 @@ exportPdfButton.onclick = () => {
     `;
   }
 }
+
+
+
+// ==================================================
+// Transfer Detail Links
+// ==================================================
+
+page
+  .querySelectorAll(
+    '.history-transfer-card'
+  )
+  .forEach(card => {
+
+    card.onclick = () => {
+
+      const transferId =
+        card.dataset.transferId;
+
+
+      if (!transferId) {
+        return;
+      }
+
+
+      location.hash =
+        `#transfer-detail/${transferId}`;
+    };
+  });
