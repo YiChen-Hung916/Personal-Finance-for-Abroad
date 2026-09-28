@@ -207,6 +207,23 @@ allow update:
       }
     }
 
+// ==================================================
+    // Confirmation Collection Group
+    // ==================================================
+    //
+    // Required for:
+    // collectionGroup(db, 'confirmations')
+    //
+    // Used by the Owner mismatch dashboard/list.
+    // Only Owner may run this cross-receipt query.
+    // ==================================================
+
+    match /{path=**}/confirmations/{cid} {
+
+      allow read:
+        if owner();
+    }
+
 
     // ==================================================
     // Transfers
