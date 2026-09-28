@@ -1013,6 +1013,166 @@ const transferConfirmationPanel = `
 `;
 
 
+
+  // ==================================================
+// Transfer Updates For Sender
+// ==================================================
+
+const transferUpdatesHtml =
+
+  myReceivedTransferUpdates.length === 0
+
+    ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前沒有新的轉帳狀態。'
+              : 'There are no transfer updates.'
+          }
+        </p>
+      `
+
+    : myReceivedTransferUpdates
+        .slice(0, 5)
+        .map(transfer => {
+
+          const isMismatch =
+            transfer.status === 'mismatch';
+
+
+          const statusText =
+            isMismatch
+              ? (
+                  lang === 'zh-TW'
+                    ? '收到金額不符'
+                    : 'Received amount mismatch'
+                )
+              : (
+                  lang === 'zh-TW'
+                    ? '轉帳已接收'
+                    : 'Transfer received'
+                );
+
+
+          return `
+
+            <div
+              class="card dashboard-transfer-update"
+              data-transfer-id="${escapeHtml(
+                transfer.id
+              )}"
+              style="cursor: pointer;"
+            >
+
+              <div>
+
+                <strong>
+                  ${escapeHtml(statusText)}
+                </strong>
+
+              </div>
+
+
+              <div class="muted">
+
+                ${escapeHtml(
+                  transfer.transferDate || '—'
+                )}
+
+                ·
+
+                ${escapeHtml(
+                  transfer.senderName || '—'
+                )}
+
+                →
+
+                ${escapeHtml(
+                  transfer.receiverName || '—'
+                )}
+
+              </div>
+
+
+              <div>
+
+                ${
+                  Number(
+                    transfer.amount || 0
+                  ).toLocaleString(
+                    'en-US',
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }
+                  )
+                }
+
+                ${escapeHtml(
+                  transfer.currency || ''
+                )}
+
+              </div>
+
+
+              ${
+                isMismatch
+                  ? `
+                      <div>
+
+                        <span class="muted">
+                          ${
+                            lang === 'zh-TW'
+                              ? '實際收到：'
+                              : 'Actually received: '
+                          }
+                        </span>
+
+                        <strong>
+
+                          ${
+                            Number(
+                              transfer.reportedAmount || 0
+                            ).toLocaleString(
+                              'en-US',
+                              {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                              }
+                            )
+                          }
+
+                          ${escapeHtml(
+                            transfer.currency || ''
+                          )}
+
+                        </strong>
+
+                      </div>
+
+
+                      ${
+                        transfer.receiverNotes
+                          ? `
+                              <div class="muted">
+                                ${escapeHtml(
+                                  transfer.receiverNotes
+                                )}
+                              </div>
+                            `
+                          : ''
+                      }
+                    `
+                  : ''
+              }
+
+            </div>
+
+          `;
+        })
+        .join('');
+
+
   
   // ==================================================
   // Owner Dashboard
@@ -1089,14 +1249,14 @@ const transferConfirmationPanel = `
       <section class="panel">
 
         <h2>
-          Transfers
+          ${
+      lang === 'zh-TW'
+        ? '轉帳紀錄'
+        : 'Transfers'
+    }
         </h2>
 
-        <div class="activity">
-          <span>Sep 16</span>
-          <span>Family → Checking</span>
-          <span>USD 1,000 · Received</span>
-        </div>
+        ${transferUpdatesHtml}
 
       </section>
 
@@ -1148,6 +1308,21 @@ const transferConfirmationPanel = `
       ${confirmationPanel}
 
       ${transferConfirmationPanel}
+
+
+      <section class="panel">
+
+    <h2>
+      ${
+        lang === 'zh-TW'
+          ? '轉帳紀錄'
+          : 'Transfers'
+      }
+    </h2>
+
+    ${transferUpdatesHtml}
+
+  </section>
 
 
       <section class="panel">
@@ -1207,6 +1382,35 @@ page
     };
   });
 
+
+
+  // ==================================================
+// Open Transfer Update Detail
+// ==================================================
+
+page
+  .querySelectorAll(
+    '.dashboard-transfer-update'
+  )
+  .forEach(card => {
+
+    card.onclick = () => {
+
+      const transferId =
+        card.dataset.transferId;
+
+
+      if (!transferId) {
+        return;
+      }
+
+
+      location.hash =
+        `#transfer-detail/${transferId}`;
+    };
+  });
+
+  
   // Preload FX reference for Dashboard
   // confirmation cards.
   //
