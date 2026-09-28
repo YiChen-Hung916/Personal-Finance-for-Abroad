@@ -570,6 +570,11 @@ async function dashboard() {
 // Receipt confirmation data
 // ==================================================
 
+
+// --------------------------------------------------
+// 1. My pending confirmations
+// --------------------------------------------------
+
 try {
 
   const rawMyPendingConfirmations =
@@ -577,6 +582,12 @@ try {
       db,
       currentUser
     });
+
+  console.log(
+    'Dashboard my pending confirmations:',
+    rawMyPendingConfirmations
+  );
+
 
   myPendingConfirmations =
     rawMyPendingConfirmations
@@ -614,28 +625,66 @@ try {
         );
       });
 
+} catch (error) {
 
-  if (isOwner) {
+  console.error(
+    'FAILED: getMyPendingConfirmations',
+    error
+  );
+}
+
+
+// --------------------------------------------------
+// 2. Owner: all pending receipts
+// --------------------------------------------------
+
+if (isOwner) {
+
+  try {
 
     allPendingConfirmations =
       await getAllPendingReceipts({
         db
       });
 
+    console.log(
+      'Dashboard all pending receipts:',
+      allPendingConfirmations
+    );
+
+  } catch (error) {
+
+    console.error(
+      'FAILED: getAllPendingReceipts',
+      error
+    );
+  }
+
+
+  // ------------------------------------------------
+  // 3. Owner: unresolved mismatches
+  // ------------------------------------------------
+
+  try {
+
     unresolvedMismatches =
       await getUnresolvedMismatches({
         db
       });
+
+    console.log(
+      'Dashboard unresolved mismatches:',
+      unresolvedMismatches
+    );
+
+  } catch (error) {
+
+    console.error(
+      'FAILED: getUnresolvedMismatches',
+      error
+    );
   }
-
-} catch (error) {
-
-  console.error(
-    'Failed to load dashboard receipt data:',
-    error
-  );
 }
-
 
 // ==================================================
 // Transfer data
