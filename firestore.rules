@@ -69,76 +69,55 @@ service cloud.firestore {
     // ==================================================
     // Receipt Assignment
     // ==================================================
-    //
-    // NEW:
-    //
-    // confirmationUserIds: [
-    //   "uid_A",
-    //   "uid_B"
-    // ]
-    //
-    // LEGACY:
-    //
-    // confirmationUserId: "uid_A"
-    //
-    // A user is assigned when:
-    //
-    // 1. their UID appears in confirmationUserIds
-    //
-    // OR
-    //
-    // 2. this is an old Receipt without the array and
-    //    confirmationUserId equals their UID.
-    //
-    // ==================================================
 
     function assignedToMe(receiptId) {
 
-  let receipt =
-    get(
-      /databases/$(database)/documents/receipts/$(receiptId)
-    ).data;
+      let receipt =
+        get(
+          /databases/$(database)/documents/receipts/$(receiptId)
+        ).data;
 
 
-  let confirmationUserIds =
-    receipt.get(
-      "confirmationUserIds",
-      []
-    );
+      let confirmationUserIds =
+        receipt.get(
+          "confirmationUserIds",
+          []
+        );
 
 
-  let confirmationUserId =
-    receipt.get(
-      "confirmationUserId",
-      null
-    );
+      let confirmationUserId =
+        receipt.get(
+          "confirmationUserId",
+          null
+        );
 
 
-  return authorized()
+      return authorized()
 
-    && (
+        && (
 
-      (
-        confirmationUserIds is list
+          (
+            confirmationUserIds is list
 
-        &&
+            &&
 
-        request.auth.uid in
-          confirmationUserIds
-      )
+            request.auth.uid in
+              confirmationUserIds
+          )
 
-      ||
+          ||
 
-      (
-        confirmationUserIds.size() == 0
+          (
+            confirmationUserIds.size() == 0
 
-        &&
+            &&
 
-        confirmationUserId ==
-          request.auth.uid
-      )
-    );
-}
+            confirmationUserId ==
+              request.auth.uid
+          )
+        );
+    }
+
 
     // ==================================================
     // Users
@@ -146,15 +125,11 @@ service cloud.firestore {
 
     match /users/{uid} {
 
-      // User may read own profile.
-      allow get:
-        if signedIn()
-        && request.auth.uid == uid;
-
-
-      // Owner may read/list all users.
+      // Any authorized family member may read user
+      // profiles so Transfer can show the family-member
+      // receiver dropdown.
       allow get, list:
-        if owner();
+        if authorized();
 
 
       // Only Owner manages users.
@@ -169,24 +144,10 @@ service cloud.firestore {
 
     match /receipts/{rid} {
 
-      // ------------------------------------------------
-      // Receipt read
-      // ------------------------------------------------
-      //
-      // Keep current architecture:
-      //
-      // all authorized users may read Receipts.
-      //
-      // We can tighten receipt-level visibility later
-      // as a separate checkpoint because Firestore
-      // queries must match Security Rules.
-      // ------------------------------------------------
-
       allow read:
         if authorized();
 
 
-      // Only Owner may create/change/delete Receipts.
       allow create, update, delete:
         if owner();
 
@@ -212,55 +173,21 @@ service cloud.firestore {
 
       match /confirmations/{cid} {
 
-        // ----------------------------------------------
-        // READ
-        // ----------------------------------------------
-        //
-        // Owner:
-        // may read every confirmation.
-        //
-        // Assigned confirmer:
-        // may read confirmations belonging to the same
-        // Receipt.
-        //
-        // This is necessary because A/B/C must be able
-        // to determine whether ANY confirmer already
-        // completed the Receipt.
-        // ----------------------------------------------
-
         allow read:
           if owner()
           || assignedToMe(rid);
 
-
-        // ----------------------------------------------
-        // CREATE
-        // ----------------------------------------------
-        //
-        // An assigned user may create ONLY the
-        // confirmation document whose ID is their UID.
-        //
-        // A cannot create confirmations/B.
-        // ----------------------------------------------
 
         allow create:
           if assignedToMe(rid)
           && request.auth.uid == cid;
 
 
-        // ----------------------------------------------
-        // UPDATE
-        // ----------------------------------------------
-        //
-        // Keep the same ownership requirement.
-        // ----------------------------------------------
-
         allow update:
           if assignedToMe(rid)
           && request.auth.uid == cid;
 
 
-        // Only Owner can delete confirmations.
         allow delete:
           if owner();
       }
@@ -268,10 +195,223 @@ service cloud.firestore {
 
 
     // ==================================================
-    // Other Collections
+    // Transfers
     // ==================================================
-    //
-    // Existing owner-only fallback.
+
+    match /transfers/{tid} {
+
+
+      // ------------------------------------------------
+      // READ
+      // ------------------------------------------------
+      //
+      // Owner:
+      // may read every Transfer.
+      //
+      // Sender / Receiver:
+      // may read Transfers involving themselves.
+      // ------------------------------------------------
+
+      allow get, list:
+        if authorized()
+
+        && (
+          owner()
+
+          ||
+
+          resource.data.senderUserId ==
+            request.auth.uid
+
+          ||
+
+          resource.data.receiverUserId ==
+            request.auth.uid
+        );
+
+
+      // ------------------------------------------------
+      // CREATE
+      // ------------------------------------------------
+      //
+      // Any authorized user may create a Transfer,
+      // but:
+      //
+      // - sender must be the signed-in user
+      // - receiver must be another active authorized user
+      // - status must start as pending
+      // - confirmation fields must start empty
+      // ------------------------------------------------
+
+      allow create:
+        if authorized()
+
+        && request.resource.data.senderUserId ==
+          request.auth.uid
+
+        && request.resource.data.createdBy ==
+          request.auth.uid
+
+        && request.resource.data.receiverUserId !=
+          request.auth.uid
+
+        && exists(
+          /databases/$(database)/documents/users/$(request.resource.data.receiverUserId)
+        )
+
+        && get(
+          /databases/$(database)/documents/users/$(request.resource.data.receiverUserId)
+        ).data.active == true
+
+        && (
+          get(
+            /databases/$(database)/documents/users/$(request.resource.data.receiverUserId)
+          ).data.role == "owner"
+
+          ||
+
+          get(
+            /databases/$(database)/documents/users/$(request.resource.data.receiverUserId)
+          ).data.role == "authorizedUser"
+        )
+
+        && request.resource.data.amount is number
+
+        && request.resource.data.amount > 0
+
+        && request.resource.data.currency is string
+
+        && request.resource.data.status ==
+          "pending"
+
+        && request.resource.data.confirmationStatus ==
+          "pending"
+
+        && request.resource.data.reportedAmount ==
+          null
+
+        && request.resource.data.confirmedBy ==
+          null
+
+        && request.resource.data.confirmedAt ==
+          null;
+
+
+      // ------------------------------------------------
+      // UPDATE
+      // ------------------------------------------------
+      //
+      // Only Receiver may confirm.
+      //
+      // Immutable:
+      // sender / receiver / original amount / currency /
+      // transfer date / creator.
+      //
+      // Allowed transition:
+      //
+      // pending
+      //   -> received
+      //   -> mismatch
+      // ------------------------------------------------
+
+      allow update:
+        if authorized()
+
+        && resource.data.receiverUserId ==
+          request.auth.uid
+
+        && resource.data.status ==
+          "pending"
+
+        && request.resource.data.senderUserId ==
+          resource.data.senderUserId
+
+        && request.resource.data.senderName ==
+          resource.data.senderName
+
+        && request.resource.data.receiverUserId ==
+          resource.data.receiverUserId
+
+        && request.resource.data.receiverName ==
+          resource.data.receiverName
+
+        && request.resource.data.transferDate ==
+          resource.data.transferDate
+
+        && request.resource.data.amount ==
+          resource.data.amount
+
+        && request.resource.data.currency ==
+          resource.data.currency
+
+        && request.resource.data.notes ==
+          resource.data.notes
+
+        && request.resource.data.createdBy ==
+          resource.data.createdBy
+
+        && request.resource.data.createdAt ==
+          resource.data.createdAt
+
+        && request.resource.data.confirmedBy ==
+          request.auth.uid
+
+        && request.resource.data.confirmedAt !=
+          null
+
+        && (
+
+          (
+            request.resource.data.status ==
+              "received"
+
+            &&
+
+            request.resource.data.confirmationStatus ==
+              "match"
+
+            &&
+
+            request.resource.data.reportedAmount ==
+              resource.data.amount
+          )
+
+          ||
+
+          (
+            request.resource.data.status ==
+              "mismatch"
+
+            &&
+
+            request.resource.data.confirmationStatus ==
+              "mismatch"
+
+            &&
+
+            request.resource.data.reportedAmount is number
+
+            &&
+
+            request.resource.data.reportedAmount >= 0
+          )
+        );
+
+
+      // ------------------------------------------------
+      // DELETE
+      // ------------------------------------------------
+      //
+      // Keep destructive action Owner-only.
+      // ------------------------------------------------
+
+      allow delete:
+        if owner();
+    }
+
+
+    // ==================================================
+    // Other Collections
     // ==================================================
 
     match /{document=**} {
