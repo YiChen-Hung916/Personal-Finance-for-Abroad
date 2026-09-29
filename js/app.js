@@ -465,8 +465,12 @@ function menu(role) {
       </a>
 
       <a href="#my-confirmations">
-        ${t('myConfirm', lang)}
-      </a>
+  ${
+    lang === 'zh-TW'
+      ? '需要確認'
+      : 'Confirmations'
+  }
+</a>
       
       <a href="#mismatches">
         ${
@@ -496,8 +500,12 @@ function menu(role) {
     `
     : `
       <a href="#my-confirmations">
-        ${t('myConfirm', lang)}
-      </a>
+  ${
+    lang === 'zh-TW'
+      ? '需要確認'
+      : 'Confirmations'
+  }
+</a>
 
       <a href="#related">
         My Related Receipts
