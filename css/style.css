@@ -1167,3 +1167,177 @@
     width: 100%;
   }
 }
+
+/* ======================================================
+   Dashboard - Compact Layout
+   ====================================================== */
+
+.dashboard-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+
+  margin: 8px 0 12px;
+}
+
+
+.dashboard-quick-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  min-width: 0;
+  min-height: 42px;
+
+  padding: 8px 10px;
+
+  white-space: nowrap;
+
+  font-size: 0.92rem;
+}
+
+
+.dashboard-action-icon {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+
+.dashboard-quick-action .badge {
+  flex: 0 0 auto;
+}
+
+
+/* Dashboard panels use less vertical whitespace. */
+
+.dashboard-quick-actions + .panel {
+  margin-top: 10px;
+}
+
+
+.dashboard-expand-button {
+  width: auto;
+
+  margin-top: 8px;
+  padding: 6px 10px;
+
+  font-size: 0.88rem;
+}
+
+
+/* Cards inside Dashboard panels should not create
+   excessively large vertical gaps. */
+
+#page > .panel .dashboard-confirmation-card,
+#page > .panel .dashboard-transfer-card,
+#page > .panel .dashboard-refund-card,
+#page > .panel .mismatch-card {
+  margin-top: 9px;
+  margin-bottom: 9px;
+}
+
+
+/* Medium width:
+   hide the least important creation shortcut first. */
+
+@media (max-width: 850px) {
+
+  .dashboard-quick-actions {
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+  }
+
+
+  .dashboard-quick-action-tertiary {
+    display: none;
+  }
+}
+
+
+/* Narrow screen:
+   prioritize Receipt / Confirm / Attention. */
+
+@media (max-width: 600px) {
+
+  .dashboard-quick-actions {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 6px;
+  }
+
+
+  .dashboard-quick-action-secondary,
+  .dashboard-quick-action-tertiary {
+    display: none;
+  }
+
+
+  .dashboard-quick-action {
+    min-height: 40px;
+
+    padding: 7px 6px;
+
+    font-size: 0.84rem;
+  }
+
+
+  .dashboard-action-icon {
+    font-size: 0.95rem;
+  }
+}
+
+
+/* ======================================================
+   Dashboard - Panel Density
+   ====================================================== */
+
+.dashboard-quick-actions ~ .panel {
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+
+.dashboard-quick-actions ~ .panel > h2:first-child {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+
+.dashboard-quick-actions ~ .panel > p:last-child {
+  margin-bottom: 0;
+}
+
+
+/* ======================================================
+   History - Compact Layout
+   ====================================================== */
+
+.history-heading-row {
+  margin-bottom: 10px;
+}
+
+
+.history-filters {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+
+/* ======================================================
+   Cards - Compact Layout
+   ====================================================== */
+
+.card-list-section {
+  margin-top: 16px;
+}
+
+
+.card-list-section:first-child {
+  margin-top: 10px;
+}
