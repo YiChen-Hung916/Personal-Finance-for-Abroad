@@ -432,8 +432,8 @@ const userNameMap =
                 >
                   ${
                     lang === 'zh-TW'
-                      ? '查看全部'
-                      : 'View All'
+  ? `顯示更多（+${inactiveCards.length - 1}）`
+  : `Show More (+${inactiveCards.length - 1})`
                   }
                 </button>
               `
@@ -507,8 +507,8 @@ const userNameMap =
 
               : (
                   lang === 'zh-TW'
-                    ? '查看全部'
-                    : 'View All'
+                    ? `顯示更多（+${inactiveCards.length - 1}）`
+                    : `Show More (+${inactiveCards.length - 1})`
                 );
         };
     }
