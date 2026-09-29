@@ -57,6 +57,58 @@ function normalizeCurrency(value) {
   return clean(value).toUpperCase();
 }
 
+function getCurrencyOptions(
+  selectedCurrency = ''
+) {
+
+  const currencies = [
+    'USD',
+    'TWD',
+    'JPY',
+    'EUR',
+    'GBP',
+    'CAD',
+    'AUD',
+    'KRW',
+    'HKD',
+    'SGD'
+  ];
+
+
+  const normalized =
+    normalizeCurrency(
+      selectedCurrency
+    );
+
+
+  if (
+    normalized &&
+    !currencies.includes(
+      normalized
+    )
+  ) {
+
+    currencies.unshift(
+      normalized
+    );
+  }
+
+
+  return currencies
+    .map(code => `
+      <option
+        value="${escapeHtml(code)}"
+        ${
+          code === normalized
+            ? 'selected'
+            : ''
+        }
+      >
+        ${escapeHtml(code)}
+      </option>
+    `)
+    .join('');
+}
 
 function formatMoney(
   amount,
@@ -1130,12 +1182,9 @@ export async function refundPage({
               <sup class="required-mark">*</sup>
             </label>
 
-            <input
-              id="refundCurrency"
-              type="text"
-              maxlength="8"
-              placeholder="USD"
-            >
+            <select id="refundCurrency">
+  ${getCurrencyOptions('USD')}
+</select>
 
           </div>
 
@@ -2144,14 +2193,11 @@ export async function refundDetailPage({
                       <sup class="required-mark">*</sup>
                     </label>
 
-                    <input
-                      id="refundReportedCurrency"
-                      type="text"
-                      maxlength="8"
-                      value="${escapeHtml(
-                        refund.currency
-                      )}"
-                    >
+                    <select id="refundReportedCurrency">
+  ${getCurrencyOptions(
+    refund.currency
+  )}
+</select>
 
                   </div>
 
