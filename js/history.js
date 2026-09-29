@@ -2296,7 +2296,8 @@ const exportPdfButton =
           .join('');
 
 
-      // Receipt cards open Receipt Detail
+      
+// Receipt cards open Receipt Detail
       list
         .querySelectorAll(
           '[data-transaction-type="receipt"]'
@@ -2310,38 +2311,46 @@ const exportPdfButton =
                 .transactionId;
 
 
+            if (!receiptId) {
+              return;
+            }
+
+
             location.hash =
               `#receipt-detail/${receiptId}`;
           };
 
         });
+
+
+      // Refund cards open Refund Detail
+      list
+        .querySelectorAll(
+          '[data-transaction-type="refund"]'
+        )
+        .forEach(card => {
+
+          card.onclick = () => {
+
+            const refundId =
+              card.dataset
+                .transactionId;
+
+
+            if (!refundId) {
+              return;
+            }
+
+
+            location.hash =
+              `#refund-detail/${refundId}`;
+          };
+
+        });
+
     }
 
-// Refund cards open Refund Detail
-list
-  .querySelectorAll(
-    '[data-transaction-type="refund"]'
-  )
-  .forEach(card => {
-
-    card.onclick = () => {
-
-      const refundId =
-        card.dataset
-          .transactionId;
-
-
-      if (!refundId) {
-        return;
-      }
-
-
-      location.hash =
-        `#refund-detail/${refundId}`;
-    };
-
-  });
-
+    
     
     // ==================================================
     // Events
