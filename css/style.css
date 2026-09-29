@@ -885,10 +885,23 @@
     grid-template-columns: 1fr;
   }
 
-  .history-transaction-main {
-    gap: 10px;
+
+  .history-transaction-card,
+  .history-transfer-card {
+    padding: 9px 4px;
   }
 
+
+  .history-transaction-main,
+  .history-transfer-main {
+    gap: 8px;
+  }
+
+
+  .history-transaction-main > strong,
+  .history-transfer-main > strong {
+    font-size: 0.9rem;
+  }
 }
 
 
@@ -909,6 +922,13 @@
     justify-content: flex-end;
   }
 
+}
+
+
+.history-transfer-reported {
+  margin-top: 2px;
+
+  font-size: 0.85rem;
 }
 
 
