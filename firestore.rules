@@ -486,6 +486,302 @@ allow update:
     }
 
 
+// ==================================================
+    // Refunds
+    // ==================================================
+
+    match /refunds/{refundId} {
+
+
+      // ------------------------------------------------
+      // READ
+      // ------------------------------------------------
+      //
+      // Owner may read every Refund.
+      //
+      // Assigned confirmation user may read
+      // Refunds assigned to them.
+      // ------------------------------------------------
+
+      allow get, list:
+        if authorized()
+
+        && (
+          owner()
+
+          ||
+
+          resource.data.confirmationUserId ==
+            request.auth.uid
+        );
+
+
+      // ------------------------------------------------
+      // CREATE
+      // ------------------------------------------------
+      //
+      // Only Owner may create Refunds.
+      // ------------------------------------------------
+
+      allow create:
+        if owner()
+
+        && request.resource.data.createdBy ==
+          request.auth.uid
+
+        && request.resource.data.receiptId is string
+
+        && request.resource.data.refundDate is string
+
+        && request.resource.data.amount is number
+
+        && request.resource.data.amount > 0
+
+        && request.resource.data.currency is string
+
+        && request.resource.data.confirmationUserId is string
+
+        && exists(
+          /databases/$(database)/documents/users/$(request.resource.data.confirmationUserId)
+        )
+
+        && get(
+          /databases/$(database)/documents/users/$(request.resource.data.confirmationUserId)
+        ).data.active == true
+
+        && (
+          get(
+            /databases/$(database)/documents/users/$(request.resource.data.confirmationUserId)
+          ).data.role == "owner"
+
+          ||
+
+          get(
+            /databases/$(database)/documents/users/$(request.resource.data.confirmationUserId)
+          ).data.role == "authorizedUser"
+        )
+
+        && (
+          request.resource.data.destinationType ==
+            "original"
+
+          ||
+
+          request.resource.data.destinationType ==
+            "giftCard"
+
+          ||
+
+          request.resource.data.destinationType ==
+            "manual"
+        )
+
+        && request.resource.data.status ==
+          "pending"
+
+        && request.resource.data.confirmationStatus ==
+          "pending"
+
+        && request.resource.data.reportedAmount ==
+          null
+
+        && request.resource.data.reportedCurrency ==
+          null
+
+        && request.resource.data.confirmedBy ==
+          null
+
+        && request.resource.data.confirmedAt ==
+          null
+
+        && request.resource.data.refundMismatchResolved ==
+          false
+
+        && request.resource.data.refundMismatchResolvedAt ==
+          null
+
+        && request.resource.data.refundMismatchResolvedBy ==
+          null;
+
+
+      // ------------------------------------------------
+      // USER CONFIRM REFUND
+      // ------------------------------------------------
+      //
+      // Assigned user may confirm only while pending.
+      //
+      // Original Refund information is immutable.
+      // ------------------------------------------------
+
+      allow update:
+        if authorized()
+
+        && resource.data.confirmationUserId ==
+          request.auth.uid
+
+        && resource.data.status ==
+          "pending"
+
+        && request.resource.data.receiptId ==
+          resource.data.receiptId
+
+        && request.resource.data.purchaseDate ==
+          resource.data.purchaseDate
+
+        && request.resource.data.store ==
+          resource.data.store
+
+        && request.resource.data.refundDate ==
+          resource.data.refundDate
+
+        && request.resource.data.amount ==
+          resource.data.amount
+
+        && request.resource.data.currency ==
+          resource.data.currency
+
+        && request.resource.data.destinationType ==
+          resource.data.destinationType
+
+        && request.resource.data.destinationLabel ==
+          resource.data.destinationLabel
+
+        && request.resource.data.cardId ==
+          resource.data.cardId
+
+        && request.resource.data.cardSnapshot ==
+          resource.data.cardSnapshot
+
+        && request.resource.data.confirmationUserId ==
+          resource.data.confirmationUserId
+
+        && request.resource.data.confirmationUserName ==
+          resource.data.confirmationUserName
+
+        && request.resource.data.notes ==
+          resource.data.notes
+
+        && request.resource.data.createdBy ==
+          resource.data.createdBy
+
+        && request.resource.data.createdAt ==
+          resource.data.createdAt
+
+        && request.resource.data.refundMismatchResolved ==
+          resource.data.refundMismatchResolved
+
+        && request.resource.data.refundMismatchResolvedAt ==
+          resource.data.refundMismatchResolvedAt
+
+        && request.resource.data.refundMismatchResolvedBy ==
+          resource.data.refundMismatchResolvedBy
+
+        && request.resource.data.confirmedBy ==
+          request.auth.uid
+
+        && request.resource.data.confirmedAt !=
+          null
+
+        && request.resource.data.reportedAmount is number
+
+        && request.resource.data.reportedAmount >= 0
+
+        && request.resource.data.reportedCurrency is string
+
+        && (
+
+          (
+            request.resource.data.status ==
+              "received"
+
+            &&
+
+            request.resource.data.confirmationStatus ==
+              "match"
+
+            &&
+
+            request.resource.data.reportedAmount ==
+              resource.data.amount
+
+            &&
+
+            request.resource.data.reportedCurrency ==
+              resource.data.currency
+          )
+
+          ||
+
+          (
+            request.resource.data.status ==
+              "mismatch"
+
+            &&
+
+            request.resource.data.confirmationStatus ==
+              "mismatch"
+
+            &&
+
+            (
+              request.resource.data.reportedAmount !=
+                resource.data.amount
+
+              ||
+
+              request.resource.data.reportedCurrency !=
+                resource.data.currency
+            )
+          )
+        );
+
+
+      // ------------------------------------------------
+      // OWNER RESOLVE REFUND MISMATCH
+      // ------------------------------------------------
+
+      allow update:
+        if owner()
+
+        && resource.data.status ==
+          "mismatch"
+
+        && resource.data.confirmationStatus ==
+          "mismatch"
+
+        && resource.data.get(
+          "refundMismatchResolved",
+          false
+        ) != true
+
+        && request.resource.data.refundMismatchResolved ==
+          true
+
+        && request.resource.data.refundMismatchResolvedAt !=
+          null
+
+        && request.resource.data.refundMismatchResolvedBy ==
+          request.auth.uid
+
+        && request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          "refundMismatchResolved",
+          "refundMismatchResolvedAt",
+          "refundMismatchResolvedBy",
+          "updatedAt"
+        ]);
+
+
+      // ------------------------------------------------
+      // DELETE
+      // ------------------------------------------------
+
+      allow delete:
+        if owner();
+    }
+
+
     // ==================================================
     // Other Collections
     //
@@ -495,9 +791,8 @@ allow update:
 
     match /{collection}/{document=**} {
 
-  allow read, write:
-    if owner()
-    && collection != "transfers";
-}
-  }
-}
+      allow read, write:
+        if owner()
+        && collection != "transfers"
+        && collection != "refunds";
+    }
