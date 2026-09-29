@@ -699,12 +699,11 @@
 /* Refund gets a subtle purple distinction */
 
 .confirmation-queue-refund {
-  background: #faf8ff;
+  background: #f3edff;
 }
 
-
 .confirmation-queue-refund:hover {
-  background: #f5f0ff;
+  background: #e9ddff;
 }
 
 
@@ -1384,11 +1383,11 @@
 /* History Refund */
 
 .history-transaction-card[data-transaction-type="refund"] {
-  background: #faf8ff;
+  background: #f3edff;
 }
 
 .history-transaction-card[data-transaction-type="refund"]:hover {
-  background: #f5f0ff;
+  background: #e9ddff;
 }
 
 
