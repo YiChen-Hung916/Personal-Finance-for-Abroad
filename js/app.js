@@ -54,6 +54,13 @@ import {
 } from './transfer.js';
 
 import {
+  refundPage,
+  refundDetailPage,
+  getMyPendingRefunds,
+  getOwnerRefundUpdates
+} from './refund.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -447,6 +454,14 @@ function menu(role) {
   }
 </a>
 
+<a href="#refund">
+  ＋ ${
+    lang === 'zh-TW'
+      ? '記錄退款'
+      : 'Record Refund'
+  }
+</a>
+
       <a href="#pending">
         ${t('pendingAll', lang)}
       </a>
@@ -565,6 +580,8 @@ async function dashboard() {
 
   let myPendingTransfers = [];
   let myReceivedTransferUpdates = [];
+  let myPendingRefunds = [];
+  let ownerRefundUpdates = [];
 
   // ==================================================
 // Receipt confirmation data
@@ -724,6 +741,49 @@ try {
 }
 
 
+  // ==================================================
+// Refund data
+// ==================================================
+
+try {
+
+  myPendingRefunds =
+    await getMyPendingRefunds({
+      db,
+      currentUser
+    });
+
+
+  console.log(
+    'Dashboard pending refunds:',
+    myPendingRefunds
+  );
+
+
+  if (isOwner) {
+
+    ownerRefundUpdates =
+      await getOwnerRefundUpdates({
+        db
+      });
+
+
+    console.log(
+      'Dashboard refund updates:',
+      ownerRefundUpdates
+    );
+  }
+
+
+} catch (error) {
+
+  console.error(
+    'Failed to load dashboard refund data:',
+    error
+  );
+}
+
+  
   // ==================================================
   // Shared "My Confirmation" panel
   // ==================================================
@@ -1085,6 +1145,273 @@ const transferConfirmationPanel = `
 
 
   // ==================================================
+// Refund Confirmation Panel
+// ==================================================
+
+const refundConfirmationPanel = `
+
+  <section class="panel">
+
+    <h2>
+
+      ${
+        lang === 'zh-TW'
+          ? '需要確認退款'
+          : 'Refunds to Confirm'
+      }
+
+      ${
+        myPendingRefunds.length > 0
+          ? `
+              <span class="badge">
+                ${myPendingRefunds.length}
+              </span>
+            `
+          : ''
+      }
+
+    </h2>
+
+
+    ${
+      myPendingRefunds.length === 0
+
+        ? `
+            <p class="muted">
+              ${
+                lang === 'zh-TW'
+                  ? '目前沒有需要你確認的退款。'
+                  : 'You have no Refunds requiring confirmation.'
+              }
+            </p>
+          `
+
+        : myPendingRefunds
+            .slice(0, 3)
+            .map(refund => `
+
+              <div
+                class="card refund-pending-card dashboard-refund-card"
+                data-refund-id="${escapeHtml(
+                  refund.id
+                )}"
+              >
+
+                <div>
+
+                  <strong>
+                    ${escapeHtml(
+                      refund.store || '—'
+                    )}
+                  </strong>
+
+                  <span class="muted">
+                    ${escapeHtml(
+                      refund.refundDate || '—'
+                    )}
+                  </span>
+
+                </div>
+
+
+                <div>
+
+                  <strong>
+                    ${money(
+                      refund.amount || 0,
+                      refund.currency || ''
+                    )}
+                  </strong>
+
+                </div>
+
+
+                <div class="muted">
+
+                  ${
+                    lang === 'zh-TW'
+                      ? '等待退款入帳'
+                      : 'Waiting for Refund'
+                  }
+
+                  ·
+
+                  ${escapeHtml(
+                    refund.destinationLabel || '—'
+                  )}
+
+                </div>
+
+
+                <div class="actions">
+
+                  <button
+                    type="button"
+                    class="dashboard-refund-review-btn"
+                    data-refund-id="${escapeHtml(
+                      refund.id
+                    )}"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '確認退款'
+                        : 'Confirm Refund'
+                    }
+                  </button>
+
+                </div>
+
+              </div>
+
+            `)
+            .join('')
+    }
+
+  </section>
+`;
+
+
+
+  // ==================================================
+// Owner Refund Updates
+// ==================================================
+
+const refundUpdatesHtml =
+
+  ownerRefundUpdates.length === 0
+
+    ? `
+        <p class="muted">
+          ${
+            lang === 'zh-TW'
+              ? '目前沒有已確認的退款。'
+              : 'There are no confirmed Refunds.'
+          }
+        </p>
+      `
+
+    : ownerRefundUpdates
+        .slice(0, 5)
+        .map(refund => {
+
+          const isMismatch =
+            refund.status ===
+            'mismatch';
+
+
+          const resolved =
+            refund.refundMismatchResolved ===
+            true;
+
+
+          let statusText =
+            lang === 'zh-TW'
+              ? '已完成'
+              : 'Completed';
+
+
+          if (isMismatch) {
+
+            statusText =
+              resolved
+                ? (
+                    lang === 'zh-TW'
+                      ? '金額／幣值不符 · 已處理'
+                      : 'Mismatch · Resolved'
+                  )
+                : (
+                    lang === 'zh-TW'
+                      ? '金額／幣值不符 · 待處理'
+                      : 'Mismatch · Needs Attention'
+                  );
+          }
+
+
+          return `
+
+            <div
+              class="card dashboard-refund-update"
+              data-refund-id="${escapeHtml(
+                refund.id
+              )}"
+              style="cursor: pointer;"
+            >
+
+              <div>
+
+                <strong>
+                  ${escapeHtml(
+                    refund.store || '—'
+                  )}
+                </strong>
+
+              </div>
+
+
+              <div class="muted">
+
+                ${escapeHtml(
+                  refund.refundDate || '—'
+                )}
+
+                ·
+
+                ${escapeHtml(
+                  refund.confirmationUserName || '—'
+                )}
+
+              </div>
+
+
+              <div>
+
+                <strong>
+                  ${money(
+                    refund.amount || 0,
+                    refund.currency || ''
+                  )}
+                </strong>
+
+                ·
+
+                ${escapeHtml(
+                  statusText
+                )}
+
+              </div>
+
+
+              ${
+                isMismatch
+                  ? `
+
+                      <div class="muted">
+
+                        ${
+                          lang === 'zh-TW'
+                            ? '實際收到：'
+                            : 'Actually received: '
+                        }
+
+                        ${money(
+                          refund.reportedAmount || 0,
+                          refund.reportedCurrency || ''
+                        )}
+
+                      </div>
+
+                    `
+                  : ''
+              }
+
+            </div>
+
+          `;
+        })
+        .join('');
+
+  
+  // ==================================================
 // Transfer Updates For Sender
 // ==================================================
 
@@ -1266,6 +1593,8 @@ const transferUpdatesHtml =
       ${confirmationPanel}
 
       ${transferConfirmationPanel}
+
+      ${refundConfirmationPanel}
       
       ${mismatchPanel}
 
@@ -1303,15 +1632,30 @@ const transferUpdatesHtml =
 
       <section class="panel">
 
-        <h2>
-          Refunds
-        </h2>
+        <div class="history-heading-row">
 
-        <div class="activity">
-          <span>Sep 15</span>
-          <span>Target</span>
-          <span>USD 24.99 · Pending</span>
-        </div>
+    <h2>
+      ${
+        lang === 'zh-TW'
+          ? '退款紀錄'
+          : 'Refunds'
+      }
+    </h2>
+
+    <button
+      type="button"
+      onclick="location.hash='#refund'"
+    >
+      ${
+        lang === 'zh-TW'
+          ? '＋ 記錄退款'
+          : '+ Record Refund'
+      }
+    </button>
+
+  </div>
+
+  ${refundUpdatesHtml}
 
       </section>
 
@@ -1378,6 +1722,8 @@ const transferUpdatesHtml =
       ${confirmationPanel}
 
       ${transferConfirmationPanel}
+
+      ${refundConfirmationPanel}
 
 
       <section class="panel">
@@ -1454,6 +1800,63 @@ page
 
 
 
+  // ==================================================
+// Open Refund Confirmation
+// ==================================================
+
+page
+  .querySelectorAll(
+    '.dashboard-refund-review-btn'
+  )
+  .forEach(button => {
+
+    button.onclick =
+      () => {
+
+        const refundId =
+          button.dataset.refundId;
+
+
+        if (!refundId) {
+          return;
+        }
+
+
+        location.hash =
+          `#refund-detail/${refundId}`;
+      };
+  });
+
+
+// ==================================================
+// Open Refund Update
+// ==================================================
+
+page
+  .querySelectorAll(
+    '.dashboard-refund-update'
+  )
+  .forEach(card => {
+
+    card.onclick =
+      () => {
+
+        const refundId =
+          card.dataset.refundId;
+
+
+        if (!refundId) {
+          return;
+        }
+
+
+        location.hash =
+          `#refund-detail/${refundId}`;
+      };
+  });
+
+
+  
   // ==================================================
 // Open Transfer Update Detail
 // ==================================================
@@ -2339,6 +2742,35 @@ if (r === 'dashboard') {
     page
   });
 
+} else if (r === 'refund') {
+
+  refundPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page
+  });
+
+
+} else if (
+  r.startsWith('refund-detail/')
+) {
+
+  const refundId =
+    r.substring(
+      'refund-detail/'.length
+    );
+
+
+  refundDetailPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    refundId
+  });
 } else if (r === 'transfer') {
 
   transferPage({
