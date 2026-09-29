@@ -49,15 +49,13 @@ import {
   transferPage,
   transferDetailPage,
   getMyPendingTransfers,
-  getMyReceivedTransferUpdates,
   confirmTransfer
 } from './transfer.js';
 
 import {
   refundPage,
   refundDetailPage,
-  getMyPendingRefunds,
-  getOwnerRefundUpdates
+  getMyPendingRefunds
 } from './refund.js';
 
 import {
@@ -579,9 +577,7 @@ async function dashboard() {
   let unresolvedMismatches = [];
 
   let myPendingTransfers = [];
-  let myReceivedTransferUpdates = [];
   let myPendingRefunds = [];
-  let ownerRefundUpdates = [];
 
   // ==================================================
 // Receipt confirmation data
@@ -710,27 +706,15 @@ if (isOwner) {
 try {
 
   myPendingTransfers =
-    await getMyPendingTransfers({
-      db,
-      currentUser
-    });
+  await getMyPendingTransfers({
+    db,
+    currentUser
+  });
 
-  console.log(
-    'Dashboard pending transfers:',
-    myPendingTransfers
-  );
-
-
-  myReceivedTransferUpdates =
-    await getMyReceivedTransferUpdates({
-      db,
-      currentUser
-    });
-
-  console.log(
-    'Dashboard transfer updates:',
-    myReceivedTransferUpdates
-  );
+console.log(
+  'Dashboard pending transfers:',
+  myPendingTransfers
+);
 
 } catch (error) {
 
@@ -758,21 +742,6 @@ try {
     'Dashboard pending refunds:',
     myPendingRefunds
   );
-
-
-  if (isOwner) {
-
-    ownerRefundUpdates =
-      await getOwnerRefundUpdates({
-        db
-      });
-
-
-    console.log(
-      'Dashboard refund updates:',
-      ownerRefundUpdates
-    );
-  }
 
 
 } catch (error) {
@@ -841,14 +810,45 @@ try {
 
 
       ${
-        myPendingConfirmations.length > 0
-          ? `
-            <a href="#my-confirmations">
-              ${t('viewAll', lang)}
-            </a>
-          `
-          : ''
-      }
+  myPendingConfirmations.length > 3
+    ? `
+        <div
+          id="dashboardReceiptMore"
+          hidden
+        >
+          ${
+            myPendingConfirmations
+              .slice(3)
+              .map(receipt =>
+                dashboardConfirmationCardHtml(
+                  receipt
+                )
+              )
+              .join('')
+          }
+        </div>
+
+        <button
+          type="button"
+          class="dashboard-expand-button"
+          data-expand-target="dashboardReceiptMore"
+          data-more-count="${
+            myPendingConfirmations.length - 3
+          }"
+        >
+          ${
+            lang === 'zh-TW'
+              ? `顯示更多（+${
+                  myPendingConfirmations.length - 3
+                }）`
+              : `Show More (+${
+                  myPendingConfirmations.length - 3
+                })`
+          }
+        </button>
+      `
+    : ''
+}
 
     </section>
   `;
@@ -994,18 +994,46 @@ const mismatchPanel =
 
 
           ${
-            unresolvedMismatches.length > 0
-              ? `
-                  <a href="#mismatches">
-                    ${
-                      lang === 'zh-TW'
-                        ? '查看全部'
-                        : 'View All'
-                    }
-                  </a>
-                `
-              : ''
+  unresolvedMismatches.length > 3
+    ? `
+        <div
+          id="dashboardMismatchMore"
+          hidden
+        >
+          ${
+            unresolvedMismatches
+              .slice(3)
+              .map(item =>
+                mismatchDashboardCardHtml({
+                  item,
+                  lang
+                })
+              )
+              .join('')
           }
+        </div>
+
+        <button
+          type="button"
+          class="dashboard-expand-button"
+          data-expand-target="dashboardMismatchMore"
+          data-more-count="${
+            unresolvedMismatches.length - 3
+          }"
+        >
+          ${
+            lang === 'zh-TW'
+              ? `顯示更多（+${
+                  unresolvedMismatches.length - 3
+                }）`
+              : `Show More (+${
+                  unresolvedMismatches.length - 3
+                })`
+          }
+        </button>
+      `
+    : ''
+}
 
         </section>
       `
@@ -1139,6 +1167,107 @@ const transferConfirmationPanel = `
             .join('')
     }
 
+    ${
+  myPendingTransfers.length > 3
+    ? `
+        <div
+          id="dashboardTransferMore"
+          hidden
+        >
+          ${
+            myPendingTransfers
+              .slice(3)
+              .map(transfer => `
+
+                <div
+                  class="card dashboard-transfer-card"
+                  data-transfer-id="${escapeHtml(
+                    transfer.id
+                  )}"
+                >
+
+                  <div>
+                    <strong>
+                      ${escapeHtml(
+                        transfer.senderName || '—'
+                      )}
+                      →
+                      ${
+                        lang === 'zh-TW'
+                          ? '你'
+                          : 'You'
+                      }
+                    </strong>
+                  </div>
+
+                  <div class="muted">
+                    ${escapeHtml(
+                      transfer.transferDate || '—'
+                    )}
+                  </div>
+
+                  <div>
+                    <strong>
+                      ${Number(
+                        transfer.amount || 0
+                      ).toLocaleString(
+                        'en-US',
+                        {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        }
+                      )}
+
+                      ${escapeHtml(
+                        transfer.currency || ''
+                      )}
+                    </strong>
+                  </div>
+
+                  <div class="actions">
+                    <button
+                      type="button"
+                      class="dashboard-transfer-review-btn"
+                      data-transfer-id="${escapeHtml(
+                        transfer.id
+                      )}"
+                    >
+                      ${
+                        lang === 'zh-TW'
+                          ? '確認收款'
+                          : 'Confirm Receipt'
+                      }
+                    </button>
+                  </div>
+
+                </div>
+              `)
+              .join('')
+          }
+        </div>
+
+        <button
+          type="button"
+          class="dashboard-expand-button"
+          data-expand-target="dashboardTransferMore"
+          data-more-count="${
+            myPendingTransfers.length - 3
+          }"
+        >
+          ${
+            lang === 'zh-TW'
+              ? `顯示更多（+${
+                  myPendingTransfers.length - 3
+                }）`
+              : `Show More (+${
+                  myPendingTransfers.length - 3
+                })`
+          }
+        </button>
+      `
+    : ''
+}
+
   </section>
 `;
 
@@ -1267,307 +1396,108 @@ const refundConfirmationPanel = `
             .join('')
     }
 
+    ${
+  myPendingRefunds.length > 3
+    ? `
+        <div
+          id="dashboardRefundMore"
+          hidden
+        >
+          ${
+            myPendingRefunds
+              .slice(3)
+              .map(refund => `
+
+                <div
+                  class="
+                    card
+                    refund-pending-card
+                    dashboard-refund-card
+                  "
+                  data-refund-id="${escapeHtml(
+                    refund.id
+                  )}"
+                >
+
+                  <div>
+                    <strong>
+                      ${escapeHtml(
+                        refund.store || '—'
+                      )}
+                    </strong>
+
+                    <span class="muted">
+                      ${escapeHtml(
+                        refund.refundDate || '—'
+                      )}
+                    </span>
+                  </div>
+
+                  <div>
+                    <strong>
+                      ${money(
+                        refund.amount || 0,
+                        refund.currency || ''
+                      )}
+                    </strong>
+                  </div>
+
+                  <div class="muted">
+                    ${
+                      lang === 'zh-TW'
+                        ? '等待退款入帳'
+                        : 'Waiting for Refund'
+                    }
+
+                    ·
+
+                    ${escapeHtml(
+                      refund.destinationLabel || '—'
+                    )}
+                  </div>
+
+                  <div class="actions">
+                    <button
+                      type="button"
+                      class="dashboard-refund-review-btn"
+                      data-refund-id="${escapeHtml(
+                        refund.id
+                      )}"
+                    >
+                      ${
+                        lang === 'zh-TW'
+                          ? '確認退款'
+                          : 'Confirm Refund'
+                      }
+                    </button>
+                  </div>
+
+                </div>
+              `)
+              .join('')
+          }
+        </div>
+
+        <button
+          type="button"
+          class="dashboard-expand-button"
+          data-expand-target="dashboardRefundMore"
+          data-more-count="${
+            myPendingRefunds.length - 3
+          }"
+        >
+          ${
+            lang === 'zh-TW'
+              ? `顯示更多（+${
+                  myPendingRefunds.length - 3
+                }）`
+              : `Show More (+${
+                  myPendingRefunds.length - 3
+                })`
+          }
+
   </section>
 `;
-
-
-
-  // ==================================================
-// Owner Refund Updates
-// ==================================================
-
-const refundUpdatesHtml =
-
-  ownerRefundUpdates.length === 0
-
-    ? `
-        <p class="muted">
-          ${
-            lang === 'zh-TW'
-              ? '目前沒有已確認的退款。'
-              : 'There are no confirmed Refunds.'
-          }
-        </p>
-      `
-
-    : ownerRefundUpdates
-        .slice(0, 5)
-        .map(refund => {
-
-          const isMismatch =
-            refund.status ===
-            'mismatch';
-
-
-          const resolved =
-            refund.refundMismatchResolved ===
-            true;
-
-
-          let statusText =
-            lang === 'zh-TW'
-              ? '已完成'
-              : 'Completed';
-
-
-          if (isMismatch) {
-
-            statusText =
-              resolved
-                ? (
-                    lang === 'zh-TW'
-                      ? '金額／幣值不符 · 已處理'
-                      : 'Mismatch · Resolved'
-                  )
-                : (
-                    lang === 'zh-TW'
-                      ? '金額／幣值不符 · 待處理'
-                      : 'Mismatch · Needs Attention'
-                  );
-          }
-
-
-          return `
-
-            <div
-              class="card dashboard-refund-update"
-              data-refund-id="${escapeHtml(
-                refund.id
-              )}"
-              style="cursor: pointer;"
-            >
-
-              <div>
-
-                <strong>
-                  ${escapeHtml(
-                    refund.store || '—'
-                  )}
-                </strong>
-
-              </div>
-
-
-              <div class="muted">
-
-                ${escapeHtml(
-                  refund.refundDate || '—'
-                )}
-
-                ·
-
-                ${escapeHtml(
-                  refund.confirmationUserName || '—'
-                )}
-
-              </div>
-
-
-              <div>
-
-                <strong>
-                  ${money(
-                    refund.amount || 0,
-                    refund.currency || ''
-                  )}
-                </strong>
-
-                ·
-
-                ${escapeHtml(
-                  statusText
-                )}
-
-              </div>
-
-
-              ${
-                isMismatch
-                  ? `
-
-                      <div class="muted">
-
-                        ${
-                          lang === 'zh-TW'
-                            ? '實際收到：'
-                            : 'Actually received: '
-                        }
-
-                        ${money(
-                          refund.reportedAmount || 0,
-                          refund.reportedCurrency || ''
-                        )}
-
-                      </div>
-
-                    `
-                  : ''
-              }
-
-            </div>
-
-          `;
-        })
-        .join('');
-
-  
-  // ==================================================
-// Transfer Updates For Sender
-// ==================================================
-
-const transferUpdatesHtml =
-
-  myReceivedTransferUpdates.length === 0
-
-    ? `
-        <p class="muted">
-          ${
-            lang === 'zh-TW'
-              ? '目前沒有新的轉帳狀態。'
-              : 'There are no transfer updates.'
-          }
-        </p>
-      `
-
-    : myReceivedTransferUpdates
-        .slice(0, 5)
-        .map(transfer => {
-
-          const isMismatch =
-            transfer.status === 'mismatch';
-
-
-          const statusText =
-            isMismatch
-              ? (
-                  lang === 'zh-TW'
-                    ? '收到金額不符'
-                    : 'Received amount mismatch'
-                )
-              : (
-                  lang === 'zh-TW'
-                    ? '轉帳已接收'
-                    : 'Transfer received'
-                );
-
-
-          return `
-
-            <div
-              class="card dashboard-transfer-update"
-              data-transfer-id="${escapeHtml(
-                transfer.id
-              )}"
-              style="cursor: pointer;"
-            >
-
-              <div>
-
-                <strong>
-                  ${escapeHtml(statusText)}
-                </strong>
-
-              </div>
-
-
-              <div class="muted">
-
-                ${escapeHtml(
-                  transfer.transferDate || '—'
-                )}
-
-                ·
-
-                ${escapeHtml(
-                  transfer.senderName || '—'
-                )}
-
-                →
-
-                ${escapeHtml(
-                  transfer.receiverName || '—'
-                )}
-
-              </div>
-
-
-              <div>
-
-                ${
-                  Number(
-                    transfer.amount || 0
-                  ).toLocaleString(
-                    'en-US',
-                    {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    }
-                  )
-                }
-
-                ${escapeHtml(
-                  transfer.currency || ''
-                )}
-
-              </div>
-
-
-              ${
-                isMismatch
-                  ? `
-                      <div>
-
-                        <span class="muted">
-                          ${
-                            lang === 'zh-TW'
-                              ? '實際收到：'
-                              : 'Actually received: '
-                          }
-                        </span>
-
-                        <strong>
-
-                          ${
-                            Number(
-                              transfer.reportedAmount || 0
-                            ).toLocaleString(
-                              'en-US',
-                              {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2
-                              }
-                            )
-                          }
-
-                          ${escapeHtml(
-                            transfer.currency || ''
-                          )}
-
-                        </strong>
-
-                      </div>
-
-
-                      ${
-                        transfer.receiverNotes
-                          ? `
-                              <div class="muted">
-                                ${escapeHtml(
-                                  transfer.receiverNotes
-                                )}
-                              </div>
-                            `
-                          : ''
-                      }
-                    `
-                  : ''
-              }
-
-            </div>
-
-          `;
-        })
-        .join('');
 
 
   
@@ -1579,15 +1509,140 @@ const transferUpdatesHtml =
 
     page.innerHTML = `
 
-      <div class="actions">
+      <div class="dashboard-quick-actions">
 
-        <button
-          onclick="location.hash='#new-receipt'"
-        >
-          ＋ ${t('newReceipt', lang)}
-        </button>
+  <button
+    type="button"
+    class="
+      dashboard-quick-action
+      dashboard-quick-action-primary
+    "
+    onclick="location.hash='#new-receipt'"
+  >
+    <span class="dashboard-action-icon">
+      🧾
+    </span>
 
-      </div>
+    <span>
+      ${
+        lang === 'zh-TW'
+          ? '新增收據'
+          : 'New Receipt'
+      }
+    </span>
+  </button>
+
+
+  <button
+    type="button"
+    class="dashboard-quick-action"
+    onclick="location.hash='#my-confirmations'"
+  >
+    <span class="dashboard-action-icon">
+      ✓
+    </span>
+
+    <span>
+      ${
+        lang === 'zh-TW'
+          ? '需要確認'
+          : 'Confirm'
+      }
+    </span>
+
+    ${
+      (
+        myPendingConfirmations.length +
+        myPendingTransfers.length +
+        myPendingRefunds.length
+      ) > 0
+        ? `
+            <span class="badge">
+              ${
+                myPendingConfirmations.length +
+                myPendingTransfers.length +
+                myPendingRefunds.length
+              }
+            </span>
+          `
+        : ''
+    }
+  </button>
+
+
+  <button
+    type="button"
+    class="dashboard-quick-action"
+    onclick="location.hash='#mismatches'"
+  >
+    <span class="dashboard-action-icon">
+      ⚠
+    </span>
+
+    <span>
+      ${
+        lang === 'zh-TW'
+          ? '需要處理'
+          : 'Needs Attention'
+      }
+    </span>
+
+    ${
+      unresolvedMismatches.length > 0
+        ? `
+            <span class="badge">
+              ${unresolvedMismatches.length}
+            </span>
+          `
+        : ''
+    }
+  </button>
+
+
+  <button
+    type="button"
+    class="
+      dashboard-quick-action
+      dashboard-quick-action-secondary
+    "
+    onclick="location.hash='#refund'"
+  >
+    <span class="dashboard-action-icon">
+      💰
+    </span>
+
+    <span>
+      ${
+        lang === 'zh-TW'
+          ? '建立退款'
+          : 'New Refund'
+      }
+    </span>
+  </button>
+
+
+  <button
+    type="button"
+    class="
+      dashboard-quick-action
+      dashboard-quick-action-tertiary
+    "
+    onclick="location.hash='#transfer'"
+  >
+    <span class="dashboard-action-icon">
+      ⇄
+    </span>
+
+    <span>
+      ${
+        lang === 'zh-TW'
+          ? '建立轉帳'
+          : 'New Transfer'
+      }
+    </span>
+  </button>
+
+</div>
 
 
       ${confirmationPanel}
@@ -1628,51 +1683,6 @@ const transferUpdatesHtml =
   }
 
 </section>
-
-
-      <section class="panel">
-
-        <div class="history-heading-row">
-
-    <h2>
-      ${
-        lang === 'zh-TW'
-          ? '退款紀錄'
-          : 'Refunds'
-      }
-    </h2>
-
-    <button
-      type="button"
-      onclick="location.hash='#refund'"
-    >
-      ${
-        lang === 'zh-TW'
-          ? '＋ 記錄退款'
-          : '+ Record Refund'
-      }
-    </button>
-
-  </div>
-
-  ${refundUpdatesHtml}
-
-      </section>
-
-
-      <section class="panel">
-
-        <h2>
-          ${
-      lang === 'zh-TW'
-        ? '轉帳紀錄'
-        : 'Transfers'
-    }
-        </h2>
-
-        ${transferUpdatesHtml}
-
-      </section>
 
 
       <section class="panel">
@@ -1719,26 +1729,74 @@ const transferUpdatesHtml =
 
     page.innerHTML = `
 
-      ${confirmationPanel}
+      <div class="dashboard-quick-actions">
+
+      <button
+        type="button"
+        class="
+          dashboard-quick-action
+          dashboard-quick-action-primary
+        "
+        onclick="location.hash='#my-confirmations'"
+      >
+        <span class="dashboard-action-icon">
+          ✓
+        </span>
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '需要確認'
+              : 'Confirm'
+          }
+        </span>
+
+        ${
+          (
+            myPendingConfirmations.length +
+            myPendingTransfers.length +
+            myPendingRefunds.length
+          ) > 0
+            ? `
+                <span class="badge">
+                  ${
+                    myPendingConfirmations.length +
+                    myPendingTransfers.length +
+                    myPendingRefunds.length
+                  }
+                </span>
+              `
+            : ''
+        }
+      </button>
+
+
+      <button
+        type="button"
+        class="dashboard-quick-action"
+        onclick="location.hash='#transfer'"
+      >
+        <span class="dashboard-action-icon">
+          ⇄
+        </span>
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '建立轉帳'
+              : 'New Transfer'
+          }
+        </span>
+      </button>
+
+    </div>
+
+
+    ${confirmationPanel}
 
       ${transferConfirmationPanel}
 
       ${refundConfirmationPanel}
-
-
-      <section class="panel">
-
-    <h2>
-      ${
-        lang === 'zh-TW'
-          ? '轉帳紀錄'
-          : 'Transfers'
-      }
-    </h2>
-
-    ${transferUpdatesHtml}
-
-  </section>
 
 
       <section class="panel">
@@ -1764,6 +1822,66 @@ const transferUpdatesHtml =
   }
 
 
+// ==================================================
+// Dashboard Show More / Collapse
+// ==================================================
+
+page
+  .querySelectorAll(
+    '.dashboard-expand-button'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      const targetId =
+        button.dataset.expandTarget;
+
+
+      const target =
+        page.querySelector(
+          `#${targetId}`
+        );
+
+
+      if (!target) {
+        return;
+      }
+
+
+      const willShow =
+        target.hidden;
+
+
+      target.hidden =
+        !willShow;
+
+
+      const moreCount =
+        Number(
+          button.dataset.moreCount || 0
+        );
+
+
+      button.textContent =
+        willShow
+
+          ? (
+              lang === 'zh-TW'
+                ? '收合'
+                : 'Show Less'
+            )
+
+          : (
+              lang === 'zh-TW'
+                ? `顯示更多（+${moreCount}）`
+                : `Show More (+${moreCount})`
+            );
+    };
+  });
+
+
+  
   // ==================================================
   // Bind Dashboard Confirmation Events
   // ==================================================
@@ -1828,60 +1946,6 @@ page
   });
 
 
-// ==================================================
-// Open Refund Update
-// ==================================================
-
-page
-  .querySelectorAll(
-    '.dashboard-refund-update'
-  )
-  .forEach(card => {
-
-    card.onclick =
-      () => {
-
-        const refundId =
-          card.dataset.refundId;
-
-
-        if (!refundId) {
-          return;
-        }
-
-
-        location.hash =
-          `#refund-detail/${refundId}`;
-      };
-  });
-
-
-  
-  // ==================================================
-// Open Transfer Update Detail
-// ==================================================
-
-page
-  .querySelectorAll(
-    '.dashboard-transfer-update'
-  )
-  .forEach(card => {
-
-    card.onclick = () => {
-
-      const transferId =
-        card.dataset.transferId;
-
-
-      if (!transferId) {
-        return;
-      }
-
-
-      location.hash =
-        `#transfer-detail/${transferId}`;
-    };
-  });
 
   
   // Preload FX reference for Dashboard
@@ -1891,8 +1955,7 @@ page
   // user selects TWD/local for a foreign-
   // currency Receipt.
   myPendingConfirmations
-    .slice(0, 3)
-    .forEach(receipt => {
+  .forEach(receipt => {
 
       const receiptId =
         String(
