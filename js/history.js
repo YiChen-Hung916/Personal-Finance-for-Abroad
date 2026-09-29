@@ -1,6 +1,8 @@
 import {
   collection,
-  getDocs
+  getDocs,
+  query,
+  where
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
@@ -15,6 +17,10 @@ import {
 import {
   getMyTransferHistory
 } from './transfer.js';
+
+import {
+  getAllRefunds
+} from './refund.js';
 
 // import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.2/+esm';
 
@@ -166,6 +172,50 @@ function receiptToTransaction(
 
     source:
       receipt
+  };
+}
+
+
+function refundToTransaction(
+  refund
+) {
+
+  return {
+
+    id:
+      refund.id,
+
+    type:
+      'refund',
+
+    transactionDate:
+      String(
+        refund.refundDate || ''
+      ),
+
+    store:
+      refund.store || '—',
+
+    amount:
+      Number(
+        refund.amount || 0
+      ),
+
+    currency:
+      String(
+        refund.currency || ''
+      )
+        .trim()
+        .toUpperCase(),
+
+    paymentMethod:
+      refund.destinationLabel || '',
+
+    fxDisplay:
+      null,
+
+    source:
+      refund
   };
 }
 
@@ -429,15 +479,16 @@ function transactionCardHtml({
 
 
   const amountText =
-    isRefund
-      ? `-${formatMoney(
-          transaction.amount,
-          transaction.currency
-        )}`
-      : formatMoney(
-          transaction.amount,
-          transaction.currency
-        );
+  isRefund
+    ? `+${formatMoney(
+        transaction.amount,
+        transaction.currency
+      )}`
+    : formatMoney(
+        transaction.amount,
+        transaction.currency
+      );
+
 
 
   return `
@@ -1423,6 +1474,50 @@ export async function historyPage({
 
 
     // ==================================================
+// Load Refunds
+// ==================================================
+
+let refunds = [];
+
+
+if (
+  currentRole === 'owner'
+) {
+
+  refunds =
+    await getAllRefunds({
+      db
+    });
+
+} else {
+
+  const refundSnapshot =
+    await getDocs(
+      query(
+        collection(
+          db,
+          'refunds'
+        ),
+        where(
+          'confirmationUserId',
+          '==',
+          currentUser.uid
+        )
+      )
+    );
+
+
+  refunds =
+    refundSnapshot.docs.map(
+      refundDoc => ({
+        id: refundDoc.id,
+        ...refundDoc.data()
+      })
+    );
+}
+
+    
+    // ==================================================
     // Load receipts
     // ==================================================
 
@@ -1468,27 +1563,19 @@ export async function historyPage({
       );
 
 
-    /*
-      Future:
-
-      const refundTransactions =
-        refunds.map(
-          refund =>
-            refundToTransaction(
-              refund
-            )
-        );
-
-      const allTransactions = [
-        ...receiptTransactions,
-        ...refundTransactions
-      ];
-    */
+    const refundTransactions =
+  refunds.map(
+    refund =>
+      refundToTransaction(
+        refund
+      )
+  );
 
 
-    const allTransactions = [
-      ...receiptTransactions
-    ];
+const allTransactions = [
+  ...receiptTransactions,
+  ...refundTransactions
+];
 
 
     allTransactions.sort(
@@ -2230,7 +2317,32 @@ const exportPdfButton =
         });
     }
 
+// Refund cards open Refund Detail
+list
+  .querySelectorAll(
+    '[data-transaction-type="refund"]'
+  )
+  .forEach(card => {
 
+    card.onclick = () => {
+
+      const refundId =
+        card.dataset
+          .transactionId;
+
+
+      if (!refundId) {
+        return;
+      }
+
+
+      location.hash =
+        `#refund-detail/${refundId}`;
+    };
+
+  });
+
+    
     // ==================================================
     // Events
     // ==================================================
