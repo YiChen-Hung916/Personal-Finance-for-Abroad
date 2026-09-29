@@ -33,6 +33,14 @@ import {
   buildFxDisplay
 } from './fx.js';
 
+import {
+  getMyPendingTransfers
+} from './transfer.js';
+
+import {
+  getMyPendingRefunds
+} from './refund.js';
+
 
 // ======================================================
 // Helpers
@@ -876,8 +884,9 @@ const currencyTypeMatchStatus =
 // Main Confirmation Page
 //
 // receiptId:
-// - provided -> show that receipt
-// - missing  -> show first pending receipt
+// - provided -> show one Receipt confirmation
+// - missing  -> unified pending queue:
+//               Receipt + Transfer + Refund
 // ======================================================
 
 export async function myConfirmationPage({
@@ -910,12 +919,12 @@ export async function myConfirmationPage({
       </h1>
 
       <p class="muted">
-        ${
-          lang === 'zh-TW'
-            ? '請依照信用卡通知核對交易是否與 Receipt 相符。'
-            : 'Compare the transaction with the card notification.'
-        }
-      </p>
+  ${
+    lang === 'zh-TW'
+      ? '這裡顯示所有需要你確認的收據、轉帳與退款。'
+      : 'All receipts, transfers, and refunds requiring your confirmation are shown here.'
+  }
+</p>
 
       <div id="myConfirmationList">
         <p class="muted">
@@ -939,6 +948,12 @@ export async function myConfirmationPage({
 
   try {
 
+  // ==================================================
+  // One specific Receipt confirmation
+  // ==================================================
+
+  if (receiptId) {
+
     const receipts =
       await getMyPendingConfirmations({
         db,
@@ -946,67 +961,90 @@ export async function myConfirmationPage({
       });
 
 
-    if (receipts.length === 0) {
-
-      renderEmptyState(
-        list,
-        lang
+    const requestedIndex =
+      receipts.findIndex(
+        receipt =>
+          receipt.id === receiptId
       );
+
+
+    if (requestedIndex === -1) {
+
+      location.hash =
+        '#my-confirmations';
 
       return;
     }
 
 
-    // --------------------------------------------------
-// No receiptId:
-// show the list of all pending confirmations.
-// --------------------------------------------------
+    renderSingleConfirmation({
+      db,
+      currentUser,
+      lang,
+      list,
+      receipts,
+      currentIndex:
+        requestedIndex
+    });
 
-if (!receiptId) {
+
+    return;
+  }
+
+
+  // ==================================================
+  // Unified confirmation queue
+  // ==================================================
+
+  const [
+    receipts,
+    transfers,
+    refunds
+  ] =
+    await Promise.all([
+
+      getMyPendingConfirmations({
+        db,
+        currentUser
+      }),
+
+      getMyPendingTransfers({
+        db,
+        currentUser
+      }),
+
+      getMyPendingRefunds({
+        db,
+        currentUser
+      })
+
+    ]);
+
+
+  const totalPending =
+    receipts.length +
+    transfers.length +
+    refunds.length;
+
+
+  if (totalPending === 0) {
+
+    renderEmptyState(
+      list,
+      lang
+    );
+
+    return;
+  }
+
 
   renderConfirmationList({
     list,
     receipts,
+    transfers,
+    refunds,
     lang
   });
-
-  return;
-}
-
-
-// --------------------------------------------------
-// receiptId provided:
-// show one full confirmation.
-// --------------------------------------------------
-
-const requestedIndex =
-  receipts.findIndex(
-    receipt =>
-      receipt.id === receiptId
-  );
-
-
-if (requestedIndex === -1) {
-
-  renderConfirmationList({
-    list,
-    receipts,
-    lang
-  });
-
-  return;
-}
-
-
-renderSingleConfirmation({
-  db,
-  currentUser,
-  lang,
-  list,
-  receipts,
-  currentIndex:
-    requestedIndex
-});
 
 
   } catch (error) {
@@ -1045,6 +1083,8 @@ renderSingleConfirmation({
 function renderConfirmationList({
   list,
   receipts,
+  transfers,
+  refunds,
   lang
 }) {
 
@@ -1055,209 +1095,520 @@ function renderConfirmationList({
           receipt
         )
       )
-      .sort((a, b) => {
-
-        const dateA =
-          String(
-            a.purchaseDate || ''
-          );
-
-        const dateB =
+      .sort((a, b) =>
+        String(
+          a.purchaseDate || ''
+        ).localeCompare(
           String(
             b.purchaseDate || ''
+          )
+        )
+      );
+
+
+  const sortedTransfers =
+    [...transfers]
+      .sort((a, b) =>
+        String(
+          a.transferDate || ''
+        ).localeCompare(
+          String(
+            b.transferDate || ''
+          )
+        )
+      );
+
+
+  const sortedRefunds =
+    [...refunds]
+      .sort((a, b) =>
+        String(
+          a.refundDate || ''
+        ).localeCompare(
+          String(
+            b.refundDate || ''
+          )
+        )
+      );
+
+
+  // --------------------------------------------------
+  // Receipt rows
+  // --------------------------------------------------
+
+  const receiptRows =
+    sortedReceipts
+      .map(receipt => {
+
+        const reminderClass =
+          getPendingReminderClass(
+            receipt.daysWaiting
           );
 
 
-        if (!dateA && !dateB) {
-          return 0;
-        }
-
-        if (!dateA) {
-          return 1;
-        }
-
-        if (!dateB) {
-          return -1;
-        }
+        const receiptCurrency =
+          getExpectedCurrency(
+            receipt
+          );
 
 
-        return dateA.localeCompare(
-          dateB
-        );
-      });
+        const waitingText =
+          Number.isFinite(
+            receipt.daysWaiting
+          )
+            ? (
+                lang === 'zh-TW'
+                  ? `${receipt.daysWaiting} 天`
+                  : `${receipt.daysWaiting} days`
+              )
+            : '—';
 
+
+        return `
+
+          <button
+            type="button"
+            class="
+              confirmation-queue-row
+              confirmation-queue-receipt
+              ${reminderClass}
+            "
+            data-confirmation-type="receipt"
+            data-confirmation-id="${escapeHtml(
+              receipt.id
+            )}"
+          >
+
+            <span class="confirmation-queue-date">
+              ${escapeHtml(
+                receipt.purchaseDate || '—'
+              )}
+            </span>
+
+
+            <span class="confirmation-queue-main">
+
+              <strong>
+                ${escapeHtml(
+                  receipt.store || '—'
+                )}
+              </strong>
+
+              <small class="muted">
+                ${
+                  lang === 'zh-TW'
+                    ? '收據'
+                    : 'Receipt'
+                }
+              </small>
+
+            </span>
+
+
+            <strong class="confirmation-queue-amount">
+              ${formatMoney(
+                receipt.total || 0,
+                receiptCurrency
+              )}
+            </strong>
+
+
+            <span
+              class="
+                confirmation-queue-status
+                muted
+              "
+            >
+              ${escapeHtml(
+                waitingText
+              )}
+            </span>
+
+
+            <span class="confirmation-queue-action">
+              ${
+                lang === 'zh-TW'
+                  ? '確認 ›'
+                  : 'Confirm ›'
+              }
+            </span>
+
+          </button>
+
+        `;
+
+      })
+      .join('');
+
+
+  // --------------------------------------------------
+  // Transfer rows
+  // --------------------------------------------------
+
+  const transferRows =
+    sortedTransfers
+      .map(transfer => {
+
+        const senderName =
+          transfer.senderName ||
+          (
+            lang === 'zh-TW'
+              ? '轉帳人'
+              : 'Sender'
+          );
+
+
+        return `
+
+          <button
+            type="button"
+            class="
+              confirmation-queue-row
+              confirmation-queue-transfer
+            "
+            data-confirmation-type="transfer"
+            data-confirmation-id="${escapeHtml(
+              transfer.id
+            )}"
+          >
+
+            <span class="confirmation-queue-date">
+              ${escapeHtml(
+                transfer.transferDate || '—'
+              )}
+            </span>
+
+
+            <span class="confirmation-queue-main">
+
+              <strong>
+                ${escapeHtml(
+                  senderName
+                )}
+              </strong>
+
+              <small class="muted">
+                ${
+                  lang === 'zh-TW'
+                    ? '轉帳給你'
+                    : 'Transfer to you'
+                }
+              </small>
+
+            </span>
+
+
+            <strong class="confirmation-queue-amount">
+              ${formatMoney(
+                transfer.amount || 0,
+                transfer.currency || ''
+              )}
+            </strong>
+
+
+            <span
+              class="
+                confirmation-queue-status
+                muted
+              "
+            >
+              ${
+                lang === 'zh-TW'
+                  ? '等待收款確認'
+                  : 'Awaiting receipt'
+              }
+            </span>
+
+
+            <span class="confirmation-queue-action">
+              ${
+                lang === 'zh-TW'
+                  ? '確認 ›'
+                  : 'Confirm ›'
+              }
+            </span>
+
+          </button>
+
+        `;
+
+      })
+      .join('');
+
+
+  // --------------------------------------------------
+  // Refund rows
+  // --------------------------------------------------
+
+  const refundRows =
+    sortedRefunds
+      .map(refund => {
+
+        return `
+
+          <button
+            type="button"
+            class="
+              confirmation-queue-row
+              confirmation-queue-refund
+            "
+            data-confirmation-type="refund"
+            data-confirmation-id="${escapeHtml(
+              refund.id
+            )}"
+          >
+
+            <span class="confirmation-queue-date">
+              ${escapeHtml(
+                refund.refundDate || '—'
+              )}
+            </span>
+
+
+            <span class="confirmation-queue-main">
+
+              <strong>
+                ${escapeHtml(
+                  refund.store || '—'
+                )}
+              </strong>
+
+              <small class="muted">
+                ${
+                  lang === 'zh-TW'
+                    ? '退款'
+                    : 'Refund'
+                }
+              </small>
+
+            </span>
+
+
+            <strong class="confirmation-queue-amount">
+              +${formatMoney(
+                refund.amount || 0,
+                refund.currency || ''
+              )}
+            </strong>
+
+
+            <span
+              class="
+                confirmation-queue-status
+                muted
+              "
+            >
+              ${escapeHtml(
+                refund.destinationLabel ||
+                (
+                  lang === 'zh-TW'
+                    ? '等待退款'
+                    : 'Awaiting refund'
+                )
+              )}
+            </span>
+
+
+            <span class="confirmation-queue-action">
+              ${
+                lang === 'zh-TW'
+                  ? '確認 ›'
+                  : 'Confirm ›'
+              }
+            </span>
+
+          </button>
+
+        `;
+
+      })
+      .join('');
+
+
+  // --------------------------------------------------
+  // Section helper
+  // --------------------------------------------------
+
+  function sectionHtml({
+    type,
+    titleZh,
+    titleEn,
+    count,
+    rows
+  }) {
+
+    if (count === 0) {
+      return '';
+    }
+
+
+    return `
+
+      <section
+        class="
+          confirmation-queue-section
+          confirmation-queue-section-${type}
+        "
+      >
+
+        <div class="confirmation-queue-heading">
+
+          <h2>
+            ${
+              lang === 'zh-TW'
+                ? titleZh
+                : titleEn
+            }
+
+            <span class="badge">
+              ${count}
+            </span>
+          </h2>
+
+        </div>
+
+
+        <div class="confirmation-queue-header">
+
+          <span>
+            ${
+              lang === 'zh-TW'
+                ? '日期'
+                : 'Date'
+            }
+          </span>
+
+          <span>
+            ${
+              lang === 'zh-TW'
+                ? '項目'
+                : 'Item'
+            }
+          </span>
+
+          <span>
+            ${
+              lang === 'zh-TW'
+                ? '金額'
+                : 'Amount'
+            }
+          </span>
+
+          <span>
+            ${
+              lang === 'zh-TW'
+                ? '狀態'
+                : 'Status'
+            }
+          </span>
+
+          <span></span>
+
+        </div>
+
+
+        <div class="confirmation-queue-list">
+          ${rows}
+        </div>
+
+      </section>
+
+    `;
+  }
+
+
+  // --------------------------------------------------
+  // Final page
+  // --------------------------------------------------
 
   list.innerHTML = `
 
-    <div class="my-confirmation-list">
+    <div class="confirmation-queue">
 
-      <div class="compact-list-header">
-
-        <span>
-          ${
-            lang === 'zh-TW'
-              ? '日期'
-              : 'Date'
-          }
-        </span>
-
-        <span>
-          ${
-            lang === 'zh-TW'
-              ? '商店'
-              : 'Store'
-          }
-        </span>
-
-        <span>
-          ${
-            lang === 'zh-TW'
-              ? '金額'
-              : 'Amount'
-          }
-        </span>
-
-        <span>
-          ${
-            lang === 'zh-TW'
-              ? '狀態'
-              : 'Status'
-          }
-        </span>
-
-        <span></span>
-
-      </div>
+      ${sectionHtml({
+        type: 'receipt',
+        titleZh: '收據',
+        titleEn: 'Receipts',
+        count: sortedReceipts.length,
+        rows: receiptRows
+      })}
 
 
-      ${
-        sortedReceipts
-          .map(receipt => {
-
-            const reminderClass =
-              getPendingReminderClass(
-                receipt.daysWaiting
-              );
-
-
-            const receiptCurrency =
-              getExpectedCurrency(
-                receipt
-              );
+      ${sectionHtml({
+        type: 'transfer',
+        titleZh: '轉帳',
+        titleEn: 'Transfers',
+        count: sortedTransfers.length,
+        rows: transferRows
+      })}
 
 
-            const waitingText =
-              Number.isFinite(
-                receipt.daysWaiting
-              )
-                ? (
-                    lang === 'zh-TW'
-                      ? `${receipt.daysWaiting} 天`
-                      : `${receipt.daysWaiting} days`
-                  )
-                : '—';
-
-
-            return `
-
-              <button
-                type="button"
-                class="
-                  my-confirmation-list-item
-                  ${reminderClass}
-                "
-                data-receipt-id="${escapeHtml(
-                  receipt.id
-                )}"
-              >
-
-                <span
-                  class="
-                    compact-list-date
-                    muted
-                  "
-                >
-                  ${escapeHtml(
-                    receipt.purchaseDate || '—'
-                  )}
-                </span>
-
-
-                <strong
-                  class="compact-list-name"
-                >
-                  ${escapeHtml(
-                    receipt.store || '—'
-                  )}
-                </strong>
-
-
-                <strong
-                  class="compact-list-amount"
-                >
-                  ${formatMoney(
-                    receipt.total || 0,
-                    receiptCurrency
-                  )}
-                </strong>
-
-
-                <span
-                  class="
-                    compact-list-status
-                    muted
-                  "
-                >
-                  ${escapeHtml(
-                    waitingText
-                  )}
-                </span>
-
-
-                <span
-                  class="compact-list-action"
-                >
-                  ${
-                    lang === 'zh-TW'
-                      ? '確認 ›'
-                      : 'Confirm ›'
-                  }
-                </span>
-
-              </button>
-
-            `;
-
-          })
-          .join('')
-      }
+      ${sectionHtml({
+        type: 'refund',
+        titleZh: '退款',
+        titleEn: 'Refunds',
+        count: sortedRefunds.length,
+        rows: refundRows
+      })}
 
     </div>
 
   `;
 
 
+  // --------------------------------------------------
+  // Row navigation
+  // --------------------------------------------------
+
   list
     .querySelectorAll(
-      '.my-confirmation-list-item'
+      '.confirmation-queue-row'
     )
-    .forEach(item => {
+    .forEach(row => {
 
-      item.onclick =
-        () => {
+      row.onclick = () => {
 
-          const selectedReceiptId =
-            item.dataset.receiptId;
+        const type =
+          row.dataset
+            .confirmationType;
 
 
-          if (!selectedReceiptId) {
-            return;
-          }
+        const id =
+          row.dataset
+            .confirmationId;
 
+
+        if (!id) {
+          return;
+        }
+
+
+        if (type === 'receipt') {
 
           location.hash =
-            `#my-confirmations/${selectedReceiptId}`;
-        };
+            `#my-confirmations/${id}`;
+
+          return;
+        }
+
+
+        if (type === 'transfer') {
+
+          location.hash =
+            `#transfer-detail/${id}`;
+
+          return;
+        }
+
+
+        if (type === 'refund') {
+
+          location.hash =
+            `#refund-detail/${id}`;
+
+        }
+
+      };
 
     });
 }
