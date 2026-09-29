@@ -494,7 +494,7 @@ function transactionCardHtml({
   return `
 
     <div
-      class="card history-transaction-card"
+      class="history-transaction-card"
       data-transaction-id="${escapeHtml(
         transaction.id
       )}"
@@ -1684,21 +1684,13 @@ const transferRecordsHtml =
           return `
 
             <div
-              class="card history-transfer-card"
+              class="history-transfer-card"
               data-transfer-id="${escapeHtml(
                 transfer.id
               )}"
-              style="cursor: pointer;"
             >
 
-              <div
-                style="
-                  display: flex;
-                  justify-content: space-between;
-                  gap: 12px;
-                  align-items: flex-start;
-                "
-              >
+              <div class="history-transfer-main">
 
                 <div>
 
