@@ -1095,3 +1095,75 @@
 .card-status-inactive {
   opacity: 0.55;
 }
+
+
+/* ======================================================
+   Refund
+   ====================================================== */
+
+/*
+  Refund Pending:
+
+  Refunds may take much longer than Receipt confirmations
+  because the user may need to wait for the credit-card
+  statement or Gift Card balance to update.
+
+  Therefore Refund Pending NEVER changes color based on age.
+*/
+
+.refund-pending-card,
+.refund-pending-panel {
+  background: #f5f0ff;
+  border-color: #c4b5fd;
+}
+
+
+.refund-pending-card:hover {
+  background: #eee7ff;
+}
+
+
+/* Refund source Receipt preview */
+
+.refund-source-preview {
+  margin: 12px 0 18px;
+  padding: 12px 14px;
+
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+
+  background: #faf8ff;
+
+  line-height: 1.5;
+}
+
+
+/* History Refund */
+
+.history-transaction-card[data-transaction-type="refund"] {
+  background: #faf8ff;
+  border-color: #ddd6fe;
+}
+
+.history-transaction-card[data-transaction-type="refund"]:hover {
+  background: #f5f0ff;
+}
+
+
+/* Dashboard Refund update */
+
+.dashboard-refund-update {
+  border-color: #ddd6fe;
+}
+
+
+/* Mobile */
+
+@media (max-width: 700px) {
+
+  .refund-pending-card,
+  .refund-pending-panel,
+  .refund-source-preview {
+    width: 100%;
+  }
+}
