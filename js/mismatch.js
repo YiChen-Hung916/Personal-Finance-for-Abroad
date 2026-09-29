@@ -381,186 +381,6 @@ async function getAllMismatches({
   const mismatches = [];
 
 
-
-  // ==================================================
-// Refund mismatch
-// ==================================================
-
-if (item.type === 'refund') {
-
-  const refund =
-    item.refund;
-
-
-  if (!refund) {
-    return '';
-  }
-
-
-  const resolved =
-    refund.refundMismatchResolved === true;
-
-
-  const expectedCurrency =
-    String(
-      refund.currency || ''
-    )
-      .trim()
-      .toUpperCase();
-
-
-  const reportedCurrency =
-    String(
-      refund.reportedCurrency || ''
-    )
-      .trim()
-      .toUpperCase();
-
-
-  const amountMismatch =
-    Number(
-      refund.reportedAmount
-    ) !==
-    Number(
-      refund.amount
-    );
-
-
-  const currencyMismatch =
-    reportedCurrency !==
-    expectedCurrency;
-
-
-  return `
-
-    <div
-      class="card${resolved ? '' : ' mismatch-card'}"
-      data-mismatch-type="refund"
-      data-refund-id="${escapeHtml(
-        refund.id
-      )}"
-    >
-
-      <div class="mismatch-card-main">
-
-        <div>
-
-          <strong>
-            ${
-              lang === 'zh-TW'
-                ? '退款'
-                : 'Refund'
-            }
-            ·
-            ${escapeHtml(
-              refund.store || '—'
-            )}
-          </strong>
-
-          <span class="muted">
-            ${escapeHtml(
-              refund.refundDate || '—'
-            )}
-          </span>
-
-        </div>
-
-
-        <strong>
-          ${formatMoney(
-            refund.amount || 0,
-            expectedCurrency
-          )}
-        </strong>
-
-      </div>
-
-
-      <div class="field">
-
-        <span class="field-label">
-          ${
-            lang === 'zh-TW'
-              ? '實際收到'
-              : 'Actually Received'
-          }
-        </span>
-
-        <strong>
-          ${formatMoney(
-            refund.reportedAmount || 0,
-            reportedCurrency
-          )}
-        </strong>
-
-      </div>
-
-
-      <div class="mismatch-reasons">
-
-        ${
-          amountMismatch
-            ? `
-                <span class="${
-                  resolved
-                    ? 'badge'
-                    : 'mismatch-reason-badge'
-                }">
-                  ${
-                    lang === 'zh-TW'
-                      ? '退款金額不符'
-                      : 'Refund amount mismatch'
-                  }
-                </span>
-              `
-            : ''
-        }
-
-        ${
-          currencyMismatch
-            ? `
-                <span class="${
-                  resolved
-                    ? 'badge'
-                    : 'mismatch-reason-badge'
-                }">
-                  ${
-                    lang === 'zh-TW'
-                      ? '退款幣值不符'
-                      : 'Refund currency mismatch'
-                  }
-                </span>
-              `
-            : ''
-        }
-
-      </div>
-
-
-      <div class="actions">
-
-        <button
-          type="button"
-          class="view-mismatch-btn"
-          data-mismatch-type="refund"
-          data-refund-id="${escapeHtml(
-            refund.id
-          )}"
-        >
-          ${
-            lang === 'zh-TW'
-              ? '查看'
-              : 'View'
-          }
-        </button>
-
-      </div>
-
-    </div>
-  `;
-}
-
-
   
   // ==================================================
   // 1. Receipt mismatches
@@ -754,6 +574,184 @@ export function mismatchDashboardCardHtml({
   item,
   lang
 }) {
+
+  // ==================================================
+// Refund mismatch
+// ==================================================
+
+if (item.type === 'refund') {
+
+  const refund =
+    item.refund;
+
+
+  if (!refund) {
+    return '';
+  }
+
+
+  const resolved =
+    refund.refundMismatchResolved === true;
+
+
+  const expectedCurrency =
+    String(
+      refund.currency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const reportedCurrency =
+    String(
+      refund.reportedCurrency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const amountMismatch =
+    Number(
+      refund.reportedAmount
+    ) !==
+    Number(
+      refund.amount
+    );
+
+
+  const currencyMismatch =
+    reportedCurrency !==
+    expectedCurrency;
+
+
+  return `
+
+    <div
+      class="card${resolved ? '' : ' mismatch-card'}"
+      data-mismatch-type="refund"
+      data-refund-id="${escapeHtml(
+        refund.id
+      )}"
+    >
+
+      <div class="mismatch-card-main">
+
+        <div>
+
+          <strong>
+            ${
+              lang === 'zh-TW'
+                ? '退款'
+                : 'Refund'
+            }
+            ·
+            ${escapeHtml(
+              refund.store || '—'
+            )}
+          </strong>
+
+          <span class="muted">
+            ${escapeHtml(
+              refund.refundDate || '—'
+            )}
+          </span>
+
+        </div>
+
+
+        <strong>
+          ${formatMoney(
+            refund.amount || 0,
+            expectedCurrency
+          )}
+        </strong>
+
+      </div>
+
+
+      <div class="field">
+
+        <span class="field-label">
+          ${
+            lang === 'zh-TW'
+              ? '實際收到'
+              : 'Actually Received'
+          }
+        </span>
+
+        <strong>
+          ${formatMoney(
+            refund.reportedAmount || 0,
+            reportedCurrency
+          )}
+        </strong>
+
+      </div>
+
+
+      <div class="mismatch-reasons">
+
+        ${
+          amountMismatch
+            ? `
+                <span class="${
+                  resolved
+                    ? 'badge'
+                    : 'mismatch-reason-badge'
+                }">
+                  ${
+                    lang === 'zh-TW'
+                      ? '退款金額不符'
+                      : 'Refund amount mismatch'
+                  }
+                </span>
+              `
+            : ''
+        }
+
+        ${
+          currencyMismatch
+            ? `
+                <span class="${
+                  resolved
+                    ? 'badge'
+                    : 'mismatch-reason-badge'
+                }">
+                  ${
+                    lang === 'zh-TW'
+                      ? '退款幣值不符'
+                      : 'Refund currency mismatch'
+                  }
+                </span>
+              `
+            : ''
+        }
+
+      </div>
+
+
+      <div class="actions">
+
+        <button
+          type="button"
+          class="view-mismatch-btn"
+          data-mismatch-type="refund"
+          data-refund-id="${escapeHtml(
+            refund.id
+          )}"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '查看'
+              : 'View'
+          }
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
 
   // ==================================================
   // Transfer mismatch
