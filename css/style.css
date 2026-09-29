@@ -34,37 +34,6 @@
 }
 
 
-/* ======================================================
-   Receipt - Foreign currency settlement checkbox
-   ====================================================== */
-
-.checkbox-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  /*
-    Keep the checkbox + sentence on one line whenever
-    there is enough screen width.
-  */
-  white-space: nowrap;
-}
-
-.checkbox-inline input[type="checkbox"] {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-
-/*
-  On a narrow screen, wrapping is allowed.
-*/
-@media (max-width: 700px) {
-
-  .checkbox-inline {
-    white-space: normal;
-  }
-}
 
 /* ======================================================
    Foreign settlement section
@@ -739,7 +708,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .history-heading-row h2 {
@@ -749,8 +718,8 @@
 .history-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .history-custom-range {
@@ -986,11 +955,11 @@
    ===================================================== */
 
 .card-list-section {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .card-list-section:first-child {
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .card-list-section h2 {
@@ -1313,31 +1282,3 @@
   margin-bottom: 0;
 }
 
-
-/* ======================================================
-   History - Compact Layout
-   ====================================================== */
-
-.history-heading-row {
-  margin-bottom: 10px;
-}
-
-
-.history-filters {
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-
-/* ======================================================
-   Cards - Compact Layout
-   ====================================================== */
-
-.card-list-section {
-  margin-top: 16px;
-}
-
-
-.card-list-section:first-child {
-  margin-top: 10px;
-}
