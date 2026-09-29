@@ -257,8 +257,59 @@ export async function getUnresolvedMismatches({
     });
 
 
+
   // ==================================================
-  // 3. Oldest transaction first
+// 3. Refund mismatches
+// ==================================================
+
+const refundMismatchQuery =
+  query(
+    collection(
+      db,
+      'refunds'
+    ),
+    where(
+      'status',
+      '==',
+      'mismatch'
+    )
+  );
+
+
+const refundMismatchSnapshot =
+  await getDocs(
+    refundMismatchQuery
+  );
+
+
+refundMismatchSnapshot.docs
+  .map(refundDoc => ({
+    id:
+      refundDoc.id,
+
+    ...refundDoc.data()
+  }))
+  .filter(refund =>
+    refund.refundMismatchResolved !== true
+  )
+  .forEach(refund => {
+
+    mismatches.push({
+
+      type:
+        'refund',
+
+      id:
+        refund.id,
+
+      refund
+
+    });
+  });
+
+  
+  // ==================================================
+  // 4. Oldest transaction first
   // ==================================================
 
   mismatches.sort(
@@ -268,7 +319,11 @@ export async function getUnresolvedMismatches({
         String(
           a.type === 'transfer'
             ? a.transfer?.transferDate || ''
+            : (
+          a.type === 'refund'
+            ? a.refund?.refundDate || ''
             : a.receipt?.purchaseDate || ''
+        )
         );
 
 
@@ -276,7 +331,11 @@ export async function getUnresolvedMismatches({
         String(
           b.type === 'transfer'
             ? b.transfer?.transferDate || ''
+            : (
+          b.type === 'refund'
+            ? b.refund?.refundDate || ''
             : b.receipt?.purchaseDate || ''
+        )
         );
 
 
@@ -322,6 +381,187 @@ async function getAllMismatches({
   const mismatches = [];
 
 
+
+  // ==================================================
+// Refund mismatch
+// ==================================================
+
+if (item.type === 'refund') {
+
+  const refund =
+    item.refund;
+
+
+  if (!refund) {
+    return '';
+  }
+
+
+  const resolved =
+    refund.refundMismatchResolved === true;
+
+
+  const expectedCurrency =
+    String(
+      refund.currency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const reportedCurrency =
+    String(
+      refund.reportedCurrency || ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const amountMismatch =
+    Number(
+      refund.reportedAmount
+    ) !==
+    Number(
+      refund.amount
+    );
+
+
+  const currencyMismatch =
+    reportedCurrency !==
+    expectedCurrency;
+
+
+  return `
+
+    <div
+      class="card${resolved ? '' : ' mismatch-card'}"
+      data-mismatch-type="refund"
+      data-refund-id="${escapeHtml(
+        refund.id
+      )}"
+    >
+
+      <div class="mismatch-card-main">
+
+        <div>
+
+          <strong>
+            ${
+              lang === 'zh-TW'
+                ? '退款'
+                : 'Refund'
+            }
+            ·
+            ${escapeHtml(
+              refund.store || '—'
+            )}
+          </strong>
+
+          <span class="muted">
+            ${escapeHtml(
+              refund.refundDate || '—'
+            )}
+          </span>
+
+        </div>
+
+
+        <strong>
+          ${formatMoney(
+            refund.amount || 0,
+            expectedCurrency
+          )}
+        </strong>
+
+      </div>
+
+
+      <div class="field">
+
+        <span class="field-label">
+          ${
+            lang === 'zh-TW'
+              ? '實際收到'
+              : 'Actually Received'
+          }
+        </span>
+
+        <strong>
+          ${formatMoney(
+            refund.reportedAmount || 0,
+            reportedCurrency
+          )}
+        </strong>
+
+      </div>
+
+
+      <div class="mismatch-reasons">
+
+        ${
+          amountMismatch
+            ? `
+                <span class="${
+                  resolved
+                    ? 'badge'
+                    : 'mismatch-reason-badge'
+                }">
+                  ${
+                    lang === 'zh-TW'
+                      ? '退款金額不符'
+                      : 'Refund amount mismatch'
+                  }
+                </span>
+              `
+            : ''
+        }
+
+        ${
+          currencyMismatch
+            ? `
+                <span class="${
+                  resolved
+                    ? 'badge'
+                    : 'mismatch-reason-badge'
+                }">
+                  ${
+                    lang === 'zh-TW'
+                      ? '退款幣值不符'
+                      : 'Refund currency mismatch'
+                  }
+                </span>
+              `
+            : ''
+        }
+
+      </div>
+
+
+      <div class="actions">
+
+        <button
+          type="button"
+          class="view-mismatch-btn"
+          data-mismatch-type="refund"
+          data-refund-id="${escapeHtml(
+            refund.id
+          )}"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '查看'
+              : 'View'
+          }
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+  
   // ==================================================
   // 1. Receipt mismatches
   // ==================================================
@@ -1036,6 +1276,15 @@ export async function mismatchPage({
       }
 
 
+      if (item.type === 'refund') {
+
+        return (
+          item.refund
+            ?.refundMismatchResolved !== true
+        );
+      }
+
+
       return (
         item.confirmation
           ?.mismatchResolved !== true
@@ -1053,6 +1302,15 @@ const resolvedMismatches =
         return (
           item.transfer
             ?.transferMismatchResolved === true
+        );
+      }
+
+
+      if (item.type === 'refund') {
+
+        return (
+          item.refund
+            ?.refundMismatchResolved === true
         );
       }
 
@@ -1264,7 +1522,30 @@ export function bindMismatchViewButtons(
             return;
           }
 
+// ==========================================
+// Refund mismatch
+// ==========================================
 
+if (
+  mismatchType === 'refund'
+) {
+
+  const refundId =
+    button.dataset.refundId;
+
+
+  if (!refundId) {
+    return;
+  }
+
+
+  location.hash =
+    `#refund-detail/${refundId}`;
+
+  return;
+}
+
+          
           // ==========================================
           // Receipt mismatch
           // ==========================================
