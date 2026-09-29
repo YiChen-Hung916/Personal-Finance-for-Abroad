@@ -1495,6 +1495,10 @@ const refundConfirmationPanel = `
                   myPendingRefunds.length - 3
                 })`
           }
+        </button>
+      `
+    : ''
+}
 
   </section>
 `;
