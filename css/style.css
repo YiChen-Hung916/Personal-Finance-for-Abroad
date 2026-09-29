@@ -515,65 +515,61 @@
 
 
 /* ======================================================
-   My Confirmation - Pending List
+   My Confirmation - Unified Queue
    ====================================================== */
 
-.my-confirmation-list {
+.confirmation-queue {
   display: flex;
   flex-direction: column;
-  margin-top: 10px;
-  border-top: 1px solid #e5e7eb;
+
+  gap: 22px;
+
+  margin-top: 14px;
 }
 
-.my-confirmation-list-item {
-  width: 100%;
 
+.confirmation-queue-section {
+  margin: 0;
+}
+
+
+.confirmation-queue-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 7px;
+}
+
+
+.confirmation-queue-heading h2 {
+  margin: 0;
+
+  font-size: 1.05rem;
+}
+
+
+.confirmation-queue-header,
+.confirmation-queue-row {
   display: grid;
 
   grid-template-columns:
     110px
     minmax(140px, 1fr)
     130px
-    90px
+    150px
     80px;
 
   align-items: center;
+
   gap: 12px;
-
-  padding: 10px 8px;
-
-  border: 0;
-  border-bottom: 1px solid #e5e7eb;
-  border-radius: 0;
-
-  text-align: left;
-
-  cursor: pointer;
 }
 
 
-
-.my-confirmation-list-item:hover {
-  filter: none;
-  background: #f8fafc;
-}
-
-
-.compact-list-header {
-  display: grid;
-
-  grid-template-columns:
-    110px
-    minmax(140px, 1fr)
-    130px
-    90px
-    80px;
-
-  align-items: center;
-  gap: 12px;
-
+.confirmation-queue-header {
   padding: 7px 8px;
 
+  border-top: 1px solid #d1d5db;
   border-bottom: 1px solid #d1d5db;
 
   color: #6b7280;
@@ -583,58 +579,200 @@
 }
 
 
-.compact-list-date,
-.compact-list-status {
-  white-space: nowrap;
+.confirmation-queue-list {
+  display: flex;
+  flex-direction: column;
 }
 
 
-.compact-list-name {
+.confirmation-queue-row {
+  width: 100%;
+
+  padding: 10px 8px;
+
+  border: 0;
+  border-bottom: 1px solid #e5e7eb;
+
+  border-radius: 0;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+
+.confirmation-queue-row:hover {
+  filter: none;
+
+  background: #f8fafc;
+}
+
+
+.confirmation-queue-date {
+  color: #6b7280;
+
+  white-space: nowrap;
+
+  font-size: 0.88rem;
+}
+
+
+.confirmation-queue-main {
+  display: flex;
+  flex-direction: column;
+
   min-width: 0;
 
+  gap: 2px;
+}
+
+
+.confirmation-queue-main strong {
   overflow: hidden;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 
-.compact-list-amount {
+.confirmation-queue-main small {
+  font-size: 0.78rem;
+}
+
+
+.confirmation-queue-amount {
   white-space: nowrap;
 }
 
 
-.compact-list-action {
+.confirmation-queue-status {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 0.84rem;
+}
+
+
+.confirmation-queue-action {
   text-align: right;
 
   white-space: nowrap;
 
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
 }
 
 
+/* Receipt reminder colors */
 
-/* Keep reminder colors on list buttons. */
-
-.my-confirmation-list-item.pending-reminder-normal {
+.confirmation-queue-receipt.pending-reminder-normal {
   background: #ffffff;
 }
 
 
-.my-confirmation-list-item.pending-reminder-yellow {
+.confirmation-queue-receipt.pending-reminder-yellow {
   background: #fff8d6;
 }
 
 
-.my-confirmation-list-item.pending-reminder-orange {
+.confirmation-queue-receipt.pending-reminder-orange {
   background: #ffedd5;
 }
 
 
-.my-confirmation-list-item.pending-reminder-red {
+.confirmation-queue-receipt.pending-reminder-red {
   background: #ffe1e1;
 }
 
+
+/* Transfer stays neutral */
+
+.confirmation-queue-transfer {
+  background: #ffffff;
+}
+
+
+/* Refund gets a subtle purple distinction */
+
+.confirmation-queue-refund {
+  background: #faf8ff;
+}
+
+
+.confirmation-queue-refund:hover {
+  background: #f5f0ff;
+}
+
+
+@media (max-width: 700px) {
+
+  .confirmation-queue {
+    gap: 18px;
+
+    margin-top: 10px;
+  }
+
+
+  .confirmation-queue-header {
+    display: none;
+  }
+
+
+  .confirmation-queue-heading {
+    margin-bottom: 4px;
+  }
+
+
+  .confirmation-queue-row {
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
+
+    gap: 3px 12px;
+
+    padding: 10px 4px;
+  }
+
+
+  .confirmation-queue-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+
+  .confirmation-queue-amount {
+    grid-column: 2;
+    grid-row: 1;
+
+    text-align: right;
+  }
+
+
+  .confirmation-queue-date {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+
+  .confirmation-queue-status {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+
+  .confirmation-queue-action {
+    grid-column: 2;
+    grid-row: 2 / 4;
+
+    align-self: center;
+
+    text-align: right;
+  }
+}
 
 
 /* ======================================================
