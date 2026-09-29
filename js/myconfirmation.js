@@ -1091,6 +1091,45 @@ function renderConfirmationList({
 
     <div class="my-confirmation-list">
 
+      <div class="compact-list-header">
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '日期'
+              : 'Date'
+          }
+        </span>
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '商店'
+              : 'Store'
+          }
+        </span>
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '金額'
+              : 'Amount'
+          }
+        </span>
+
+        <span>
+          ${
+            lang === 'zh-TW'
+              ? '狀態'
+              : 'Status'
+          }
+        </span>
+
+        <span></span>
+
+      </div>
+
+
       ${
         sortedReceipts
           .map(receipt => {
@@ -1107,6 +1146,18 @@ function renderConfirmationList({
               );
 
 
+            const waitingText =
+              Number.isFinite(
+                receipt.daysWaiting
+              )
+                ? (
+                    lang === 'zh-TW'
+                      ? `${receipt.daysWaiting} 天`
+                      : `${receipt.daysWaiting} days`
+                  )
+                : '—';
+
+
             return `
 
               <button
@@ -1120,53 +1171,58 @@ function renderConfirmationList({
                 )}"
               >
 
-                <div
-                  class="my-confirmation-list-main"
+                <span
+                  class="
+                    compact-list-date
+                    muted
+                  "
                 >
-
-                  <strong>
-                    ${escapeHtml(
-                      receipt.store || '—'
-                    )}
-                  </strong>
-
-                  <span class="muted">
-                    ${escapeHtml(
-                      receipt.purchaseDate || '—'
-                    )}
-                  </span>
-
-                </div>
+                  ${escapeHtml(
+                    receipt.purchaseDate || '—'
+                  )}
+                </span>
 
 
-                <div
-                  class="my-confirmation-list-side"
+                <strong
+                  class="compact-list-name"
                 >
+                  ${escapeHtml(
+                    receipt.store || '—'
+                  )}
+                </strong>
 
-                  <strong>
-                    ${formatMoney(
-                      receipt.total || 0,
-                      receiptCurrency
-                    )}
-                  </strong>
 
+                <strong
+                  class="compact-list-amount"
+                >
+                  ${formatMoney(
+                    receipt.total || 0,
+                    receiptCurrency
+                  )}
+                </strong>
+
+
+                <span
+                  class="
+                    compact-list-status
+                    muted
+                  "
+                >
+                  ${escapeHtml(
+                    waitingText
+                  )}
+                </span>
+
+
+                <span
+                  class="compact-list-action"
+                >
                   ${
-                    Number.isFinite(
-                      receipt.daysWaiting
-                    )
-                      ? `
-                          <span class="muted">
-                            ${
-                              lang === 'zh-TW'
-                                ? `已等待 ${receipt.daysWaiting} 天`
-                                : `${receipt.daysWaiting} days waiting`
-                            }
-                          </span>
-                        `
-                      : ''
+                    lang === 'zh-TW'
+                      ? '確認 ›'
+                      : 'Confirm ›'
                   }
-
-                </div>
+                </span>
 
               </button>
 
