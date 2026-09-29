@@ -520,8 +520,59 @@ async function getAllMismatches({
     });
 
 
+    // ==================================================
+  // 3. Refund mismatches
   // ==================================================
-  // 3. Oldest transaction first
+
+  const refundMismatchQuery =
+    query(
+      collection(
+        db,
+        'refunds'
+      ),
+      where(
+        'status',
+        '==',
+        'mismatch'
+      )
+    );
+
+
+  const refundMismatchSnapshot =
+    await getDocs(
+      refundMismatchQuery
+    );
+
+
+  refundMismatchSnapshot.docs
+    .forEach(refundDoc => {
+
+      const refund = {
+        id:
+          refundDoc.id,
+
+        ...refundDoc.data()
+      };
+
+
+      mismatches.push({
+
+        type:
+          'refund',
+
+        id:
+          refund.id,
+
+        refund
+
+      });
+
+    });
+
+
+
+  // ==================================================
+  // 4. Oldest transaction first
   // ==================================================
 
   mismatches.sort(
@@ -531,7 +582,11 @@ async function getAllMismatches({
         String(
           a.type === 'transfer'
             ? a.transfer?.transferDate || ''
-            : a.receipt?.purchaseDate || ''
+            : (
+                a.type === 'refund'
+                  ? a.refund?.refundDate || ''
+                  : a.receipt?.purchaseDate || ''
+              )
         );
 
 
@@ -539,7 +594,11 @@ async function getAllMismatches({
         String(
           b.type === 'transfer'
             ? b.transfer?.transferDate || ''
-            : b.receipt?.purchaseDate || ''
+            : (
+                b.type === 'refund'
+                  ? b.refund?.refundDate || ''
+                  : b.receipt?.purchaseDate || ''
+              )
         );
 
 
