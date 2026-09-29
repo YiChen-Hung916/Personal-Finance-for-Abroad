@@ -1740,12 +1740,7 @@ const transferRecordsHtml =
                     'mismatch'
 
                       ? `
-                          <div
-                            class="muted"
-                            style="
-                              margin-top: 4px;
-                            "
-                          >
+                          <div class="muted history-transfer-reported">
 
                             ${
                               lang === 'zh-TW'
