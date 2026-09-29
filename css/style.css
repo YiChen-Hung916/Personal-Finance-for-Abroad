@@ -835,14 +835,23 @@
 .history-transaction-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
+
+  gap: 0;
+
+  margin-top: 10px;
+
+  border-top: 1px solid #e5e7eb;
 }
 
 .history-transaction-card {
+  padding: 10px 6px;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  border-radius: 0;
+
   cursor: pointer;
 }
-
 .history-transaction-card:hover {
   background: #f8f8f8;
 }
@@ -851,13 +860,17 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+
+  gap: 12px;
 }
 
 .history-transaction-main > div {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+
+  gap: 2px;
+
+  min-width: 0;
 }
 
 .history-transaction-main > strong {
@@ -1214,12 +1227,52 @@
 
 .history-transaction-card[data-transaction-type="refund"] {
   background: #faf8ff;
-  border-color: #ddd6fe;
 }
 
 .history-transaction-card[data-transaction-type="refund"]:hover {
   background: #f5f0ff;
 }
+
+
+.history-transfer-card {
+  padding: 10px 6px;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  cursor: pointer;
+}
+
+
+.history-transfer-card:first-of-type {
+  border-top: 1px solid #e5e7eb;
+}
+
+
+.history-transfer-card:hover {
+  background: #f8fafc;
+}
+
+
+.history-transfer-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+
+.history-transfer-main > div {
+  min-width: 0;
+}
+
+
+.history-transfer-main > strong {
+  flex: 0 0 auto;
+
+  white-space: nowrap;
+}
+
 
 
 /* Dashboard Refund update */
