@@ -23,6 +23,12 @@ import {
   undoBrandMerge
 } from './brands.js';
 
+import {
+  getUsers,
+  updateManagedUser,
+  getUserDisplayName,
+  getUserRoleLabel
+} from './users.js';
 
 export async function managementPage({
   db,
@@ -44,8 +50,8 @@ export async function managementPage({
         <p class="muted">
           ${
             lang === 'zh-TW'
-              ? '只有 Owner 可以管理 Stores / Products / Brands。'
-              : 'Only the Owner can manage Stores / Products / Brands.'
+              ? '只有 Owner 可以管理 Products / Stores / Brands / Users。'
+              : 'Only the Owner can manage Products / Stores / Brands / Users.'
           }
         </p>
       </section>
@@ -72,8 +78,8 @@ export async function managementPage({
           <p class="muted">
             ${
               lang === 'zh-TW'
-                ? '管理商店、產品、品牌與名稱合併。'
-                : 'Manage stores, products, brands, and merged names.'
+                ? '管理產品、商店、品牌與家庭成員。'
+                : 'Manage products, stores, brands, and family members.'
             }
           </p>
         </div>
@@ -167,12 +173,15 @@ export async function managementPage({
     }
 
     if (tab === 'brands') {
-      await renderBrands();
-      return;
-    }
+  await renderBrands();
+  return;
+}
 
 
-    renderUsersPlaceholder();
+if (tab === 'users') {
+  await renderUsers();
+  return;
+}
   }
 
 
@@ -1546,14 +1555,202 @@ export async function managementPage({
     
 
   // ====================================================
-  // Users
-  // ====================================================
+// Users
+// ====================================================
 
-  function renderUsersPlaceholder() {
+async function renderUsers() {
 
+  const content =
     document.querySelector(
       '#managementContent'
-    ).innerHTML = `
+    );
+
+
+  content.innerHTML = `
+    <p class="muted">
+      ${
+        lang === 'zh-TW'
+          ? '正在載入 Users…'
+          : 'Loading users…'
+      }
+    </p>
+  `;
+
+
+  try {
+
+    const users =
+      await getUsers(db);
+
+
+    const activeCount =
+      users.filter(
+        user =>
+          user.active === true
+      ).length;
+
+
+    const ownerCount =
+      users.filter(
+        user =>
+          user.active === true &&
+          user.role === 'owner'
+      ).length;
+
+
+    const userRows =
+      users.length
+        ? users
+            .map(user => {
+
+              const displayName =
+                getUserDisplayName(
+                  user
+                );
+
+
+              const roleLabel =
+                getUserRoleLabel(
+                  user.role,
+                  lang
+                );
+
+
+              const isCurrentUser =
+                user.id ===
+                currentUser.uid;
+
+
+              const active =
+                user.active === true;
+
+
+              return `
+
+                <div
+                  class="management-row"
+                >
+
+                  <div
+                    class="management-row-main"
+                  >
+
+                    <div>
+
+                      <strong>
+                        ${escapeLocal(
+                          displayName
+                        )}
+                      </strong>
+
+                      ${
+                        isCurrentUser
+                          ? `
+                              <span class="badge">
+                                ${
+                                  lang === 'zh-TW'
+                                    ? '你'
+                                    : 'You'
+                                }
+                              </span>
+                            `
+                          : ''
+                      }
+
+                    </div>
+
+
+                    ${
+                      user.email
+                        ? `
+                            <span class="muted">
+                              ${escapeLocal(
+                                user.email
+                              )}
+                            </span>
+                          `
+                        : ''
+                    }
+
+
+                    <span class="muted">
+                      UID:
+                      ${escapeLocal(
+                        user.id
+                      )}
+                    </span>
+
+                  </div>
+
+
+                  <div
+                    class="management-row-meta"
+                  >
+
+                    <span class="badge">
+                      ${escapeLocal(
+                        roleLabel
+                      )}
+                    </span>
+
+
+                    <span
+                      class="${
+                        active
+                          ? 'badge'
+                          : 'muted'
+                      }"
+                    >
+                      ${
+                        active
+                          ? (
+                              lang === 'zh-TW'
+                                ? '使用中'
+                                : 'Active'
+                            )
+                          : (
+                              lang === 'zh-TW'
+                                ? '已停用'
+                                : 'Inactive'
+                            )
+                      }
+                    </span>
+
+
+                    <button
+                      type="button"
+                      data-edit-user="${
+                        escapeLocal(
+                          user.id
+                        )
+                      }"
+                    >
+                      ${
+                        lang === 'zh-TW'
+                          ? '編輯'
+                          : 'Edit'
+                      }
+                    </button>
+
+                  </div>
+
+                </div>
+              `;
+            })
+            .join('')
+
+        : `
+            <p class="muted">
+              ${
+                lang === 'zh-TW'
+                  ? '目前沒有 User。'
+                  : 'No users found.'
+              }
+            </p>
+          `;
+
+
+    content.innerHTML = `
 
       <div class="management-toolbar">
 
@@ -1562,18 +1759,462 @@ export async function managementPage({
           <h2>Users</h2>
 
           <p class="muted">
-            Users 已經存在於目前的 Firestore。
-            下一階段會把現有使用者管理功能接到這裡，
-            不會建立第二套 users collection。
+            ${
+              lang === 'zh-TW'
+                ? '管理家庭成員的顯示名稱、角色與使用狀態。'
+                : 'Manage family member display names, roles, and access status.'
+            }
           </p>
 
         </div>
 
       </div>
+
+
+      <div
+        class="row"
+        style="
+          margin-bottom: 16px;
+        "
+      >
+
+        <div class="card">
+
+          <div class="muted">
+            ${
+              lang === 'zh-TW'
+                ? '總 Users'
+                : 'Total Users'
+            }
+          </div>
+
+          <strong>
+            ${users.length}
+          </strong>
+
+        </div>
+
+
+        <div class="card">
+
+          <div class="muted">
+            ${
+              lang === 'zh-TW'
+                ? '使用中'
+                : 'Active'
+            }
+          </div>
+
+          <strong>
+            ${activeCount}
+          </strong>
+
+        </div>
+
+
+        <div class="card">
+
+          <div class="muted">
+            Active Owners
+          </div>
+
+          <strong>
+            ${ownerCount}
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="managementUserForm"
+      ></div>
+
+
+      <div class="management-list">
+
+        ${userRows}
+
+      </div>
+
+    `;
+
+
+    document
+      .querySelectorAll(
+        '[data-edit-user]'
+      )
+      .forEach(button => {
+
+        button.onclick =
+          () => {
+
+            const user =
+              users.find(
+                item =>
+                  item.id ===
+                  button.dataset.editUser
+              );
+
+
+            if (user) {
+              showUserForm(
+                user
+              );
+            }
+          };
+      });
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load users:',
+      error
+    );
+
+
+    content.innerHTML = `
+      <p class="danger">
+        ${escapeLocal(
+          error.message
+        )}
+      </p>
     `;
   }
 }
 
+
+// ====================================================
+// User Editor
+// ====================================================
+
+function showUserForm(user) {
+
+  const holder =
+    document.querySelector(
+      '#managementUserForm'
+    );
+
+
+  if (
+    !holder ||
+    !user
+  ) {
+    return;
+  }
+
+
+  const displayName =
+    String(
+      user.displayName ||
+      user.name ||
+      ''
+    ).trim();
+
+
+  const isCurrentUser =
+    user.id ===
+    currentUser.uid;
+
+
+  holder.innerHTML = `
+
+    <div class="management-editor">
+
+      <h3>
+        ${
+          lang === 'zh-TW'
+            ? '編輯 User'
+            : 'Edit User'
+        }
+      </h3>
+
+
+      <div class="row">
+
+        <label class="field">
+
+          ${
+            lang === 'zh-TW'
+              ? '顯示名稱'
+              : 'Display Name'
+          }
+
+          <input
+            id="managementUserDisplayName"
+            value="${
+              escapeLocal(
+                displayName
+              )
+            }"
+            placeholder="Yi-Chen"
+          >
+
+        </label>
+
+
+        <label class="field">
+
+          Role
+
+          <select
+            id="managementUserRole"
+            ${
+              isCurrentUser
+                ? 'disabled'
+                : ''
+            }
+          >
+
+            <option
+              value="owner"
+              ${
+                user.role === 'owner'
+                  ? 'selected'
+                  : ''
+              }
+            >
+              Owner
+            </option>
+
+
+            <option
+              value="authorizedUser"
+              ${
+                user.role ===
+                'authorizedUser'
+                  ? 'selected'
+                  : ''
+              }
+            >
+              ${
+                lang === 'zh-TW'
+                  ? '家庭成員'
+                  : 'Authorized User'
+              }
+            </option>
+
+          </select>
+
+        </label>
+
+      </div>
+
+
+      <div
+        style="
+          margin-top: 12px;
+        "
+      >
+
+        <label
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+          "
+        >
+
+          <span>
+            ${
+              lang === 'zh-TW'
+                ? '使用中'
+                : 'Active'
+            }
+          </span>
+
+          <input
+            id="managementUserActive"
+            type="checkbox"
+            ${
+              user.active === true
+                ? 'checked'
+                : ''
+            }
+            ${
+              isCurrentUser
+                ? 'disabled'
+                : ''
+            }
+          >
+
+        </label>
+
+      </div>
+
+
+      ${
+        user.email
+          ? `
+              <p
+                class="muted"
+                style="
+                  margin-top: 12px;
+                "
+              >
+                Email:
+                ${escapeLocal(
+                  user.email
+                )}
+              </p>
+            `
+          : ''
+      }
+
+
+      <p class="muted">
+        UID:
+        ${escapeLocal(
+          user.id
+        )}
+      </p>
+
+
+      ${
+        isCurrentUser
+          ? `
+              <p class="muted">
+                ${
+                  lang === 'zh-TW'
+                    ? '目前登入中的 Owner 不能在這裡停用自己或把自己的 Role 降級。'
+                    : 'The currently signed-in Owner cannot disable or demote themselves here.'
+                }
+              </p>
+            `
+          : ''
+      }
+
+
+      <div class="actions">
+
+        <button
+          id="managementSaveUser"
+          class="primary"
+          type="button"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '儲存'
+              : 'Save'
+          }
+        </button>
+
+
+        <button
+          id="managementCancelUser"
+          type="button"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '取消'
+              : 'Cancel'
+          }
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+
+  document.querySelector(
+    '#managementCancelUser'
+  ).onclick =
+    () => {
+
+      holder.innerHTML = '';
+    };
+
+
+  document.querySelector(
+    '#managementSaveUser'
+  ).onclick =
+    async () => {
+
+      const saveButton =
+        document.querySelector(
+          '#managementSaveUser'
+        );
+
+
+      const displayNameInput =
+        document.querySelector(
+          '#managementUserDisplayName'
+        );
+
+
+      const roleInput =
+        document.querySelector(
+          '#managementUserRole'
+        );
+
+
+      const activeInput =
+        document.querySelector(
+          '#managementUserActive'
+        );
+
+
+      const displayName =
+        displayNameInput.value;
+
+
+      // Disabled controls still keep
+      // the existing value explicitly.
+      const role =
+        isCurrentUser
+          ? user.role
+          : roleInput.value;
+
+
+      const active =
+        isCurrentUser
+          ? user.active === true
+          : activeInput.checked;
+
+
+      try {
+
+        saveButton.disabled =
+          true;
+
+
+        await updateManagedUser({
+          db,
+          currentUser,
+          userId:
+            user.id,
+          displayName,
+          role,
+          active
+        });
+
+
+        await renderUsers();
+
+
+      } catch (error) {
+
+        console.error(
+          'Failed to update user:',
+          error
+        );
+
+
+        alert(
+          error.message
+        );
+
+
+        saveButton.disabled =
+          false;
+      }
+    };
+}
+
+  
 
 // ======================================================
 // Local Escape
