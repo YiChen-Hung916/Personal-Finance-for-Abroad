@@ -1425,6 +1425,620 @@ function exportTransactionsToPdf({
 
 
 // ======================================================
+// Authorized User - Reported Mismatches
+// ======================================================
+
+function isReceiptAssignedToUser(
+  receipt,
+  userId
+) {
+
+  const confirmationUserIds =
+    Array.isArray(
+      receipt.confirmationUserIds
+    )
+      ? receipt.confirmationUserIds.filter(
+          Boolean
+        )
+      : [];
+
+
+  return (
+    confirmationUserIds.includes(
+      userId
+    ) ||
+    (
+      confirmationUserIds.length === 0 &&
+      receipt.confirmationUserId === userId
+    )
+  );
+}
+
+
+// ======================================================
+// Load Receipt Mismatches Reported By Current User
+// ======================================================
+
+async function getAuthorizedUserReceiptMismatches({
+  db,
+  currentUser,
+  receipts
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid
+  ) {
+    return [];
+  }
+
+
+  const results = [];
+
+
+  // IMPORTANT:
+  // Authorized Users may only read confirmation
+  // subcollections for Receipts assigned to them.
+  const relatedReceipts =
+    receipts.filter(
+      receipt =>
+        isReceiptAssignedToUser(
+          receipt,
+          currentUser.uid
+        )
+    );
+
+
+  for (
+    const receipt
+    of relatedReceipts
+  ) {
+
+    try {
+
+      const confirmationSnapshot =
+        await getDocs(
+          collection(
+            db,
+            'receipts',
+            receipt.id,
+            'confirmations'
+          )
+        );
+
+
+      confirmationSnapshot.docs
+        .forEach(
+          confirmationDoc => {
+
+            const confirmation =
+              confirmationDoc.data();
+
+
+            // Only show mismatches actually reported
+            // by the current Authorized User.
+            if (
+              confirmation.confirmationUserId !==
+                currentUser.uid ||
+              confirmation.hasMismatch !== true
+            ) {
+              return;
+            }
+
+
+            results.push({
+
+              id:
+                receipt.id,
+
+              type:
+                'receipt',
+
+              date:
+                receipt.purchaseDate || '',
+
+              store:
+                receipt.store || '—',
+
+              amount:
+                Number(
+                  receipt.total || 0
+                ),
+
+              currency:
+                String(
+                  receipt.currency || ''
+                )
+                  .trim()
+                  .toUpperCase(),
+
+              reportedAmount:
+                confirmation.reportedAmount,
+
+              reportedCurrency:
+                String(
+                  confirmation.reportedCurrency || ''
+                )
+                  .trim()
+                  .toUpperCase(),
+
+              mismatchReasons:
+                Array.isArray(
+                  confirmation.mismatchReasons
+                )
+                  ? confirmation.mismatchReasons
+                  : [],
+
+              resolved:
+                confirmation.mismatchResolved === true,
+
+              confirmedAt:
+                confirmation.confirmedAt || null,
+
+              href:
+                `#receipt-detail/${receipt.id}`
+            });
+
+          }
+        );
+
+    } catch (error) {
+
+      console.error(
+        `Failed to load Receipt mismatch ${receipt.id}:`,
+        error
+      );
+    }
+  }
+
+
+  return results;
+}
+
+
+// ======================================================
+// Build Authorized User Mismatch List
+// ======================================================
+
+function buildAuthorizedUserMismatchHistory({
+  receiptMismatches,
+  transfers,
+  refunds,
+  currentUser
+}) {
+
+  const items = [];
+
+
+  // --------------------------------------------------
+  // Receipt mismatches
+  // --------------------------------------------------
+
+  receiptMismatches.forEach(
+    mismatch => {
+
+      items.push({
+        ...mismatch
+      });
+
+    }
+  );
+
+
+  // --------------------------------------------------
+  // Transfer mismatches
+  // --------------------------------------------------
+
+  transfers
+    .filter(
+      transfer =>
+        transfer.confirmedBy ===
+          currentUser.uid &&
+        transfer.confirmationStatus ===
+          'mismatch'
+    )
+    .forEach(
+      transfer => {
+
+        items.push({
+
+          id:
+            transfer.id,
+
+          type:
+            'transfer',
+
+          date:
+            transfer.transferDate || '',
+
+          title:
+            `${transfer.senderName || '—'} → ${
+              transfer.receiverName || '—'
+            }`,
+
+          amount:
+            Number(
+              transfer.amount || 0
+            ),
+
+          currency:
+            String(
+              transfer.currency || ''
+            )
+              .trim()
+              .toUpperCase(),
+
+          reportedAmount:
+            transfer.reportedAmount,
+
+          reportedCurrency:
+            String(
+              transfer.currency || ''
+            )
+              .trim()
+              .toUpperCase(),
+
+          mismatchReasons:
+            ['amount'],
+
+          resolved:
+            transfer.transferMismatchResolved === true,
+
+          confirmedAt:
+            transfer.confirmedAt || null,
+
+          href:
+            `#transfer-detail/${transfer.id}`
+        });
+
+      }
+    );
+
+
+  // --------------------------------------------------
+  // Refund mismatches
+  // --------------------------------------------------
+
+  refunds
+    .filter(
+      refund =>
+        refund.confirmedBy ===
+          currentUser.uid &&
+        refund.confirmationStatus ===
+          'mismatch'
+    )
+    .forEach(
+      refund => {
+
+        items.push({
+
+          id:
+            refund.id,
+
+          type:
+            'refund',
+
+          date:
+            refund.refundDate || '',
+
+          store:
+            refund.store || '—',
+
+          amount:
+            Number(
+              refund.amount || 0
+            ),
+
+          currency:
+            String(
+              refund.currency || ''
+            )
+              .trim()
+              .toUpperCase(),
+
+          reportedAmount:
+            refund.reportedAmount,
+
+          reportedCurrency:
+            String(
+              refund.reportedCurrency ||
+              refund.currency ||
+              ''
+            )
+              .trim()
+              .toUpperCase(),
+
+          mismatchReasons:
+            ['amount'],
+
+          resolved:
+            refund.refundMismatchResolved === true,
+
+          confirmedAt:
+            refund.confirmedAt || null,
+
+          href:
+            `#refund-detail/${refund.id}`
+        });
+
+      }
+    );
+
+
+  // --------------------------------------------------
+  // Newest first
+  // --------------------------------------------------
+
+  items.sort(
+    (a, b) => {
+
+      const aTime =
+        a.confirmedAt?.toMillis?.() || 0;
+
+      const bTime =
+        b.confirmedAt?.toMillis?.() || 0;
+
+
+      if (
+        aTime !== bTime
+      ) {
+        return bTime - aTime;
+      }
+
+
+      return String(
+        b.date || ''
+      ).localeCompare(
+        String(
+          a.date || ''
+        )
+      );
+    }
+  );
+
+
+  return items;
+}
+
+
+// ======================================================
+// Authorized User Mismatch Card
+// ======================================================
+
+function authorizedUserMismatchCardHtml({
+  item,
+  lang
+}) {
+
+  let typeText = '';
+  let title = '';
+  let reasonText = '';
+
+
+  // --------------------------------------------------
+  // Type / Title
+  // --------------------------------------------------
+
+  if (
+    item.type === 'receipt'
+  ) {
+
+    typeText =
+      lang === 'zh-TW'
+        ? '收據'
+        : 'Receipt';
+
+    title =
+      item.store || '—';
+
+  } else if (
+    item.type === 'transfer'
+  ) {
+
+    typeText =
+      lang === 'zh-TW'
+        ? '轉帳'
+        : 'Transfer';
+
+    title =
+      item.title || '—';
+
+  } else {
+
+    typeText =
+      lang === 'zh-TW'
+        ? '退款'
+        : 'Refund';
+
+    title =
+      item.store || '—';
+  }
+
+
+  // --------------------------------------------------
+  // Mismatch reason
+  // --------------------------------------------------
+
+  const reasons =
+    Array.isArray(
+      item.mismatchReasons
+    )
+      ? item.mismatchReasons
+      : [];
+
+
+  const reasonLabels = [];
+
+
+  if (
+    reasons.includes('amount')
+  ) {
+
+    reasonLabels.push(
+      lang === 'zh-TW'
+        ? '金額不符'
+        : 'Amount mismatch'
+    );
+  }
+
+
+  if (
+    reasons.includes('currencyType')
+  ) {
+
+    reasonLabels.push(
+      lang === 'zh-TW'
+        ? '幣別類型不符'
+        : 'Currency mismatch'
+    );
+  }
+
+
+  reasonText =
+    reasonLabels.length > 0
+      ? reasonLabels.join('、')
+      : (
+          lang === 'zh-TW'
+            ? '回報不符'
+            : 'Mismatch reported'
+        );
+
+
+  // --------------------------------------------------
+  // Resolution
+  // --------------------------------------------------
+
+  const resolutionText =
+    item.resolved
+      ? (
+          lang === 'zh-TW'
+            ? 'Owner 已處理'
+            : 'Resolved by Owner'
+        )
+      : (
+          lang === 'zh-TW'
+            ? '等待 Owner 處理'
+            : 'Waiting for Owner'
+        );
+
+
+  // --------------------------------------------------
+  // Reported amount
+  // --------------------------------------------------
+
+  const hasReportedAmount =
+    item.reportedAmount !== null &&
+    item.reportedAmount !== undefined &&
+    Number.isFinite(
+      Number(
+        item.reportedAmount
+      )
+    );
+
+
+  const reportedText =
+    hasReportedAmount
+      ? formatMoney(
+          item.reportedAmount,
+          item.reportedCurrency ||
+          item.currency
+        )
+      : '—';
+
+
+  return `
+
+    <div
+      class="history-mismatch-card"
+      data-mismatch-href="${escapeHtml(
+        item.href || ''
+      )}"
+    >
+
+      <div class="history-mismatch-main">
+
+        <div>
+
+          <div>
+
+            <strong>
+              ${escapeHtml(title)}
+            </strong>
+
+            <span class="muted">
+              · ${escapeHtml(typeText)}
+            </span>
+
+          </div>
+
+
+          <div class="muted">
+
+            ${escapeHtml(
+              item.date || '—'
+            )}
+
+            ·
+
+            ${escapeHtml(reasonText)}
+
+          </div>
+
+
+          <div class="muted">
+
+            ${
+              lang === 'zh-TW'
+                ? '原始金額：'
+                : 'Original: '
+            }
+
+            ${escapeHtml(
+              formatMoney(
+                item.amount,
+                item.currency
+              )
+            )}
+
+            ·
+
+            ${
+              lang === 'zh-TW'
+                ? '回報：'
+                : 'Reported: '
+            }
+
+            ${escapeHtml(
+              reportedText
+            )}
+
+          </div>
+
+
+          <div class="muted">
+
+            ${
+              lang === 'zh-TW'
+                ? '狀態：'
+                : 'Status: '
+            }
+
+            ${escapeHtml(
+              resolutionText
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+// ======================================================
 // Main History page
 // ======================================================
 
@@ -1539,6 +2153,37 @@ if (
       );
 
 
+    // ==================================================
+// Authorized User - My Reported Mismatches
+// ==================================================
+
+let myReportedMismatches = [];
+
+
+if (
+  currentRole !== 'owner'
+) {
+
+  const receiptMismatches =
+    await getAuthorizedUserReceiptMismatches({
+      db,
+      currentUser,
+      receipts
+    });
+
+
+  myReportedMismatches =
+    buildAuthorizedUserMismatchHistory({
+      receiptMismatches,
+      transfers,
+      refunds,
+      currentUser
+    });
+}
+
+
+
+    
     // ==================================================
     // Normalize
     // ==================================================
@@ -1800,6 +2445,120 @@ const transferRecordsHtml =
         })
         .join('');
 
+
+    // ==================================================
+// Authorized User - My Reported Mismatches HTML
+// ==================================================
+
+let myReportedMismatchesHtml = '';
+
+
+if (
+  currentRole !== 'owner'
+) {
+
+  myReportedMismatchesHtml = `
+
+    <section class="panel">
+
+      <div class="history-heading-row">
+
+        <h2>
+          ${
+            lang === 'zh-TW'
+              ? '我的問題回報'
+              : 'My Reported Issues'
+          }
+
+          ${
+            myReportedMismatches.length > 0
+              ? `
+                  <span class="badge">
+                    ${myReportedMismatches.length}
+                  </span>
+                `
+              : ''
+          }
+
+        </h2>
+
+      </div>
+
+
+      <div
+        class="history-mismatch-filters"
+        id="historyMismatchFilters"
+      >
+
+        <button
+          type="button"
+          class="secondary history-mismatch-filter active"
+          data-mismatch-type="all"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '全部'
+              : 'All'
+          }
+        </button>
+
+
+        <button
+          type="button"
+          class="secondary history-mismatch-filter"
+          data-mismatch-type="receipt"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '收據'
+              : 'Receipts'
+          }
+        </button>
+
+
+        <button
+          type="button"
+          class="secondary history-mismatch-filter"
+          data-mismatch-type="transfer"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '轉帳'
+              : 'Transfers'
+          }
+        </button>
+
+
+        <button
+          type="button"
+          class="secondary history-mismatch-filter"
+          data-mismatch-type="refund"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '退款'
+              : 'Refunds'
+          }
+        </button>
+
+      </div>
+
+
+      <div
+        id="historyMismatchMessage"
+        class="muted"
+      ></div>
+
+
+      <div
+        id="historyMismatchList"
+        class="history-mismatch-list"
+      ></div>
+
+    </section>
+  `;
+}
+
     
     // ==================================================
     // Page
@@ -2038,12 +2797,16 @@ const transferRecordsHtml =
 
 
         <div
-          id="historyTransactionList"
-          class="history-transaction-list"
-        ></div>
+  id="historyTransactionList"
+  class="history-transaction-list"
+></div>
 
-      </section>
-    `;
+</section>
+
+
+${myReportedMismatchesHtml}
+
+`;
 
 
     // ==================================================
@@ -2338,11 +3101,178 @@ const exportPdfButton =
     }
 
     
+
+    // ==================================================
+// Authorized User - Render My Reported Mismatches
+// ==================================================
+
+function renderMyReportedMismatches(
+  type = 'all'
+) {
+
+  if (
+    currentRole === 'owner'
+  ) {
+    return;
+  }
+
+
+  const mismatchList =
+    page.querySelector(
+      '#historyMismatchList'
+    );
+
+
+  const mismatchMessage =
+    page.querySelector(
+      '#historyMismatchMessage'
+    );
+
+
+  if (
+    !mismatchList ||
+    !mismatchMessage
+  ) {
+    return;
+  }
+
+
+  const visibleItems =
+    type === 'all'
+      ? [...myReportedMismatches]
+      : myReportedMismatches.filter(
+          item =>
+            item.type === type
+        );
+
+
+  mismatchMessage.textContent =
+    lang === 'zh-TW'
+      ? `共 ${visibleItems.length} 筆問題回報`
+      : `${visibleItems.length} reported issues`;
+
+
+  if (
+    visibleItems.length === 0
+  ) {
+
+    mismatchList.innerHTML = `
+
+      <p class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '目前沒有符合條件的問題回報。'
+            : 'No reported issues match this filter.'
+        }
+      </p>
+    `;
+
+    return;
+  }
+
+
+  mismatchList.innerHTML =
+    visibleItems
+      .map(
+        item =>
+          authorizedUserMismatchCardHtml({
+            item,
+            lang
+          })
+      )
+      .join('');
+
+
+  // ----------------------------------------------
+  // Open original detail
+  // ----------------------------------------------
+
+  mismatchList
+    .querySelectorAll(
+      '.history-mismatch-card'
+    )
+    .forEach(
+      card => {
+
+        card.onclick = () => {
+
+          const href =
+            card.dataset
+              .mismatchHref;
+
+
+          if (!href) {
+            return;
+          }
+
+
+          location.hash =
+            href;
+        };
+
+      }
+    );
+}
+
     
     // ==================================================
     // Events
     // ==================================================
 
+    // ==================================================
+// Authorized User - Mismatch Filter Events
+// ==================================================
+
+if (
+  currentRole !== 'owner'
+) {
+
+  page
+    .querySelectorAll(
+      '.history-mismatch-filter'
+    )
+    .forEach(
+      button => {
+
+        button.onclick = () => {
+
+          const type =
+            button.dataset
+              .mismatchType ||
+            'all';
+
+
+          page
+            .querySelectorAll(
+              '.history-mismatch-filter'
+            )
+            .forEach(
+              filterButton => {
+
+                filterButton.classList
+                  .remove(
+                    'active'
+                  );
+
+              }
+            );
+
+
+          button.classList.add(
+            'active'
+          );
+
+
+          renderMyReportedMismatches(
+            type
+          );
+        };
+
+      }
+    );
+}
+
+    
     periodSelect.onchange = () => {
 
   syncPeriodDates();
@@ -2431,7 +3361,17 @@ exportPdfButton.onclick = () => {
 
     // First render
     syncPeriodDates();
-    renderTransactions();
+renderTransactions();
+
+
+if (
+  currentRole !== 'owner'
+) {
+
+  renderMyReportedMismatches(
+    'all'
+  );
+}
 
 
   } catch (error) {
