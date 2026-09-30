@@ -129,6 +129,67 @@ export async function createBrand({
 }
 
 
+export async function updateBrand({
+  db,
+  currentUser,
+  brandId,
+  name
+}) {
+
+  const cleanName =
+    String(name || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+
+  if (!cleanName) {
+    throw new Error('Brand name is required.');
+  }
+
+
+  const normalizedName =
+    normalizeBrandKey(cleanName);
+
+
+  const brands =
+    await getBrands(
+      db,
+      { includeMerged: true }
+    );
+
+
+  const duplicate =
+    brands.find(brand =>
+      brand.id !== brandId &&
+      brand.normalizedName ===
+        normalizedName &&
+      brand.status !== 'merged'
+    );
+
+
+  if (duplicate) {
+    throw new Error('This brand already exists.');
+  }
+
+
+  await updateDoc(
+    doc(db, 'brands', brandId),
+    {
+      name:
+        cleanName,
+
+      normalizedName,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
+
+
 export async function mergeBrand({
   db,
   currentUser,
