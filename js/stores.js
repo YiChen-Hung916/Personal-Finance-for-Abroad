@@ -503,3 +503,88 @@ export async function recordStoreUsage({
     }
   );
 }
+
+
+// ======================================================
+// Remove Store Usage
+// ======================================================
+//
+// Used when Owner deletes a submitted Receipt.
+//
+// One submitted Receipt counts its Store once.
+//
+// usageCount is never allowed to go below 0.
+// ======================================================
+
+export async function removeStoreUsage({
+  db,
+  currentUser,
+  storeId
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !storeId
+  ) {
+    return;
+  }
+
+
+  const storeRef =
+    doc(
+      db,
+      'stores',
+      storeId
+    );
+
+
+  const snapshot =
+    await getDoc(
+      storeRef
+    );
+
+
+  if (!snapshot.exists()) {
+    return;
+  }
+
+
+  const store =
+    snapshot.data();
+
+
+  const currentUsage =
+    Math.max(
+      0,
+      Number(
+        store.usageCount || 0
+      )
+    );
+
+
+  const nextUsage =
+    Math.max(
+      0,
+      currentUsage - 1
+    );
+
+
+  await updateDoc(
+    storeRef,
+    {
+
+      usageCount:
+        nextUsage,
+
+      isFrequent:
+        nextUsage >= 5,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
