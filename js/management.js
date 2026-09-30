@@ -296,6 +296,13 @@ export async function managementPage({
                         </span>
 
                         <button
+  type="button"
+  data-view-product="${product.id}"
+>
+  查看
+</button>
+
+                        <button
                           type="button"
                           data-edit-product="${product.id}"
                         >
@@ -348,6 +355,31 @@ export async function managementPage({
         () => showProductForm();
 
 
+      document
+  .querySelectorAll(
+    '[data-view-product]'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      const productId =
+        button.dataset.viewProduct;
+
+
+      if (!productId) {
+        return;
+      }
+
+
+      location.hash =
+        `#product-detail/${
+          productId
+        }`;
+    };
+  });
+
+      
       document
         .querySelectorAll(
           '[data-edit-product]'
