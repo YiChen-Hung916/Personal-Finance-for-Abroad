@@ -1615,6 +1615,7 @@ const pendingSummaryHtml =
       `
 
     : pendingGroups
+        .slice(0, 3)
         .map(group => {
 
           const waitingValues =
@@ -2258,20 +2259,6 @@ const recentActivityPanel = `
         }
       </h2>
 
-
-      ${
-        recentActivities.length > 0
-          ? `
-              <span class="badge">
-                ${Math.min(
-                  recentActivities.length,
-                  5
-                )}
-              </span>
-            `
-          : ''
-      }
-
     </div>
 
 
@@ -2287,7 +2274,7 @@ const recentActivityPanel = `
 
 
     ${
-      recentActivities.length > 5
+      recentActivities.length > 0
         ? `
             <a
               href="#history"
@@ -2295,31 +2282,12 @@ const recentActivityPanel = `
             >
               ${
                 lang === 'zh-TW'
-                  ? `顯示更多（+${
-                      recentActivities.length - 5
-                    }）`
-                  : `Show More (+${
-                      recentActivities.length - 5
-                    })`
+                  ? '顯示更多'
+                  : 'Show More'
               }
             </a>
           `
-        : (
-            recentActivities.length > 0
-              ? `
-                  <a
-                    href="#history"
-                    class="dashboard-activity-more"
-                  >
-                    ${
-                      lang === 'zh-TW'
-                        ? '顯示更多'
-                        : 'Show More'
-                    }
-                  </a>
-                `
-              : ''
-          )
+        : ''
     }
 
   </section>
@@ -2498,18 +2466,38 @@ const recentActivityPanel = `
         ${pendingSummaryHtml}
 
         ${
-    allPendingConfirmations.length > 0
-      ? `
-          <a href="#pending">
-            ${t('viewAll', lang)}
-          </a>
-        `
-      : ''
-  }
+          pendingGroups.length > 3
+            ? `
+                <a href="#pending">
+                  ${
+                    lang === 'zh-TW'
+                      ? `顯示更多（+${
+                          pendingGroups.length - 3
+                        }）`
+                      : `Show More (+${
+                          pendingGroups.length - 3
+                        })`
+                  }
+                </a>
+              `
+            : (
+                pendingGroups.length > 0
+                  ? `
+                      <a href="#pending">
+                        ${
+                          lang === 'zh-TW'
+                            ? '顯示更多'
+                            : 'Show More'
+                        }
+                      </a>
+                    `
+                  : ''
+              )
+        }
 
 </section>
 
-
+${recentActivityPanel}
       
     `;
 
@@ -2592,27 +2580,8 @@ const recentActivityPanel = `
       ${transferConfirmationPanel}
 
       ${refundConfirmationPanel}
-
-
-      <section class="panel">
-
-        <h2>
-          ${
-            lang === 'zh-TW'
-              ? '最近活動'
-              : 'Recent Activity'
-          }
-        </h2>
-
-        <p class="muted">
-          ${
-            lang === 'zh-TW'
-              ? '你可以查看指派給你的收據並回報信用卡通知。'
-              : 'You can review receipts assigned to you and report the card notification.'
-          }
-        </p>
-
-      </section>
+      
+      ${recentActivityPanel}
     `;
   }
 
@@ -2741,7 +2710,56 @@ page
   });
 
 
+// ==================================================
+// Open Recent Activity Detail
+// ==================================================
 
+page
+  .querySelectorAll(
+    '.dashboard-activity-row'
+  )
+  .forEach(row => {
+
+    const openActivity =
+      () => {
+
+        const href =
+          row.dataset.activityHref;
+
+
+        if (!href) {
+          return;
+        }
+
+
+        location.hash =
+          href.replace(
+            /^#/,
+            ''
+          );
+      };
+
+
+    row.onclick =
+      openActivity;
+
+
+    row.onkeydown =
+      event => {
+
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+
+          event.preventDefault();
+
+          openActivity();
+        }
+      };
+  });
+
+  
   
   // Preload FX reference for Dashboard
   // confirmation cards.
