@@ -865,6 +865,118 @@ allow update:
     }
 
 
+// ==================================================
+    // Unmatched Transactions
+    // ==================================================
+    //
+    // Authorized User:
+    // - may create a report for themselves
+    // - may read only their own reports
+    //
+    // Owner:
+    // - may read all reports
+    // - may resolve reports
+    // - may delete reports
+    // ==================================================
+
+    match /unmatchedTransactions/{reportId} {
+
+
+      // ------------------------------------------------
+      // READ
+      // ------------------------------------------------
+
+      allow get, list:
+        if authorized()
+
+        && (
+          owner()
+
+          ||
+
+          resource.data.reporterUserId ==
+            request.auth.uid
+        );
+
+
+      // ------------------------------------------------
+      // CREATE
+      // ------------------------------------------------
+
+      allow create:
+        if authorized()
+
+        && !owner()
+
+        && request.resource.data.reporterUserId ==
+          request.auth.uid
+
+        && request.resource.data.createdBy ==
+          request.auth.uid
+
+        && request.resource.data.cardId is string
+
+        && request.resource.data.cardId.size() > 0
+
+        && request.resource.data.transactionDate is string
+
+        && request.resource.data.transactionDate.size() > 0
+
+        && request.resource.data.merchant is string
+
+        && request.resource.data.merchant.size() > 0
+
+        && request.resource.data.product is string
+
+        && request.resource.data.amount is number
+
+        && request.resource.data.amount >= 0
+
+        && request.resource.data.currency is string
+
+        && request.resource.data.currency.size() == 3
+
+        && request.resource.data.notes is string
+
+        && request.resource.data.status ==
+          "open"
+
+        && request.resource.data.resolutionType ==
+          null
+
+        && request.resource.data.resolutionNotes ==
+          ""
+
+        && request.resource.data.linkedReceiptId ==
+          null
+
+        && request.resource.data.resolvedBy ==
+          null
+
+        && request.resource.data.resolvedAt ==
+          null;
+
+
+      // ------------------------------------------------
+      // Authorized User cannot edit after submission.
+      //
+      // Owner resolution will be added in the next
+      // phase together with Owner Needs Attention.
+      // ------------------------------------------------
+
+      allow update:
+        if false;
+
+
+      // ------------------------------------------------
+      // DELETE
+      // ------------------------------------------------
+
+      allow delete:
+        if owner();
+    }
+
+
     // ==================================================
     // Other Collections
     //
@@ -874,11 +986,12 @@ allow update:
 
     match /{collection}/{document=**} {
 
-      allow read, write:
-        if owner()
-        && collection != "transfers"
-        && collection != "refunds";
-    }
+  allow read, write:
+    if owner()
+    && collection != "transfers"
+    && collection != "refunds"
+    && collection != "unmatchedTransactions";
+}
 
 
   }
