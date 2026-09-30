@@ -583,6 +583,692 @@ function renderMenu() {
 
 
 // ======================================================
+// Dashboard Recent Activity
+// ======================================================
+//
+// Activity events are derived from existing data.
+//
+// Receipt confirmation:
+//   confirmations/{uid}.confirmedAt
+//
+// Transfer:
+//   createdAt   -> outgoing transfer recorded
+//   confirmedAt -> incoming transfer reported
+//
+// Refund:
+//   createdAt   -> refund recorded
+//   confirmedAt -> refund reported
+//
+// No separate activity collection is created.
+// ======================================================
+
+
+function dashboardActivityTimestampMs(
+  value
+) {
+
+  if (!value) {
+    return 0;
+  }
+
+
+  if (
+    typeof value.toMillis ===
+    'function'
+  ) {
+    return value.toMillis();
+  }
+
+
+  if (
+    typeof value.toDate ===
+    'function'
+  ) {
+    return value
+      .toDate()
+      .getTime();
+  }
+
+
+  if (
+    typeof value.seconds ===
+    'number'
+  ) {
+    return (
+      value.seconds * 1000
+    );
+  }
+
+
+  const parsed =
+    new Date(value)
+      .getTime();
+
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0;
+}
+
+
+// ======================================================
+// Activity Date / Time
+// ======================================================
+
+function dashboardActivityDateTime(
+  value
+) {
+
+  const ms =
+    dashboardActivityTimestampMs(
+      value
+    );
+
+
+  if (!ms) {
+    return '—';
+  }
+
+
+  const date =
+    new Date(ms);
+
+
+  if (lang === 'zh-TW') {
+
+    return date.toLocaleString(
+      'zh-TW',
+      {
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }
+    );
+  }
+
+
+  return date.toLocaleString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }
+  );
+}
+
+
+// ======================================================
+// Load Dashboard Activities
+// ======================================================
+
+async function getDashboardRecentActivities() {
+
+  const activities = [];
+
+
+  // ==================================================
+  // 1. Receipt confirmations
+  // ==================================================
+
+  try {
+
+    const receiptsSnapshot =
+      await getDocs(
+        collection(
+          db,
+          'receipts'
+        )
+      );
+
+
+    for (
+      const receiptDoc
+      of receiptsSnapshot.docs
+    ) {
+
+      const receipt = {
+        id:
+          receiptDoc.id,
+
+        ...receiptDoc.data()
+      };
+
+
+      try {
+
+        const confirmationsSnapshot =
+          await getDocs(
+            collection(
+              db,
+              'receipts',
+              receipt.id,
+              'confirmations'
+            )
+          );
+
+
+        confirmationsSnapshot.docs
+          .forEach(
+            confirmationDoc => {
+
+              const confirmation =
+                confirmationDoc.data();
+
+
+              if (
+                !confirmation.confirmedAt
+              ) {
+                return;
+              }
+
+
+              activities.push({
+
+                type:
+                  'receipt-confirmed',
+
+                timestamp:
+                  confirmation
+                    .confirmedAt,
+
+                timestampMs:
+                  dashboardActivityTimestampMs(
+                    confirmation
+                      .confirmedAt
+                  ),
+
+                title:
+                  lang === 'zh-TW'
+                    ? '收據已回報確認'
+                    : 'Receipt Confirmed',
+
+                detail:
+                  [
+                    receipt.store ||
+                      '—',
+
+                    money(
+                      receipt.total || 0,
+                      receipt.currency ||
+                        ''
+                    )
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+
+                status:
+                  confirmation.hasMismatch
+                    ? (
+                        lang === 'zh-TW'
+                          ? '回報不符'
+                          : 'Mismatch'
+                      )
+                    : (
+                        lang === 'zh-TW'
+                          ? '確認相符'
+                          : 'Matched'
+                      ),
+
+                href:
+                  `#receipt-detail/${
+                    receipt.id
+                  }`
+              });
+            }
+          );
+
+
+      } catch (error) {
+
+        console.error(
+          `Failed to load confirmations for Receipt ${receipt.id}:`,
+          error
+        );
+      }
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Receipt activities:',
+      error
+    );
+  }
+
+
+  // ==================================================
+  // 2. Transfers
+  // ==================================================
+
+  try {
+
+    const transfersSnapshot =
+      await getDocs(
+        collection(
+          db,
+          'transfers'
+        )
+      );
+
+
+    transfersSnapshot.docs
+      .forEach(
+        transferDoc => {
+
+          const transfer = {
+            id:
+              transferDoc.id,
+
+            ...transferDoc.data()
+          };
+
+
+          // ------------------------------------------
+          // Transfer created = outgoing activity
+          // ------------------------------------------
+
+          if (transfer.createdAt) {
+
+            activities.push({
+
+              type:
+                'transfer-out',
+
+              timestamp:
+                transfer.createdAt,
+
+              timestampMs:
+                dashboardActivityTimestampMs(
+                  transfer.createdAt
+                ),
+
+              title:
+                lang === 'zh-TW'
+                  ? '轉帳 · 轉出'
+                  : 'Transfer · Sent',
+
+              detail:
+                `${
+                  escapeHtml(
+                    transfer.senderName ||
+                    '—'
+                  )
+                } → ${
+                  escapeHtml(
+                    transfer.receiverName ||
+                    '—'
+                  )
+                } · ${
+                  money(
+                    transfer.amount || 0,
+                    transfer.currency ||
+                      ''
+                  )
+                }`,
+
+              status:
+                transfer.status ===
+                'pending'
+                  ? (
+                      lang === 'zh-TW'
+                        ? '等待確認'
+                        : 'Pending'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '已記錄'
+                        : 'Recorded'
+                    ),
+
+              href:
+                `#transfer-detail/${
+                  transfer.id
+                }`
+            });
+          }
+
+
+          // ------------------------------------------
+          // Receiver reported transfer
+          // = incoming activity
+          // ------------------------------------------
+
+          if (transfer.confirmedAt) {
+
+            activities.push({
+
+              type:
+                'transfer-in',
+
+              timestamp:
+                transfer.confirmedAt,
+
+              timestampMs:
+                dashboardActivityTimestampMs(
+                  transfer.confirmedAt
+                ),
+
+              title:
+                lang === 'zh-TW'
+                  ? '轉帳 · 轉入回報'
+                  : 'Transfer · Received',
+
+              detail:
+                `${
+                  escapeHtml(
+                    transfer.senderName ||
+                    '—'
+                  )
+                } → ${
+                  escapeHtml(
+                    transfer.receiverName ||
+                    '—'
+                  )
+                } · ${
+                  money(
+                    transfer.reportedAmount ??
+                    transfer.amount ??
+                    0,
+                    transfer.currency ||
+                      ''
+                  )
+                }`,
+
+              status:
+                transfer.status ===
+                'mismatch'
+                  ? (
+                      lang === 'zh-TW'
+                        ? '金額不符'
+                        : 'Mismatch'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '確認收到'
+                        : 'Received'
+                    ),
+
+              href:
+                `#transfer-detail/${
+                  transfer.id
+                }`
+            });
+          }
+        }
+      );
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Transfer activities:',
+      error
+    );
+  }
+
+
+  // ==================================================
+  // 3. Refunds
+  // ==================================================
+
+  try {
+
+    const refundsSnapshot =
+      await getDocs(
+        collection(
+          db,
+          'refunds'
+        )
+      );
+
+
+    refundsSnapshot.docs
+      .forEach(
+        refundDoc => {
+
+          const refund = {
+            id:
+              refundDoc.id,
+
+            ...refundDoc.data()
+          };
+
+
+          // ------------------------------------------
+          // Refund created
+          // ------------------------------------------
+
+          if (refund.createdAt) {
+
+            activities.push({
+
+              type:
+                'refund-created',
+
+              timestamp:
+                refund.createdAt,
+
+              timestampMs:
+                dashboardActivityTimestampMs(
+                  refund.createdAt
+                ),
+
+              title:
+                lang === 'zh-TW'
+                  ? '新增退款'
+                  : 'Refund Recorded',
+
+              detail:
+                `${
+                  escapeHtml(
+                    refund.store || '—'
+                  )
+                } · ${
+                  money(
+                    refund.amount || 0,
+                    refund.currency ||
+                      ''
+                  )
+                }`,
+
+              status:
+                refund.status ===
+                'pending'
+                  ? (
+                      lang === 'zh-TW'
+                        ? '等待退款'
+                        : 'Waiting'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '已記錄'
+                        : 'Recorded'
+                    ),
+
+              href:
+                `#refund-detail/${
+                  refund.id
+                }`
+            });
+          }
+
+
+          // ------------------------------------------
+          // Refund reported / confirmed
+          // ------------------------------------------
+
+          if (refund.confirmedAt) {
+
+            activities.push({
+
+              type:
+                'refund-confirmed',
+
+              timestamp:
+                refund.confirmedAt,
+
+              timestampMs:
+                dashboardActivityTimestampMs(
+                  refund.confirmedAt
+                ),
+
+              title:
+                lang === 'zh-TW'
+                  ? '退款已回報'
+                  : 'Refund Reported',
+
+              detail:
+                `${
+                  escapeHtml(
+                    refund.store || '—'
+                  )
+                } · ${
+                  money(
+                    refund.reportedAmount ??
+                    refund.amount ??
+                    0,
+                    refund.reportedCurrency ||
+                    refund.currency ||
+                    ''
+                  )
+                }`,
+
+              status:
+                refund.status ===
+                'mismatch'
+                  ? (
+                      lang === 'zh-TW'
+                        ? '金額／幣值不符'
+                        : 'Mismatch'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '確認收到'
+                        : 'Received'
+                    ),
+
+              href:
+                `#refund-detail/${
+                  refund.id
+                }`
+            });
+          }
+        }
+      );
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Refund activities:',
+      error
+    );
+  }
+
+
+  // ==================================================
+  // Newest activity first
+  // ==================================================
+
+  activities.sort(
+    (a, b) =>
+      b.timestampMs -
+      a.timestampMs
+  );
+
+
+  return activities;
+}
+
+
+// ======================================================
+// Recent Activity HTML
+// ======================================================
+
+function dashboardRecentActivityHtml(
+  activities
+) {
+
+  if (!activities.length) {
+
+    return `
+      <p class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '目前沒有最近活動。'
+            : 'There is no recent activity.'
+        }
+      </p>
+    `;
+  }
+
+
+  return activities
+    .slice(0, 5)
+    .map(activity => `
+
+      <div
+        class="dashboard-activity-row"
+        data-activity-href="${
+          escapeHtml(
+            activity.href
+          )
+        }"
+        tabindex="0"
+        role="button"
+      >
+
+        <div
+          class="dashboard-activity-main"
+        >
+
+          <strong>
+            ${escapeHtml(
+              activity.title
+            )}
+          </strong>
+
+          <span
+            class="dashboard-activity-detail"
+          >
+            ${activity.detail}
+          </span>
+
+        </div>
+
+
+        <div
+          class="dashboard-activity-meta"
+        >
+
+          <span
+            class="dashboard-activity-status"
+          >
+            ${escapeHtml(
+              activity.status
+            )}
+          </span>
+
+          <span class="muted">
+            ${dashboardActivityDateTime(
+              activity.timestamp
+            )}
+          </span>
+
+        </div>
+
+      </div>
+
+    `)
+    .join('');
+}
+
+
+// ======================================================
 // Dashboard
 // ======================================================
 
@@ -598,6 +1284,9 @@ async function dashboard() {
 
   let myPendingTransfers = [];
   let myPendingRefunds = [];
+  let ownerRefundUpdates = [];
+
+  let recentActivities = [];
 
   // ==================================================
 // Receipt confirmation data
@@ -768,6 +1457,31 @@ try {
 
   console.error(
     'Failed to load dashboard refund data:',
+    error
+  );
+}
+
+
+  // ==================================================
+// Recent Activity
+// ==================================================
+
+try {
+
+  recentActivities =
+    await getDashboardRecentActivities();
+
+
+  console.log(
+    'Dashboard recent activities:',
+    recentActivities
+  );
+
+
+} catch (error) {
+
+  console.error(
+    'Failed to load Dashboard recent activity:',
     error
   );
 }
@@ -1524,6 +2238,93 @@ const refundConfirmationPanel = `
 `;
 
 
+  // ==================================================
+// Recent Activity Panel
+// ==================================================
+
+const recentActivityPanel = `
+
+  <section class="panel">
+
+    <div
+      class="dashboard-activity-heading"
+    >
+
+      <h2>
+        ${
+          lang === 'zh-TW'
+            ? '最近活動'
+            : 'Recent Activity'
+        }
+      </h2>
+
+
+      ${
+        recentActivities.length > 0
+          ? `
+              <span class="badge">
+                ${Math.min(
+                  recentActivities.length,
+                  5
+                )}
+              </span>
+            `
+          : ''
+      }
+
+    </div>
+
+
+    <div
+      class="dashboard-activity-list"
+    >
+
+      ${dashboardRecentActivityHtml(
+        recentActivities
+      )}
+
+    </div>
+
+
+    ${
+      recentActivities.length > 5
+        ? `
+            <a
+              href="#history"
+              class="dashboard-activity-more"
+            >
+              ${
+                lang === 'zh-TW'
+                  ? `顯示更多（+${
+                      recentActivities.length - 5
+                    }）`
+                  : `Show More (+${
+                      recentActivities.length - 5
+                    })`
+              }
+            </a>
+          `
+        : (
+            recentActivities.length > 0
+              ? `
+                  <a
+                    href="#history"
+                    class="dashboard-activity-more"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '顯示更多'
+                        : 'Show More'
+                    }
+                  </a>
+                `
+              : ''
+          )
+    }
+
+  </section>
+`;
+
   
   // ==================================================
   // Owner Dashboard
@@ -1709,37 +2510,7 @@ const refundConfirmationPanel = `
 </section>
 
 
-      <section class="panel">
-
-        <h2>
-          ${t('recent', lang)}
-        </h2>
-
-        ${
-          [
-            'Trader Joe’s',
-            'Amazon',
-            'Target',
-            'Giant Eagle',
-            'Costco'
-          ]
-            .map(
-              (x, i) => `
-                <div class="activity">
-                  <span>Sep ${18 - i}</span>
-                  <span>${x}</span>
-                  <span>Confirmed</span>
-                </div>
-              `
-            )
-            .join('')
-        }
-
-        <a href="#history">
-          ${t('viewAll', lang)}
-        </a>
-
-      </section>
+      
     `;
 
   }
