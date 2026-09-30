@@ -2375,3 +2375,51 @@
     margin-top: 1px;
   }
 }
+
+
+/* ==================================================
+   Authorized User - My Reported Issues
+   ================================================== */
+
+.history-mismatch-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.history-mismatch-filter {
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+
+.history-mismatch-filter.active {
+  font-weight: 700;
+}
+
+.history-mismatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-mismatch-card {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  cursor: pointer;
+}
+
+.history-mismatch-card:last-child {
+  border-bottom: none;
+}
+
+.history-mismatch-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.history-mismatch-card .muted {
+  margin-top: 2px;
+  line-height: 1.35;
+}
