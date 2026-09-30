@@ -307,9 +307,60 @@ refundMismatchSnapshot.docs
     });
   });
 
+
+  // ==================================================
+  // 4. Unmatched transaction reports
+  // ==================================================
+
+  const unmatchedQuery =
+    query(
+      collection(
+        db,
+        'unmatchedTransactions'
+      ),
+      where(
+        'status',
+        '==',
+        'open'
+      )
+    );
+
+
+  const unmatchedSnapshot =
+    await getDocs(
+      unmatchedQuery
+    );
+
+
+  unmatchedSnapshot.docs
+    .forEach(reportDoc => {
+
+      const report = {
+        id:
+          reportDoc.id,
+
+        ...reportDoc.data()
+      };
+
+
+      mismatches.push({
+
+        type:
+          'unmatched',
+
+        id:
+          report.id,
+
+        unmatched:
+          report
+
+      });
+
+    });
+
   
   // ==================================================
-  // 4. Oldest transaction first
+  // 5. Oldest transaction first
   // ==================================================
 
   mismatches.sort(
@@ -322,7 +373,11 @@ refundMismatchSnapshot.docs
             : (
           a.type === 'refund'
             ? a.refund?.refundDate || ''
-            : a.receipt?.purchaseDate || ''
+            : (
+                a.type === 'unmatched'
+                  ? a.unmatched?.transactionDate || ''
+                  : a.receipt?.purchaseDate || ''
+              )
         )
         );
 
@@ -334,7 +389,11 @@ refundMismatchSnapshot.docs
             : (
           b.type === 'refund'
             ? b.refund?.refundDate || ''
-            : b.receipt?.purchaseDate || ''
+            : (
+                b.type === 'unmatched'
+                  ? b.unmatched?.transactionDate || ''
+                  : b.receipt?.purchaseDate || ''
+              )
         )
         );
 
@@ -571,8 +630,48 @@ async function getAllMismatches({
 
 
 
+   // ==================================================
+  // 4. Unmatched transaction reports
   // ==================================================
-  // 4. Oldest transaction first
+
+  const unmatchedSnapshot =
+    await getDocs(
+      collection(
+        db,
+        'unmatchedTransactions'
+      )
+    );
+
+
+  unmatchedSnapshot.docs
+    .forEach(reportDoc => {
+
+      const report = {
+        id:
+          reportDoc.id,
+
+        ...reportDoc.data()
+      };
+
+
+      mismatches.push({
+
+        type:
+          'unmatched',
+
+        id:
+          report.id,
+
+        unmatched:
+          report
+
+      });
+
+    });
+
+  
+  // ==================================================
+  // 5. Oldest transaction first
   // ==================================================
 
   mismatches.sort(
@@ -582,11 +681,15 @@ async function getAllMismatches({
         String(
           a.type === 'transfer'
             ? a.transfer?.transferDate || ''
+: (
+          a.type === 'refund'
+            ? a.refund?.refundDate || ''
             : (
-                a.type === 'refund'
-                  ? a.refund?.refundDate || ''
+                a.type === 'unmatched'
+                  ? a.unmatched?.transactionDate || ''
                   : a.receipt?.purchaseDate || ''
               )
+        )
         );
 
 
@@ -595,11 +698,15 @@ async function getAllMismatches({
           b.type === 'transfer'
             ? b.transfer?.transferDate || ''
             : (
-                b.type === 'refund'
-                  ? b.refund?.refundDate || ''
+          b.type === 'refund'
+            ? b.refund?.refundDate || ''
+            : (
+                b.type === 'unmatched'
+                  ? b.unmatched?.transactionDate || ''
                   : b.receipt?.purchaseDate || ''
               )
-        );
+        )
+  );
 
 
       if (!dateA && !dateB) {
@@ -634,6 +741,176 @@ export function mismatchDashboardCardHtml({
   lang
 }) {
 
+
+   // ==================================================
+  // Unmatched transaction report
+  // ==================================================
+
+  if (
+    item.type === 'unmatched'
+  ) {
+
+    const report =
+      item.unmatched;
+
+
+    if (!report) {
+      return '';
+    }
+
+
+    const resolved =
+      report.status === 'resolved';
+
+
+    const cardLabel =
+      [
+        report.cardSnapshot?.issuer,
+        report.cardSnapshot?.cardName,
+        report.cardSnapshot?.last4
+          ? `•••• ${report.cardSnapshot.last4}`
+          : ''
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+
+    return `
+
+      <div
+        class="card${resolved ? '' : ' mismatch-card'}"
+        data-mismatch-type="unmatched"
+        data-unmatched-id="${escapeHtml(
+          report.id
+        )}"
+      >
+
+        <div class="mismatch-card-main">
+
+          <div>
+
+            <strong>
+              ${
+                lang === 'zh-TW'
+                  ? '未找到交易'
+                  : 'Unmatched Transaction'
+              }
+              ·
+              ${escapeHtml(
+                report.merchant || '—'
+              )}
+            </strong>
+
+            <span class="muted">
+              ${escapeHtml(
+                report.transactionDate || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <strong>
+            ${formatMoney(
+              report.amount || 0,
+              report.currency || ''
+            )}
+          </strong>
+
+        </div>
+
+
+        ${
+          cardLabel
+            ? `
+                <div class="field">
+
+                  <span class="field-label">
+                    ${
+                      lang === 'zh-TW'
+                        ? '信用卡'
+                        : 'Card'
+                    }
+                  </span>
+
+                  <span>
+                    ${escapeHtml(cardLabel)}
+                  </span>
+
+                </div>
+              `
+            : ''
+        }
+
+
+        <div class="field">
+
+          <span class="field-label">
+            ${
+              lang === 'zh-TW'
+                ? '回報人'
+                : 'Reported by'
+            }
+          </span>
+
+          <span>
+            ${escapeHtml(
+              report.reporterUserName || '—'
+            )}
+          </span>
+
+        </div>
+
+
+        <div class="mismatch-reasons">
+
+          <span class="${
+            resolved
+              ? 'badge'
+              : 'mismatch-reason-badge'
+          }">
+            ${
+              resolved
+                ? (
+                    lang === 'zh-TW'
+                      ? '已處理'
+                      : 'Resolved'
+                  )
+                : (
+                    lang === 'zh-TW'
+                      ? '系統找不到對應 Receipt'
+                      : 'No matching Receipt found'
+                  )
+            }
+          </span>
+
+        </div>
+
+
+        <div class="actions">
+
+          <button
+            type="button"
+            class="view-mismatch-btn"
+            data-mismatch-type="unmatched"
+            data-unmatched-id="${escapeHtml(
+              report.id
+            )}"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '查看'
+                : 'View'
+            }
+          </button>
+
+        </div>
+
+      </div>
+    `;
+  }
+
+  
   // ==================================================
 // Refund mismatch
 // ==================================================
@@ -1324,6 +1601,16 @@ export async function mismatchPage({
   allMismatches.filter(
     item => {
 
+      if (
+        item.type === 'unmatched'
+      ) {
+
+        return (
+          item.unmatched
+            ?.status !== 'resolved'
+        );
+      }
+      
       if (item.type === 'transfer') {
 
         return (
@@ -1354,6 +1641,16 @@ const resolvedMismatches =
   allMismatches.filter(
     item => {
 
+      if (
+        item.type === 'unmatched'
+      ) {
+
+        return (
+          item.unmatched
+            ?.status === 'resolved'
+        );
+      }
+      
       if (item.type === 'transfer') {
 
         return (
@@ -1556,6 +1853,30 @@ export function bindMismatchViewButtons(
             button.dataset.mismatchType;
 
 
+          // ==========================================
+          // Unmatched transaction report
+          // ==========================================
+
+          if (
+            mismatchType === 'unmatched'
+          ) {
+
+            const unmatchedId =
+              button.dataset.unmatchedId;
+
+
+            if (!unmatchedId) {
+              return;
+            }
+
+
+            location.hash =
+              `#unmatched-detail/${unmatchedId}`;
+
+            return;
+          }
+
+          
           // ==========================================
           // Transfer mismatch
           // ==========================================
@@ -2421,5 +2742,1038 @@ location.hash =
             '#mismatches';
         };
     }
+  }
+}
+
+
+// ======================================================
+// Owner Unmatched Transaction Detail
+// ======================================================
+
+export async function unmatchedTransactionDetailPage({
+  db,
+  currentUser,
+  currentRole,
+  lang,
+  page,
+  reportId
+}) {
+
+  if (
+    !db ||
+    !currentUser ||
+    !page ||
+    currentRole !== 'owner' ||
+    !reportId
+  ) {
+
+    page.innerHTML = `
+      <section class="panel">
+
+        <h1>
+          ${
+            lang === 'zh-TW'
+              ? '無權存取'
+              : 'Access Denied'
+          }
+        </h1>
+
+      </section>
+    `;
+
+    return;
+  }
+
+
+  page.innerHTML = `
+    <section class="panel">
+
+      <p class="muted">
+        ${
+          lang === 'zh-TW'
+            ? '正在載入未找到的交易…'
+            : 'Loading unmatched transaction…'
+        }
+      </p>
+
+    </section>
+  `;
+
+
+  try {
+
+    const reportRef =
+      doc(
+        db,
+        'unmatchedTransactions',
+        reportId
+      );
+
+
+    const reportSnapshot =
+      await getDoc(
+        reportRef
+      );
+
+
+    if (
+      !reportSnapshot.exists()
+    ) {
+
+      page.innerHTML = `
+        <section class="panel">
+
+          <h1>
+            ${
+              lang === 'zh-TW'
+                ? '找不到這筆回報'
+                : 'Report Not Found'
+            }
+          </h1>
+
+          <div class="actions">
+
+            <button
+              type="button"
+              id="backToMismatchList"
+            >
+              ${
+                lang === 'zh-TW'
+                  ? '返回需要處理'
+                  : 'Back'
+              }
+            </button>
+
+          </div>
+
+        </section>
+      `;
+
+
+      page.querySelector(
+        '#backToMismatchList'
+      ).onclick =
+        () => {
+
+          location.hash =
+            '#mismatches';
+        };
+
+
+      return;
+    }
+
+
+    const report = {
+      id:
+        reportSnapshot.id,
+
+      ...reportSnapshot.data()
+    };
+
+
+    const resolved =
+      report.status === 'resolved';
+
+
+    const cardLabel =
+      [
+        report.cardSnapshot?.issuer,
+        report.cardSnapshot?.cardName,
+        report.cardSnapshot?.last4
+          ? `•••• ${report.cardSnapshot.last4}`
+          : ''
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+
+    let linkedReceipt = null;
+
+
+    if (
+      report.linkedReceiptId
+    ) {
+
+      try {
+
+        const linkedReceiptSnapshot =
+          await getDoc(
+            doc(
+              db,
+              'receipts',
+              report.linkedReceiptId
+            )
+          );
+
+
+        if (
+          linkedReceiptSnapshot.exists()
+        ) {
+
+          linkedReceipt = {
+            id:
+              linkedReceiptSnapshot.id,
+
+            ...linkedReceiptSnapshot.data()
+          };
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Failed to load linked receipt:',
+          error
+        );
+      }
+    }
+
+
+    let receiptOptions = '';
+
+
+    if (!resolved) {
+
+      const receiptSnapshot =
+        await getDocs(
+          collection(
+            db,
+            'receipts'
+          )
+        );
+
+
+      const receipts =
+        receiptSnapshot.docs
+          .map(receiptDoc => ({
+            id:
+              receiptDoc.id,
+
+            ...receiptDoc.data()
+          }))
+          .sort(
+            (a, b) =>
+              String(
+                b.purchaseDate || ''
+              ).localeCompare(
+                String(
+                  a.purchaseDate || ''
+                )
+              )
+          );
+
+
+      receiptOptions =
+        receipts
+          .map(receipt => {
+
+            const label =
+              [
+                receipt.purchaseDate || '—',
+                receipt.store || '—',
+                `${receipt.currency || ''} ${Number(
+                  receipt.total || 0
+                ).toFixed(2)}`
+              ].join(' · ');
+
+
+            return `
+              <option
+                value="${escapeHtml(
+                  receipt.id
+                )}"
+              >
+                ${escapeHtml(label)}
+              </option>
+            `;
+          })
+          .join('');
+    }
+
+
+    let resolutionTypeText = '—';
+
+
+    if (
+      report.resolutionType ===
+      'linkedReceipt'
+    ) {
+
+      resolutionTypeText =
+        lang === 'zh-TW'
+          ? '找到對應 Receipt'
+          : 'Matching Receipt found';
+
+    } else if (
+      report.resolutionType ===
+      'unrecordedTransaction'
+    ) {
+
+      resolutionTypeText =
+        lang === 'zh-TW'
+          ? '確認為尚未記錄的交易'
+          : 'Confirmed as unrecorded transaction';
+
+    } else if (
+      report.resolutionType ===
+      'invalidTransaction'
+    ) {
+
+      resolutionTypeText =
+        lang === 'zh-TW'
+          ? '非有效交易 / 不需處理'
+          : 'Invalid / no action required';
+    }
+
+
+    page.innerHTML = `
+
+      <section class="panel">
+
+        <div class="actions">
+
+          <button
+            type="button"
+            id="backToMismatchList"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '← 返回需要處理'
+                : '← Back'
+            }
+          </button>
+
+        </div>
+
+
+        <h1>
+          ${
+            lang === 'zh-TW'
+              ? '未找到的交易'
+              : 'Unmatched Transaction'
+          }
+        </h1>
+
+
+        <div class="card">
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '狀態'
+                  : 'Status'
+              }
+            </span>
+
+            <strong>
+              ${
+                resolved
+                  ? (
+                      lang === 'zh-TW'
+                        ? '已處理'
+                        : 'Resolved'
+                    )
+                  : (
+                      lang === 'zh-TW'
+                        ? '等待處理'
+                        : 'Pending'
+                    )
+              }
+            </strong>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '回報人'
+                  : 'Reported by'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                report.reporterUserName || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '交易日期'
+                  : 'Transaction Date'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                report.transactionDate || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '信用卡'
+                  : 'Card'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                cardLabel || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '商家 / 店家'
+                  : 'Merchant / Store'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                report.merchant || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '商品'
+                  : 'Product'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                report.product || '—'
+              )}
+            </span>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '金額'
+                  : 'Amount'
+              }
+            </span>
+
+            <strong>
+              ${formatMoney(
+                report.amount || 0,
+                report.currency || ''
+              )}
+            </strong>
+
+          </div>
+
+
+          <div class="field">
+
+            <span class="field-label">
+              ${
+                lang === 'zh-TW'
+                  ? '備註'
+                  : 'Notes'
+              }
+            </span>
+
+            <span>
+              ${escapeHtml(
+                report.notes || '—'
+              )}
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      ${
+        resolved
+
+          ? `
+
+              <section class="panel">
+
+                <h2>
+                  ${
+                    lang === 'zh-TW'
+                      ? 'Owner 處理結果'
+                      : 'Owner Resolution'
+                  }
+                </h2>
+
+
+                <div class="card">
+
+                  <div class="field">
+
+                    <span class="field-label">
+                      ${
+                        lang === 'zh-TW'
+                          ? '處理方式'
+                          : 'Resolution'
+                      }
+                    </span>
+
+                    <strong>
+                      ${escapeHtml(
+                        resolutionTypeText
+                      )}
+                    </strong>
+
+                  </div>
+
+
+                  ${
+                    report.resolutionType ===
+                      'linkedReceipt'
+
+                      ? `
+
+                          <div class="field">
+
+                            <span class="field-label">
+                              Receipt
+                            </span>
+
+                            <span>
+                              ${
+                                linkedReceipt
+                                  ? escapeHtml(
+                                      `${
+                                        linkedReceipt.purchaseDate || '—'
+                                      } · ${
+                                        linkedReceipt.store || '—'
+                                      } · ${
+                                        linkedReceipt.currency || ''
+                                      } ${
+                                        Number(
+                                          linkedReceipt.total || 0
+                                        ).toFixed(2)
+                                      }`
+                                    )
+                                  : escapeHtml(
+                                      report.linkedReceiptId || '—'
+                                    )
+                              }
+                            </span>
+
+                          </div>
+
+
+                          ${
+                            linkedReceipt
+                              ? `
+                                  <div class="actions">
+
+                                    <button
+                                      type="button"
+                                      id="viewLinkedReceipt"
+                                    >
+                                      ${
+                                        lang === 'zh-TW'
+                                          ? '查看 Receipt'
+                                          : 'View Receipt'
+                                      }
+                                    </button>
+
+                                  </div>
+                                `
+                              : ''
+                          }
+
+                        `
+                      : ''
+                  }
+
+
+                  <div class="field">
+
+                    <span class="field-label">
+                      ${
+                        lang === 'zh-TW'
+                          ? '處理備註'
+                          : 'Resolution Notes'
+                      }
+                    </span>
+
+                    <span>
+                      ${escapeHtml(
+                        report.resolutionNotes || '—'
+                      )}
+                    </span>
+
+                  </div>
+
+                </div>
+
+              </section>
+            `
+
+          : `
+
+              <section class="panel">
+
+                <h2>
+                  ${
+                    lang === 'zh-TW'
+                      ? 'Owner 處理'
+                      : 'Owner Resolution'
+                  }
+                </h2>
+
+
+                <div class="field">
+
+                  <label
+                    for="unmatchedResolutionType"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '處理方式 *'
+                        : 'Resolution *'
+                    }
+                  </label>
+
+                  <select
+                    id="unmatchedResolutionType"
+                  >
+
+                    <option value="">
+                      ${
+                        lang === 'zh-TW'
+                          ? '請選擇'
+                          : 'Select'
+                      }
+                    </option>
+
+                    <option value="linkedReceipt">
+                      ${
+                        lang === 'zh-TW'
+                          ? '找到對應 Receipt'
+                          : 'Matching Receipt found'
+                      }
+                    </option>
+
+                    <option value="unrecordedTransaction">
+                      ${
+                        lang === 'zh-TW'
+                          ? '確認為尚未記錄的交易'
+                          : 'Confirmed as unrecorded transaction'
+                      }
+                    </option>
+
+                    <option value="invalidTransaction">
+                      ${
+                        lang === 'zh-TW'
+                          ? '非有效交易 / 不需處理'
+                          : 'Invalid / no action required'
+                      }
+                    </option>
+
+                  </select>
+
+                </div>
+
+
+                <div
+                  id="linkedReceiptField"
+                  class="field"
+                  hidden
+                >
+
+                  <label
+                    for="linkedReceiptSelect"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '對應 Receipt *'
+                        : 'Matching Receipt *'
+                    }
+                  </label>
+
+                  <select
+                    id="linkedReceiptSelect"
+                  >
+
+                    <option value="">
+                      ${
+                        lang === 'zh-TW'
+                          ? '請選擇 Receipt'
+                          : 'Select Receipt'
+                      }
+                    </option>
+
+                    ${receiptOptions}
+
+                  </select>
+
+                </div>
+
+
+                <div class="field">
+
+                  <label
+                    for="unmatchedResolutionNotes"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '處理備註'
+                        : 'Resolution Notes'
+                    }
+                  </label>
+
+                  <textarea
+                    id="unmatchedResolutionNotes"
+                    rows="4"
+                  ></textarea>
+
+                </div>
+
+
+                <p
+                  id="unmatchedResolutionMessage"
+                  class="muted"
+                ></p>
+
+
+                <div class="actions">
+
+                  <button
+                    type="button"
+                    id="resolveUnmatchedBtn"
+                    class="primary"
+                  >
+                    ${
+                      lang === 'zh-TW'
+                        ? '完成處理'
+                        : 'Resolve'
+                    }
+                  </button>
+
+                </div>
+
+              </section>
+            `
+      }
+
+    `;
+
+
+    page.querySelector(
+      '#backToMismatchList'
+    ).onclick =
+      () => {
+
+        location.hash =
+          '#mismatches';
+      };
+
+
+    const viewLinkedReceipt =
+      page.querySelector(
+        '#viewLinkedReceipt'
+      );
+
+
+    if (
+      viewLinkedReceipt &&
+      linkedReceipt
+    ) {
+
+      viewLinkedReceipt.onclick =
+        () => {
+
+          location.hash =
+            `#receipt-detail/${linkedReceipt.id}`;
+        };
+    }
+
+
+    if (resolved) {
+      return;
+    }
+
+
+    const resolutionTypeSelect =
+      page.querySelector(
+        '#unmatchedResolutionType'
+      );
+
+
+    const linkedReceiptField =
+      page.querySelector(
+        '#linkedReceiptField'
+      );
+
+
+    const linkedReceiptSelect =
+      page.querySelector(
+        '#linkedReceiptSelect'
+      );
+
+
+    const resolutionNotes =
+      page.querySelector(
+        '#unmatchedResolutionNotes'
+      );
+
+
+    const message =
+      page.querySelector(
+        '#unmatchedResolutionMessage'
+      );
+
+
+    const resolveButton =
+      page.querySelector(
+        '#resolveUnmatchedBtn'
+      );
+
+
+    resolutionTypeSelect.onchange =
+      () => {
+
+        linkedReceiptField.hidden =
+          resolutionTypeSelect.value !==
+          'linkedReceipt';
+
+
+        if (
+          resolutionTypeSelect.value !==
+          'linkedReceipt'
+        ) {
+
+          linkedReceiptSelect.value =
+            '';
+        }
+      };
+
+
+    resolveButton.onclick =
+      async () => {
+
+        const resolutionType =
+          resolutionTypeSelect.value;
+
+
+        const linkedReceiptId =
+          linkedReceiptSelect.value;
+
+
+        const cleanNotes =
+          String(
+            resolutionNotes.value || ''
+          ).trim();
+
+
+        message.textContent = '';
+
+
+        if (!resolutionType) {
+
+          message.textContent =
+            lang === 'zh-TW'
+              ? '請選擇處理方式。'
+              : 'Please select a resolution.';
+
+          return;
+        }
+
+
+        if (
+          resolutionType ===
+            'linkedReceipt' &&
+          !linkedReceiptId
+        ) {
+
+          message.textContent =
+            lang === 'zh-TW'
+              ? '請選擇對應的 Receipt。'
+              : 'Please select a matching Receipt.';
+
+          return;
+        }
+
+
+        const confirmed =
+          window.confirm(
+            lang === 'zh-TW'
+              ? '確定要完成這筆問題回報的處理嗎？完成後會移到「已處理」。'
+              : 'Resolve this report?'
+          );
+
+
+        if (!confirmed) {
+          return;
+        }
+
+
+        resolveButton.disabled =
+          true;
+
+
+        resolveButton.textContent =
+          lang === 'zh-TW'
+            ? '處理中…'
+            : 'Saving…';
+
+
+        try {
+
+          await updateDoc(
+            reportRef,
+            {
+              status:
+                'resolved',
+
+              resolutionType,
+
+              resolutionNotes:
+                cleanNotes,
+
+              linkedReceiptId:
+                resolutionType ===
+                  'linkedReceipt'
+                  ? linkedReceiptId
+                  : null,
+
+              resolvedBy:
+                currentUser.uid,
+
+              resolvedAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp()
+            }
+          );
+
+
+          sessionStorage.setItem(
+            'mismatchActiveTab',
+            'resolved'
+          );
+
+
+          location.hash =
+            '#mismatches';
+
+
+        } catch (error) {
+
+          console.error(
+            'Failed to resolve unmatched transaction:',
+            error
+          );
+
+
+          message.textContent =
+            lang === 'zh-TW'
+              ? `處理失敗：${error.message}`
+              : `Failed: ${error.message}`;
+
+
+          resolveButton.disabled =
+            false;
+
+
+          resolveButton.textContent =
+            lang === 'zh-TW'
+              ? '完成處理'
+              : 'Resolve';
+        }
+      };
+
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load unmatched transaction:',
+      error
+    );
+
+
+    page.innerHTML = `
+      <section class="panel">
+
+        <h1>
+          ${
+            lang === 'zh-TW'
+              ? '目前無法載入這筆回報'
+              : 'Unable to Load Report'
+          }
+        </h1>
+
+        <p class="danger">
+          ${escapeHtml(
+            error.message
+          )}
+        </p>
+
+        <div class="actions">
+
+          <button
+            type="button"
+            id="backToMismatchList"
+          >
+            ${
+              lang === 'zh-TW'
+                ? '返回需要處理'
+                : 'Back'
+            }
+          </button>
+
+        </div>
+
+      </section>
+    `;
+
+
+    page.querySelector(
+      '#backToMismatchList'
+    ).onclick =
+      () => {
+
+        location.hash =
+          '#mismatches';
+      };
   }
 }
