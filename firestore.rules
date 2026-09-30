@@ -180,6 +180,29 @@ allow delete:
   && uid != request.auth.uid;
     }
 
+
+// ==================================================
+    // Cards
+    // ==================================================
+    //
+    // All authorized family members may read Card
+    // reference information used by confirmation and
+    // unmatched-transaction workflows.
+    //
+    // Only Owner may create, edit, or delete Cards.
+    // ==================================================
+
+    match /cards/{cardId} {
+
+      allow get, list:
+        if authorized();
+
+
+      allow create, update, delete:
+        if owner();
+    }
+
+
 // ==================================================
     // Master Data
     // ==================================================
