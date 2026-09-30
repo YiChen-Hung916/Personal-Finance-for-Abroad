@@ -1984,23 +1984,109 @@ function addItem() {
 
         <label class="field">
 
-          ${
-            lang === 'zh-TW'
-              ? '優惠備註'
-              : 'Promotion Note'
-          }
+  ${
+    lang === 'zh-TW'
+      ? '優惠類型'
+      : 'Promotion Type'
+  }
 
-          <input
-            class="itemPromotionNote"
-            type="text"
-            placeholder="${
-              lang === 'zh-TW'
-                ? '例如：買一送一，需買 2 件'
-                : 'e.g. Buy 1 get 1 free; requires 2'
-            }"
-          >
+  <select class="itemPromotionType">
 
-        </label>
+    <option value="sale">
+      ${
+        lang === 'zh-TW'
+          ? '特價'
+          : 'Sale'
+      }
+    </option>
+
+    <option value="memberPrice">
+      ${
+        lang === 'zh-TW'
+          ? '會員價'
+          : 'Member Price'
+      }
+    </option>
+
+    <option value="coupon">
+      Coupon
+    </option>
+
+    <option value="clearance">
+      ${
+        lang === 'zh-TW'
+          ? '出清'
+          : 'Clearance'
+      }
+    </option>
+
+    <option value="multiBuy">
+      ${
+        lang === 'zh-TW'
+          ? '多件優惠'
+          : 'Multi-buy'
+      }
+    </option>
+
+    <option value="bogo">
+      BOGO
+    </option>
+
+    <option value="other">
+      ${
+        lang === 'zh-TW'
+          ? '其他'
+          : 'Other'
+      }
+    </option>
+
+  </select>
+
+</label>
+
+
+<label class="field">
+
+  ${
+    lang === 'zh-TW'
+      ? '優惠所需數量（選填）'
+      : 'Required Quantity (optional)'
+  }
+
+  <input
+    class="itemPromotionRequiredQuantity"
+    type="number"
+    min="1"
+    step="1"
+    placeholder="${
+      lang === 'zh-TW'
+        ? '例如：2'
+        : 'e.g. 2'
+    }"
+  >
+
+</label>
+
+
+<label class="field">
+
+  ${
+    lang === 'zh-TW'
+      ? '優惠備註'
+      : 'Promotion Note'
+  }
+
+  <input
+    class="itemPromotionNote"
+    type="text"
+    placeholder="${
+      lang === 'zh-TW'
+        ? '例如：2 件 $7、Target Circle、買一送一'
+        : 'e.g. 2 for $7, Target Circle, BOGO'
+    }"
+  >
+
+</label>
 
       </div>
 
@@ -2298,15 +2384,25 @@ function addItem() {
 
       if (!discountCheckbox.checked) {
 
-        d.querySelector(
-          '.itemDiscountedTotal'
-        ).value = '';
+  d.querySelector(
+    '.itemDiscountedTotal'
+  ).value = '';
 
 
-        d.querySelector(
-          '.itemPromotionNote'
-        ).value = '';
-      }
+  d.querySelector(
+    '.itemPromotionType'
+  ).value = 'sale';
+
+
+  d.querySelector(
+    '.itemPromotionRequiredQuantity'
+  ).value = '';
+
+
+  d.querySelector(
+    '.itemPromotionNote'
+  ).value = '';
+}
 
 
       updateReceiptTotal();
@@ -3108,6 +3204,31 @@ if (paymentMethod === 'card') {
         : null;
 
 
+    const promotionType =
+  hasDiscount
+    ? (
+        item.querySelector(
+          '.itemPromotionType'
+        )?.value || 'sale'
+      )
+    : '';
+
+
+const promotionRequiredQuantityInput =
+  item.querySelector(
+    '.itemPromotionRequiredQuantity'
+  )?.value || '';
+
+
+const promotionRequiredQuantity =
+  hasDiscount &&
+  promotionRequiredQuantityInput !== ''
+    ? Number(
+        promotionRequiredQuantityInput
+      )
+    : null;
+
+
     const promotionNote =
       hasDiscount
         ? item.querySelector(
@@ -3153,6 +3274,10 @@ if (paymentMethod === 'card') {
 
       effectiveDiscountRate:
         result.effectiveRate,
+
+      promotionType,
+
+      promotionRequiredQuantity,
 
       promotionNote,
 
