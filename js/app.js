@@ -46,6 +46,10 @@ import {
 } from './cards.js';
 
 import {
+  managementPage
+} from './management.js';
+
+import {
   transferPage,
   transferDetailPage,
   getMyPendingTransfers,
@@ -495,7 +499,7 @@ function menu(role) {
       </a>
       
       <a href="#management">
-        Stores / Products / Users
+        Data Management
       </a>
     `
     : `
@@ -2879,7 +2883,6 @@ if (r === 'dashboard') {
     escapeHtml
   });
 
-
 } else if (r === 'cards') {
 
   cardsPage({
@@ -2890,6 +2893,17 @@ if (r === 'dashboard') {
     page,
     escapeHtml
   });
+
+} else if (r === 'management') {
+
+  managementPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page
+  });
+
 
 } else {
 
