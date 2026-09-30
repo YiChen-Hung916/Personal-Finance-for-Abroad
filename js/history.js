@@ -1597,6 +1597,54 @@ async function getAuthorizedUserReceiptMismatches({
 
 
 // ======================================================
+// Authorized User - Unmatched Transaction Reports
+// ======================================================
+
+async function getAuthorizedUserUnmatchedReports({
+  db,
+  currentUser
+}) {
+
+  if (
+    !db ||
+    !currentUser
+  ) {
+    return [];
+  }
+
+
+  const reportQuery =
+    query(
+      collection(
+        db,
+        'unmatchedTransactions'
+      ),
+      where(
+        'reporterUserId',
+        '==',
+        currentUser.uid
+      )
+    );
+
+
+  const snapshot =
+    await getDocs(
+      reportQuery
+    );
+
+
+  return snapshot.docs.map(
+    reportDoc => ({
+      id:
+        reportDoc.id,
+
+      ...reportDoc.data()
+    })
+  );
+}
+
+
+// ======================================================
 // Build Authorized User Mismatch List
 // ======================================================
 
@@ -1604,6 +1652,7 @@ function buildAuthorizedUserMismatchHistory({
   receiptMismatches,
   transfers,
   refunds,
+  unmatchedReports,
   currentUser
 }) {
 
@@ -1766,6 +1815,77 @@ function buildAuthorizedUserMismatchHistory({
 
 
   // --------------------------------------------------
+  // Unmatched transaction reports
+  // --------------------------------------------------
+
+  unmatchedReports.forEach(
+    report => {
+
+      items.push({
+
+        id:
+          report.id,
+
+        type:
+          'unmatched',
+
+        date:
+          report.transactionDate || '',
+
+        store:
+          report.merchant || '—',
+
+        title:
+          report.merchant || '—',
+
+        amount:
+          Number(
+            report.amount || 0
+          ),
+
+        currency:
+          String(
+            report.currency || ''
+          )
+            .trim()
+            .toUpperCase(),
+
+        reportedAmount:
+          null,
+
+        reportedCurrency:
+          '',
+
+        mismatchReasons:
+          ['unmatched'],
+
+        resolved:
+          report.status ===
+            'resolved',
+
+        confirmedAt:
+          report.createdAt || null,
+
+        resolutionType:
+          report.resolutionType || null,
+
+        resolutionNotes:
+          report.resolutionNotes || '',
+
+        linkedReceiptId:
+          report.linkedReceiptId || null,
+
+        href:
+          report.linkedReceiptId
+            ? `#receipt-detail/${report.linkedReceiptId}`
+            : ''
+      });
+
+    }
+  );
+
+  
+  // --------------------------------------------------
   // Newest first
   // --------------------------------------------------
 
@@ -1843,7 +1963,9 @@ function authorizedUserMismatchCardHtml({
     title =
       item.title || '—';
 
-  } else {
+  } else if (
+    item.type === 'refund'
+  ) {
 
     typeText =
       lang === 'zh-TW'
@@ -1852,6 +1974,20 @@ function authorizedUserMismatchCardHtml({
 
     title =
       item.store || '—';
+
+  } else if (
+    item.type === 'unmatched'
+  ) {
+
+    typeText =
+      lang === 'zh-TW'
+        ? '未找到交易'
+        : 'Unmatched';
+
+    title =
+      item.title ||
+      item.store ||
+      '—';
   }
 
 
@@ -1885,7 +2021,18 @@ function authorizedUserMismatchCardHtml({
   if (
     reasons.includes('currencyType')
   ) {
+    
+if (
+    reasons.includes('unmatched')
+  ) {
 
+    reasonLabels.push(
+      lang === 'zh-TW'
+        ? '找不到對應 Receipt'
+        : 'No matching Receipt'
+    );
+  }
+    
     reasonLabels.push(
       lang === 'zh-TW'
         ? '幣別類型不符'
@@ -2172,11 +2319,19 @@ if (
     });
 
 
+  const unmatchedReports =
+    await getAuthorizedUserUnmatchedReports({
+      db,
+      currentUser
+    });
+
+
   myReportedMismatches =
     buildAuthorizedUserMismatchHistory({
       receiptMismatches,
       transfers,
       refunds,
+      unmatchedReports,
       currentUser
     });
 }
@@ -2538,6 +2693,18 @@ if (
             lang === 'zh-TW'
               ? '退款'
               : 'Refunds'
+          }
+        </button>
+
+        <button
+          type="button"
+          class="secondary history-mismatch-filter"
+          data-mismatch-type="unmatched"
+        >
+          ${
+            lang === 'zh-TW'
+              ? '未找到交易'
+              : 'Unmatched'
           }
         </button>
 
