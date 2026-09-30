@@ -987,12 +987,32 @@ export async function managementPage({
                     </div>
 
 
-                    <button
-                      type="button"
-                      data-simple-merge="${item.id}"
-                    >
-                      Merge
-                    </button>
+                    <div class="management-row-meta">
+
+  <button
+    type="button"
+    data-simple-merge="${item.id}"
+  >
+    Merge
+  </button>
+
+  <button
+    type="button"
+    data-simple-undo-main="${item.id}"
+    ${
+      merged.some(
+        mergedItem =>
+          mergedItem.mergedIntoId ===
+          item.id
+      )
+        ? ''
+        : 'disabled'
+    }
+  >
+    取消合併
+  </button>
+
+</div>
 
                   </div>
 
@@ -1008,67 +1028,6 @@ export async function managementPage({
       </div>
 
 
-      ${
-        merged.length
-          ? `
-
-              <div class="management-merged-section">
-
-                <h3>
-                  已合併
-                </h3>
-
-                ${
-                  merged
-                    .map(item => {
-
-                      const target =
-                        items.find(candidate =>
-                          candidate.id ===
-                          item.mergedIntoId
-                        );
-
-
-                      return `
-
-                        <div class="management-row management-row-merged">
-
-                          <div>
-
-                            <strong>
-                              ${escapeLocal(item.name)}
-                            </strong>
-
-                            <span class="muted">
-                              →
-                              ${
-                                escapeLocal(
-                                  target?.name ||
-                                  'Unknown'
-                                )
-                              }
-                            </span>
-
-                          </div>
-
-
-                          <button
-                            type="button"
-                            data-simple-undo="${item.id}"
-                          >
-                            取消合併
-                          </button>
-
-                        </div>
-                      `;
-                    })
-                    .join('')
-                }
-
-              </div>
-            `
-          : ''
-      }
     `;
 
 
@@ -1159,143 +1118,236 @@ export async function managementPage({
 
 
     document
-      .querySelectorAll(
-        '[data-simple-merge]'
-      )
-      .forEach(button => {
+  .querySelectorAll(
+    '[data-simple-merge]'
+  )
+  .forEach(button => {
 
-        button.onclick = async () => {
+    button.onclick = async () => {
 
-          const source =
-            active.find(item =>
-              item.id ===
-              button.dataset.simpleMerge
+      const mainItem =
+        active.find(
+          item =>
+            item.id ===
+            button.dataset.simpleMerge
+        );
+
+
+      if (!mainItem) {
+        return;
+      }
+
+
+      const candidates =
+        active.filter(item => {
+
+          if (item.id === mainItem.id) {
+            return false;
+          }
+
+
+          const itemIsAlreadyMain =
+            merged.some(
+              mergedItem =>
+                mergedItem.mergedIntoId ===
+                item.id
             );
 
 
-          const candidates =
-            active.filter(item =>
-              item.id !== source?.id
-            );
+          return !itemIsAlreadyMain;
+        });
 
 
-          if (
-            !source ||
-            !candidates.length
-          ) {
+      if (!candidates.length) {
 
-            alert(
-              '至少需要兩筆資料才能 Merge。'
-            );
+        alert(
+          '沒有其他可合併的資料。'
+        );
 
-            return;
-          }
+        return;
+      }
 
 
-          const answer =
-            prompt(
-              [
-                `要把「${source.name}」合併到哪一筆？`,
-                '',
-                ...candidates.map(
-                  (item, index) =>
-                    `${index + 1}. ${item.name}`
-                ),
-                '',
-                '請輸入編號：'
-              ].join('\n')
-            );
+      const answer =
+        prompt(
+          [
+            `「${mainItem.name}」會保留為主項目。`,
+            '',
+            '要把哪一筆合併進來？',
+            '',
+            ...candidates.map(
+              (item, index) =>
+                `${index + 1}. ${item.name}`
+            ),
+            '',
+            '請輸入編號：'
+          ].join('\n')
+        );
 
 
-          if (!answer) {
-            return;
-          }
+      if (!answer) {
+        return;
+      }
 
 
-          const target =
-            candidates[
-              Number(answer) - 1
-            ];
+      const sourceItem =
+        candidates[
+          Number(answer) - 1
+        ];
 
 
-          if (!target) {
+      if (!sourceItem) {
 
-            alert('無效的選擇。');
+        alert('無效的選擇。');
 
-            return;
-          }
-
-
-          if (
-            !confirm(
-              `確定將「${source.name}」Merge 到「${target.name}」？`
-            )
-          ) {
-            return;
-          }
+        return;
+      }
 
 
-          try {
-
-            await mergeFunction({
-              db,
-              currentUser,
-              sourceId:
-                source.id,
-              targetId:
-                target.id
-            });
+      if (
+        !confirm(
+          `確定將「${sourceItem.name}」Merge 到「${mainItem.name}」？\n\nMerge 後主畫面會保留「${mainItem.name}」。`
+        )
+      ) {
+        return;
+      }
 
 
-            await rerender();
+      try {
 
-          } catch (error) {
+        await mergeFunction({
+          db,
+          currentUser,
 
-            console.error(error);
+          // 消失
+          sourceId:
+            sourceItem.id,
 
-            alert(error.message);
-          }
-        };
-      });
+          // 主項目
+          targetId:
+            mainItem.id
+        });
+
+
+        await rerender();
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+      }
+    };
+  });
 
 
     document
-      .querySelectorAll(
-        '[data-simple-undo]'
-      )
-      .forEach(button => {
+  .querySelectorAll(
+    '[data-simple-undo-main]'
+  )
+  .forEach(button => {
 
-        button.onclick = async () => {
+    button.onclick = async () => {
 
-          if (
-            !confirm(
-              '確定取消這次 Merge？'
-            )
-          ) {
-            return;
-          }
+      const mainId =
+        button.dataset.simpleUndoMain;
 
 
-          try {
-
-            await undoFunction({
-              db,
-              currentUser,
-              sourceId:
-                button.dataset.simpleUndo
-            });
+      const mainItem =
+        active.find(
+          item =>
+            item.id === mainId
+        );
 
 
-            await rerender();
+      if (!mainItem) {
+        return;
+      }
 
-          } catch (error) {
 
-            console.error(error);
+      const mergedIntoMain =
+        merged.filter(
+          item =>
+            item.mergedIntoId ===
+            mainId
+        );
 
-            alert(error.message);
-          }
-        };
-      });
+
+      if (!mergedIntoMain.length) {
+
+        alert(
+          '這個項目沒有可以取消的 Merge。'
+        );
+
+        return;
+      }
+
+
+      const answer =
+        prompt(
+          [
+            `要取消「${mainItem.name}」的哪一次 Merge？`,
+            '',
+            ...mergedIntoMain.map(
+              (item, index) =>
+                `${index + 1}. ${mainItem.name} ↔ ${item.name}`
+            ),
+            '',
+            '請輸入編號：'
+          ].join('\n')
+        );
+
+
+      if (!answer) {
+        return;
+      }
+
+
+      const selected =
+        mergedIntoMain[
+          Number(answer) - 1
+        ];
+
+
+      if (!selected) {
+
+        alert('無效的選擇。');
+
+        return;
+      }
+
+
+      if (
+        !confirm(
+          `確定取消「${mainItem.name} ↔ ${selected.name}」的 Merge？`
+        )
+      ) {
+        return;
+      }
+
+
+      try {
+
+        await undoFunction({
+          db,
+          currentUser,
+
+          // undo function 本來就是收 sourceId
+          sourceId:
+            selected.id
+        });
+
+
+        await rerender();
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+      }
+    };
+  });
   }
 
 
