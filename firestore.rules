@@ -137,6 +137,46 @@ service cloud.firestore {
         if owner();
     }
 
+// ==================================================
+    // Master Data
+    // ==================================================
+    //
+    // Stores / Products / Brands are shared reference
+    // data used by Receipt autocomplete and management.
+    //
+    // All authorized family members may read them.
+    // Only Owner may create or modify them.
+    // ==================================================
+
+    match /stores/{storeId} {
+
+      allow read:
+        if authorized();
+
+      allow create, update, delete:
+        if owner();
+    }
+
+
+    match /products/{productId} {
+
+      allow read:
+        if authorized();
+
+      allow create, update, delete:
+        if owner();
+    }
+
+
+    match /brands/{brandId} {
+
+      allow read:
+        if authorized();
+
+      allow create, update, delete:
+        if owner();
+    }
+
 
     // ==================================================
     // Receipts
