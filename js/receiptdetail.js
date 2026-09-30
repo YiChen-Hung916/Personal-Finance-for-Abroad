@@ -20,12 +20,14 @@
 // - Owner receipt views
 // ======================================================
 
-
 import {
   doc,
   getDoc,
   collection,
-  getDocs
+  getDocs,
+  deleteDoc,
+  query,
+  where
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 import {
@@ -38,6 +40,13 @@ import {
   buildFxDisplay
 } from './fx.js';
 
+import {
+  removeProductUsage
+} from './products.js';
+
+import {
+  removeStoreUsage
+} from './stores.js';
 
 // ======================================================
 // Helpers
@@ -172,6 +181,216 @@ function fxReferenceHtml(
       </div>
     </div>
   `;
+}
+
+
+// ======================================================
+// Receipt Delete Dependencies
+// ======================================================
+
+async function getReceiptDeleteDependencies({
+  db,
+  receiptId
+}) {
+
+  const [
+    refundsSnapshot,
+    unmatchedSnapshot
+  ] =
+    await Promise.all([
+
+      getDocs(
+        query(
+          collection(
+            db,
+            'refunds'
+          ),
+          where(
+            'receiptId',
+            '==',
+            receiptId
+          )
+        )
+      ),
+
+      getDocs(
+        query(
+          collection(
+            db,
+            'unmatchedTransactions'
+          ),
+          where(
+            'linkedReceiptId',
+            '==',
+            receiptId
+          )
+        )
+      )
+
+    ]);
+
+
+  return {
+
+    refundCount:
+      refundsSnapshot.size,
+
+    linkedUnmatchedCount:
+      unmatchedSnapshot.size
+
+  };
+}
+
+
+// ======================================================
+// Delete Receipt
+// ======================================================
+
+async function deleteReceipt({
+  db,
+  currentUser,
+  receipt,
+  items
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !receipt?.id
+  ) {
+
+    throw new Error(
+      'Missing Receipt delete dependency.'
+    );
+  }
+
+
+  const receiptId =
+    receipt.id;
+
+
+  // ====================================================
+  // 1. Delete confirmations
+  // ====================================================
+
+  const confirmationsSnapshot =
+    await getDocs(
+      collection(
+        db,
+        'receipts',
+        receiptId,
+        'confirmations'
+      )
+    );
+
+
+  for (
+    const confirmationDoc
+    of confirmationsSnapshot.docs
+  ) {
+
+    await deleteDoc(
+      confirmationDoc.ref
+    );
+  }
+
+
+  // ====================================================
+  // 2. Delete Receipt items
+  // ====================================================
+
+  const itemsSnapshot =
+    await getDocs(
+      collection(
+        db,
+        'receipts',
+        receiptId,
+        'items'
+      )
+    );
+
+
+  for (
+    const itemDoc
+    of itemsSnapshot.docs
+  ) {
+
+    await deleteDoc(
+      itemDoc.ref
+    );
+  }
+
+
+  // ====================================================
+  // 3. Reverse Master Data usage
+  //
+  // Only submitted Receipts increased usageCount.
+  // Drafts never did.
+  // ====================================================
+
+  if (
+    receipt.status !== 'draft'
+  ) {
+
+    // --------------------------------------------------
+    // Store
+    // --------------------------------------------------
+
+    if (receipt.storeId) {
+
+      await removeStoreUsage({
+        db,
+        currentUser,
+        storeId:
+          receipt.storeId
+      });
+    }
+
+
+    // --------------------------------------------------
+    // Products
+    //
+    // One Receipt counts each Product only once.
+    // --------------------------------------------------
+
+    const uniqueProductIds =
+      [
+        ...new Set(
+          items
+            .map(
+              item =>
+                item.productId
+            )
+            .filter(Boolean)
+        )
+      ];
+
+
+    for (
+      const productId
+      of uniqueProductIds
+    ) {
+
+      await removeProductUsage({
+        db,
+        currentUser,
+        productId
+      });
+    }
+  }
+
+
+  // ====================================================
+  // 4. Delete parent Receipt LAST
+  // ====================================================
+
+  await deleteDoc(
+    doc(
+      db,
+      'receipts',
+      receiptId
+    )
+  );
 }
 
 
@@ -346,9 +565,23 @@ page.innerHTML = `
       currentRole === 'owner';
 
 
-    const isAssignedUser =
-      receipt.confirmationUserId ===
-      currentUser.uid;
+    const confirmationUserIds =
+  Array.isArray(
+    receipt.confirmationUserIds
+  )
+    ? receipt.confirmationUserIds
+    : [];
+
+
+const isAssignedUser =
+  confirmationUserIds.includes(
+    currentUser.uid
+  ) ||
+  (
+    confirmationUserIds.length === 0 &&
+    receipt.confirmationUserId ===
+      currentUser.uid
+  );
 
 
     if (
@@ -508,15 +741,18 @@ const reminderClass =
     // ==================================================
 
     renderReceiptDetail({
-      page,
-      receipt,
-      items,
-      cardDisplay,
-      confirmationUserDisplay,
-      reminderClass,
-      fxDisplay,
-      lang
-    });
+  db,
+  currentUser,
+  currentRole,
+  page,
+  receipt,
+  items,
+  cardDisplay,
+  confirmationUserDisplay,
+  reminderClass,
+  fxDisplay,
+  lang
+});
 
 
   } catch (error) {
@@ -576,6 +812,9 @@ const reminderClass =
 // ======================================================
 
 function renderReceiptDetail({
+  db,
+  currentUser,
+  currentRole,
   page,
   receipt,
   items,
@@ -1027,7 +1266,65 @@ function renderReceiptDetail({
           : ''
       }
 
+${
+        currentRole === 'owner'
 
+          ? `
+
+              <div
+                class="card"
+                style="
+                  margin-top: 20px;
+                  border: 1px solid rgba(220, 53, 69, 0.35);
+                "
+              >
+
+                <h2>
+                  ${
+                    lang === 'zh-TW'
+                      ? '刪除 Receipt'
+                      : 'Delete Receipt'
+                  }
+                </h2>
+
+
+                <p class="muted">
+
+                  ${
+                    lang === 'zh-TW'
+                      ? '刪除後，這筆 Receipt、商品明細與確認紀錄都會永久移除。'
+                      : 'Deleting this Receipt permanently removes the Receipt, its items, and confirmation records.'
+                  }
+
+                </p>
+
+
+                <button
+                  type="button"
+                  id="deleteReceiptButton"
+                  class="danger"
+                  style="
+                    width: auto;
+                    min-width: 0;
+                  "
+                >
+                  ${
+                    lang === 'zh-TW'
+                      ? '刪除 Receipt'
+                      : 'Delete Receipt'
+                  }
+                </button>
+
+              </div>
+
+            `
+
+          : ''
+      }
+
+
+    </section>
+    
     </section>
   `;
 
@@ -1050,6 +1347,223 @@ function renderReceiptDetail({
 
         history.back();
 
+      }
+    );
+  }
+
+  // ====================================================
+  // Delete Receipt
+  // Owner only
+  // ====================================================
+
+  const deleteButton =
+    page.querySelector(
+      '#deleteReceiptButton'
+    );
+
+
+  if (
+    deleteButton &&
+    currentRole === 'owner'
+  ) {
+
+    deleteButton.addEventListener(
+      'click',
+      async () => {
+
+        try {
+
+          // ============================================
+          // Check dependencies first
+          // ============================================
+
+          deleteButton.disabled =
+            true;
+
+
+          deleteButton.textContent =
+            lang === 'zh-TW'
+              ? '檢查中…'
+              : 'Checking…';
+
+
+          const dependencies =
+            await getReceiptDeleteDependencies({
+              db,
+              receiptId:
+                receipt.id
+            });
+
+
+          // ============================================
+          // Refund dependency
+          // ============================================
+
+          if (
+            dependencies.refundCount > 0
+          ) {
+
+            alert(
+              lang === 'zh-TW'
+                ? `無法刪除這筆 Receipt。\n\n這筆 Receipt 已有 ${dependencies.refundCount} 筆相關退款紀錄。\n\n請先處理相關 Refund。`
+                : `This Receipt cannot be deleted.\n\nIt has ${dependencies.refundCount} related Refund record(s).\n\nPlease handle the related Refund first.`
+            );
+
+
+            deleteButton.disabled =
+              false;
+
+
+            deleteButton.textContent =
+              lang === 'zh-TW'
+                ? '刪除 Receipt'
+                : 'Delete Receipt';
+
+
+            return;
+          }
+
+
+          // ============================================
+          // Linked Unmatched Transaction dependency
+          // ============================================
+
+          if (
+            dependencies.linkedUnmatchedCount > 0
+          ) {
+
+            alert(
+              lang === 'zh-TW'
+                ? `無法刪除這筆 Receipt。\n\n目前有 ${dependencies.linkedUnmatchedCount} 筆「未找到交易」回報連結到這筆 Receipt。\n\n請先處理這些關聯紀錄。`
+                : `This Receipt cannot be deleted.\n\n${dependencies.linkedUnmatchedCount} unmatched transaction report(s) are linked to this Receipt.\n\nPlease handle those records first.`
+            );
+
+
+            deleteButton.disabled =
+              false;
+
+
+            deleteButton.textContent =
+              lang === 'zh-TW'
+                ? '刪除 Receipt'
+                : 'Delete Receipt';
+
+
+            return;
+          }
+
+
+          // ============================================
+          // First confirmation
+          // ============================================
+
+          const firstConfirmed =
+            confirm(
+              lang === 'zh-TW'
+                ? `確定要刪除這筆 Receipt？\n\n${receipt.store || '—'}\n${receipt.purchaseDate || '—'}\n${formatMoney(receipt.total, receipt.currency)}\n\n這個動作會刪除 Receipt、商品明細與確認紀錄。`
+                : `Delete this Receipt?\n\n${receipt.store || '—'}\n${receipt.purchaseDate || '—'}\n${formatMoney(receipt.total, receipt.currency)}\n\nThis removes the Receipt, items, and confirmation records.`
+            );
+
+
+          if (!firstConfirmed) {
+
+            deleteButton.disabled =
+              false;
+
+
+            deleteButton.textContent =
+              lang === 'zh-TW'
+                ? '刪除 Receipt'
+                : 'Delete Receipt';
+
+
+            return;
+          }
+
+
+          // ============================================
+          // Second confirmation
+          // ============================================
+
+          const finalConfirmed =
+            confirm(
+              lang === 'zh-TW'
+                ? '最後確認：刪除後無法復原。\n\n確定永久刪除這筆 Receipt？'
+                : 'Final confirmation: this cannot be undone.\n\nPermanently delete this Receipt?'
+            );
+
+
+          if (!finalConfirmed) {
+
+            deleteButton.disabled =
+              false;
+
+
+            deleteButton.textContent =
+              lang === 'zh-TW'
+                ? '刪除 Receipt'
+                : 'Delete Receipt';
+
+
+            return;
+          }
+
+
+          // ============================================
+          // Delete
+          // ============================================
+
+          deleteButton.textContent =
+            lang === 'zh-TW'
+              ? '刪除中…'
+              : 'Deleting…';
+
+
+          await deleteReceipt({
+            db,
+            currentUser,
+            receipt,
+            items
+          });
+
+
+          alert(
+            lang === 'zh-TW'
+              ? 'Receipt 已刪除。'
+              : 'Receipt deleted.'
+          );
+
+
+          location.hash =
+            '#history';
+
+
+        } catch (error) {
+
+          console.error(
+            'Failed to delete Receipt:',
+            error
+          );
+
+
+          alert(
+            `${
+              lang === 'zh-TW'
+                ? '刪除 Receipt 失敗'
+                : 'Failed to delete Receipt'
+            }: ${error.message}`
+          );
+
+
+          deleteButton.disabled =
+            false;
+
+
+          deleteButton.textContent =
+            lang === 'zh-TW'
+              ? '刪除 Receipt'
+              : 'Delete Receipt';
+        }
       }
     );
   }
