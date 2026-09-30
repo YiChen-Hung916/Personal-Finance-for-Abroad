@@ -1504,12 +1504,12 @@ export async function mismatchPage({
     <section class="panel">
 
       <h1>
-        ${
-          lang === 'zh-TW'
-            ? '不符項目'
-            : 'Mismatches'
-        }
-      </h1>
+  ${
+    lang === 'zh-TW'
+      ? '需要處理'
+      : 'Needs Attention'
+  }
+</h1>
 
 
       <div class="actions">
