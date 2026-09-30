@@ -134,6 +134,66 @@ export async function createStore({
   );
 }
 
+export async function updateStore({
+  db,
+  currentUser,
+  storeId,
+  name
+}) {
+
+  const cleanName =
+    String(name || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+
+  if (!cleanName) {
+    throw new Error('Store name is required.');
+  }
+
+
+  const normalizedName =
+    normalizeStoreKey(cleanName);
+
+
+  const stores =
+    await getStores(
+      db,
+      { includeMerged: true }
+    );
+
+
+  const duplicate =
+    stores.find(store =>
+      store.id !== storeId &&
+      store.normalizedName ===
+        normalizedName &&
+      store.status !== 'merged'
+    );
+
+
+  if (duplicate) {
+    throw new Error('This store already exists.');
+  }
+
+
+  await updateDoc(
+    doc(db, 'stores', storeId),
+    {
+      name:
+        cleanName,
+
+      normalizedName,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
+
 
 export async function mergeStore({
   db,
