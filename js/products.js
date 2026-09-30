@@ -7,7 +7,8 @@ import {
   updateDoc,
   query,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  increment
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 
@@ -789,6 +790,85 @@ export async function undoProductMerge({
 
       mergedBy:
         null,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
+
+
+// ======================================================
+// Record Product Usage
+// ======================================================
+
+export async function recordProductUsage({
+  db,
+  currentUser,
+  productId
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !productId
+  ) {
+    return;
+  }
+
+
+  const productRef =
+    doc(
+      db,
+      'products',
+      productId
+    );
+
+
+  const snapshot =
+    await getDoc(
+      productRef
+    );
+
+
+  if (!snapshot.exists()) {
+    return;
+  }
+
+
+  const product =
+    snapshot.data();
+
+
+  if (
+    product.status === 'merged'
+  ) {
+    return;
+  }
+
+
+  const currentUsage =
+    Number(
+      product.usageCount || 0
+    );
+
+
+  const nextUsage =
+    currentUsage + 1;
+
+
+  await updateDoc(
+    productRef,
+    {
+
+      usageCount:
+        increment(1),
+
+      isFrequent:
+        nextUsage >= 5,
 
       updatedAt:
         serverTimestamp(),
