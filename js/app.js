@@ -27,6 +27,7 @@ import {
 import {
   mismatchPage,
   mismatchDetailPage,
+  unmatchedTransactionDetailPage,
   getUnresolvedMismatches,
   mismatchDashboardCardHtml,
   bindMismatchViewButtons
@@ -493,12 +494,12 @@ function menu(role) {
 </a>
       
       <a href="#mismatches">
-        ${
-          lang === 'zh-TW'
-            ? '不符項目'
-            : 'Mismatches'
-        }
-      </a>
+  ${
+    lang === 'zh-TW'
+      ? '需要處理'
+      : 'Needs Attention'
+  }
+</a>
 
       <a href="#history">
         ${t('history', lang)}
@@ -3571,6 +3572,28 @@ if (r === 'dashboard') {
     page,
     receiptId
   });
+
+} else if (
+  r.startsWith(
+    'unmatched-detail/'
+  )
+) {
+
+  const reportId =
+    r.substring(
+      'unmatched-detail/'.length
+    );
+
+
+  unmatchedTransactionDetailPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    reportId
+  });
+
 
 } else if (r === 'mismatches') {
 
