@@ -972,84 +972,140 @@ function buildObservationHtml({
 
 
   return `
+  <div
+    class="
+      card
+      promotion-observation-card
+    "
+  >
+
     <div
-      class="card"
-      style="
-        padding: 10px 12px;
-        margin-bottom: 8px;
-      "
+      class="promotion-observation-grid"
     >
 
+      <!-- =========================
+           Product
+           ========================= -->
+
       <div
-        style="
-          display: grid;
-          grid-template-columns:
-            minmax(130px, 1.4fr)
-            minmax(110px, 1fr)
-            minmax(105px, .9fr)
-            minmax(120px, 1fr)
-            auto;
-          gap: 8px 14px;
-          align-items: start;
-        "
+        class="promotion-product-column"
       >
 
-        <div>
-
-          <strong>
-            ${escapeHtml(
+        <strong
+          class="promotion-product-name"
+          title="${
+            escapeHtml(
               observation.product
-            )}
-          </strong>
+            )
+          }"
+        >
+          ${escapeHtml(
+            observation.product
+          )}
+        </strong>
 
-          <div
-            class="muted"
-            style="
-              font-size: .88rem;
-            "
-          >
-            ${escapeHtml(
-              observation.category
-            )}
-            ·
-            ${escapeHtml(
-              observation.brand
-            )}
-          </div>
+        <div
+          class="
+            muted
+            promotion-product-meta
+          "
+        >
+          ${escapeHtml(
+            observation.category
+          )}
 
+          ·
+
+          ${escapeHtml(
+            observation.brand
+          )}
+        </div>
+
+      </div>
+
+
+      <!-- =========================
+           Price
+           ========================= -->
+
+      <div
+        class="promotion-price-column"
+      >
+
+        <strong
+          class="promotion-price-main"
+        >
+          ${effectivePrice}
+        </strong>
+
+        <div
+          class="
+            muted
+            promotion-price-label
+          "
+        >
+          ${
+            lang === 'zh-TW'
+              ? '優惠實付 / 包'
+              : 'Promo paid / package'
+          }
         </div>
 
 
-        <div>
+        ${
+          comparisonText
+            ? `
+                <div
+                  class="
+                    promotion-normalized-price
+                  "
+                >
+                  ${comparisonText}
+                </div>
+              `
+            : ''
+        }
 
-          <strong>
-            ${effectivePrice}
-          </strong>
+      </div>
 
-          <div
-            class="muted"
-            style="
-              font-size: .85rem;
-            "
+
+      <!-- =========================
+           Promotion
+           ========================= -->
+
+      <div
+        class="promotion-detail-column"
+      >
+
+        <div
+          class="promotion-badges"
+        >
+
+          <span
+            class="promotion-type-badge"
           >
-            ${
-              lang === 'zh-TW'
-                ? '優惠實付 / 包'
-                : 'Promo paid / package'
-            }
-          </div>
+            ${escapeHtml(
+              promotionTypeLabel(
+                observation
+                  .promotionType,
+                lang
+              )
+            )}
+          </span>
+
 
           ${
-            comparisonText
+            historicalLow
               ? `
-                  <div
-                    style="
-                      font-size: .88rem;
-                      margin-top: 2px;
-                    "
+                  <span
+                    class="promotion-low-badge"
                   >
-                    ${comparisonText}
-                  </div>
+                    ${
+                      lang === 'zh-TW'
+                        ? '歷史新低'
+                        : 'Historical Low'
+                    }
+                  </span>
                 `
               : ''
           }
@@ -1057,53 +1113,9 @@ function buildObservationHtml({
         </div>
 
 
-        <div>
-
-          <div>
-            <span class="badge">
-              ${escapeHtml(
-                promotionTypeLabel(
-                  observation
-                    .promotionType,
-                  lang
-                )
-              )}
-            </span>
-
-            ${
-              historicalLow
-                ? `
-                    <span class="badge">
-                      ${
-                        lang === 'zh-TW'
-                          ? '歷史新低'
-                          : 'Historical Low'
-                      }
-                    </span>
-                  `
-                : ''
-            }
-          </div>
-
-          <div
-            class="muted"
-            style="
-              font-size: .85rem;
-              margin-top: 3px;
-            "
-          >
-            ${
-              lang === 'zh-TW'
-                ? '原價'
-                : 'Regular'
-            }
-            ${originalPrice}
-          </div>
-
-        </div>
-
-
-        <div>
+        <div
+          class="promotion-condition"
+        >
 
           ${
             requiredQuantity
@@ -1129,10 +1141,15 @@ function buildObservationHtml({
               : ''
           }
 
+
           ${
             observation.promotionNote
               ? `
-                  <div>
+                  <div
+                    class="
+                      promotion-condition-note
+                    "
+                  >
                     ${escapeHtml(
                       observation
                         .promotionNote
@@ -1142,13 +1159,14 @@ function buildObservationHtml({
               : ''
           }
 
+
           ${
             packageDescription
               ? `
                   <div
-                    class="muted"
-                    style="
-                      font-size: .85rem;
+                    class="
+                      muted
+                      promotion-package-size
                     "
                   >
                     ${escapeHtml(
@@ -1161,63 +1179,63 @@ function buildObservationHtml({
 
         </div>
 
+      </div>
+
+
+      <!-- =========================
+           Store / Last observed
+           ========================= -->
+
+      <div
+        class="promotion-store-column"
+      >
+
+        <strong
+          class="promotion-store-name"
+          title="${
+            escapeHtml(
+              observation.store
+            )
+          }"
+        >
+          ${escapeHtml(
+            observation.store
+          )}
+        </strong>
+
 
         <div
-          style="
-            text-align: right;
+          class="
+            muted
+            promotion-last-observed
           "
         >
-
-          <div>
-            <strong>
-              ${escapeHtml(
-                observation.store
-              )}
-            </strong>
-          </div>
-
-          <div
-            class="muted"
-            style="
-              font-size: .85rem;
-              white-space: nowrap;
-            "
-          >
-            ${
-              lang === 'zh-TW'
-                ? 'Last observed'
-                : 'Last observed'
-            }
-            ·
-            ${formatDate(
-              observation.purchaseDate
-            )}
-          </div>
-
-          <button
-            type="button"
-            data-open-promotion-receipt="${
-              escapeHtml(
-                observation.receiptId
-              )
-            }"
-            style="
-              margin-top: 4px;
-            "
-          >
-            ${
-              lang === 'zh-TW'
-                ? 'Receipt'
-                : 'Receipt'
-            }
-          </button>
-
+          Last observed
+          ·
+          ${formatDate(
+            observation.purchaseDate
+          )}
         </div>
+
+
+        <button
+          type="button"
+          class="promotion-receipt-button"
+          data-open-promotion-receipt="${
+            escapeHtml(
+              observation.receiptId
+            )
+          }"
+        >
+          Receipt
+        </button>
 
       </div>
 
     </div>
-  `;
+
+  </div>
+`;
 }
 
 
