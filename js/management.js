@@ -307,6 +307,21 @@ export async function managementPage({
                           Merge
                         </button>
 
+                        <button
+  type="button"
+  data-undo-product-main="${product.id}"
+  ${
+    mergedProducts.some(
+      merged =>
+        merged.mergedIntoId === product.id
+    )
+      ? ''
+      : 'disabled'
+  }
+>
+  取消合併
+</button>
+
                       </div>
 
                     </div>
@@ -322,68 +337,6 @@ export async function managementPage({
 
         </div>
 
-
-        ${
-          mergedProducts.length
-            ? `
-
-                <div class="management-merged-section">
-
-                  <h3>
-                    已合併
-                  </h3>
-
-                  ${
-                    mergedProducts
-                      .map(product => {
-
-                        const target =
-                          products.find(item =>
-                            item.id ===
-                            product.mergedIntoId
-                          );
-
-
-                        return `
-
-                          <div class="management-row management-row-merged">
-
-                            <div class="management-row-main">
-
-                              <strong>
-                                ${escapeLocal(product.name)}
-                              </strong>
-
-                              <span class="muted">
-                                →
-                                ${
-                                  escapeLocal(
-                                    target?.name ||
-                                    'Unknown'
-                                  )
-                                }
-                              </span>
-
-                            </div>
-
-
-                            <button
-                              type="button"
-                              data-undo-product="${product.id}"
-                            >
-                              取消合併
-                            </button>
-
-                          </div>
-                        `;
-                      })
-                      .join('')
-                  }
-
-                </div>
-              `
-            : ''
-        }
       `;
 
 
@@ -425,36 +378,13 @@ export async function managementPage({
             () =>
               showProductMerge(
                 button.dataset.mergeProduct,
-                activeProducts
+                activeProducts,
+                mergedProducts
               );
         });
 
 
-      document
-        .querySelectorAll(
-          '[data-undo-product]'
-        )
-        .forEach(button => {
 
-          button.onclick = async () => {
-
-            if (
-              !confirm(
-                '確定要取消這次 Product Merge？'
-              )
-            ) {
-              return;
-            }
-
-
-            try {
-
-              await undoProductMerge({
-                db,
-                currentUser,
-                sourceId:
-                  button.dataset.undoProduct
-              });
 
 
               await renderProducts();
@@ -596,6 +526,114 @@ export async function managementPage({
       </div>
     `;
 
+    document
+  .querySelectorAll(
+    '[data-undo-product-main]'
+  )
+  .forEach(button => {
+
+    button.onclick = async () => {
+
+      const mainProductId =
+        button.dataset.undoProductMain;
+
+
+      const mainProduct =
+        activeProducts.find(
+          product =>
+            product.id === mainProductId
+        );
+
+
+      if (!mainProduct) {
+        return;
+      }
+
+
+      const mergedIntoThisProduct =
+        mergedProducts.filter(
+          product =>
+            product.mergedIntoId ===
+            mainProductId
+        );
+
+
+      if (!mergedIntoThisProduct.length) {
+
+        alert(
+          '這個 Product 沒有可以取消的 Merge。'
+        );
+
+        return;
+      }
+
+
+      const answer =
+        prompt(
+          [
+            `要取消「${mainProduct.name}」的哪一次 Merge？`,
+            '',
+            ...mergedIntoThisProduct.map(
+              (product, index) =>
+                `${index + 1}. ${mainProduct.name} ↔ ${product.name}`
+            ),
+            '',
+            '請輸入編號：'
+          ].join('\n')
+        );
+
+
+      if (!answer) {
+        return;
+      }
+
+
+      const selected =
+        mergedIntoThisProduct[
+          Number(answer) - 1
+        ];
+
+
+      if (!selected) {
+
+        alert('無效的選擇。');
+
+        return;
+      }
+
+
+      if (
+        !confirm(
+          `確定取消「${mainProduct.name} ↔ ${selected.name}」的 Merge？`
+        )
+      ) {
+        return;
+      }
+
+
+      try {
+
+        await undoProductMerge({
+          db,
+          currentUser,
+
+          // selected 是當初被 merge 掉的 source
+          sourceId:
+            selected.id
+        });
+
+
+        await renderProducts();
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+      }
+    };
+  });
+
 
     document.querySelector(
       '#managementCancelProduct'
@@ -661,99 +699,118 @@ export async function managementPage({
 
 
   function showProductMerge(
-    sourceId,
-    activeProducts
-  ) {
+  mainProductId,
+  activeProducts,
+  mergedProducts
+) {
 
-    const source =
-      activeProducts.find(product =>
-        product.id === sourceId
-      );
-
-
-    if (!source) {
-      return;
-    }
+  const mainProduct =
+    activeProducts.find(
+      product =>
+        product.id === mainProductId
+    );
 
 
-    const candidates =
-      activeProducts.filter(product =>
-        product.id !== sourceId
-      );
-
-
-    if (!candidates.length) {
-
-      alert(
-        '至少需要另一個 Product 才能 Merge。'
-      );
-
-      return;
-    }
-
-
-    const targetId =
-      prompt(
-        [
-          `要把「${source.name}」合併到哪個 Product？`,
-          '',
-          ...candidates.map(
-            (product, index) =>
-              `${index + 1}. ${product.name}`
-          ),
-          '',
-          '請輸入編號：'
-        ].join('\n')
-      );
-
-
-    if (!targetId) {
-      return;
-    }
-
-
-    const index =
-      Number(targetId) - 1;
-
-
-    const target =
-      candidates[index];
-
-
-    if (!target) {
-
-      alert('無效的選擇。');
-
-      return;
-    }
-
-
-    if (
-      !confirm(
-        `確定將「${source.name}」Merge 到「${target.name}」？`
-      )
-    ) {
-      return;
-    }
-
-
-    mergeProduct({
-      db,
-      currentUser,
-      sourceId:
-        source.id,
-      targetId:
-        target.id
-    })
-      .then(renderProducts)
-      .catch(error => {
-
-        console.error(error);
-
-        alert(error.message);
-      });
+  if (!mainProduct) {
+    return;
   }
 
+
+  const candidates =
+  activeProducts.filter(product => {
+
+    if (product.id === mainProductId) {
+      return false;
+    }
+
+
+    const productIsAlreadyMain =
+      mergedProducts.some(
+        merged =>
+          merged.mergedIntoId ===
+          product.id
+      );
+
+
+    return !productIsAlreadyMain;
+  });
+
+
+  if (!candidates.length) {
+
+    alert(
+      '至少需要另一個 Product 才能 Merge。'
+    );
+
+    return;
+  }
+
+
+  const answer =
+    prompt(
+      [
+        `「${mainProduct.name}」會保留為主 Product。`,
+        '',
+        '要把哪個 Product 合併進來？',
+        '',
+        ...candidates.map(
+          (product, index) =>
+            `${index + 1}. ${product.name}`
+        ),
+        '',
+        '請輸入編號：'
+      ].join('\n')
+    );
+
+
+  if (!answer) {
+    return;
+  }
+
+
+  const sourceProduct =
+    candidates[
+      Number(answer) - 1
+    ];
+
+
+  if (!sourceProduct) {
+
+    alert('無效的選擇。');
+
+    return;
+  }
+
+
+  if (
+    !confirm(
+      `確定將「${sourceProduct.name}」Merge 到「${mainProduct.name}」？\n\nMerge 後主畫面會保留「${mainProduct.name}」。`
+    )
+  ) {
+    return;
+  }
+
+
+  mergeProduct({
+    db,
+    currentUser,
+
+    // 被隱藏
+    sourceId:
+      sourceProduct.id,
+
+    // 保留在主畫面
+    targetId:
+      mainProduct.id
+  })
+    .then(renderProducts)
+    .catch(error => {
+
+      console.error(error);
+
+      alert(error.message);
+    });
+}
 
   // ====================================================
   // Stores
