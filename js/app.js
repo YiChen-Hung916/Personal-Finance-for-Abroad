@@ -54,6 +54,10 @@ import {
 } from './productdetail.js';
 
 import {
+  promotionsPage
+} from './promotions.js';
+
+import {
   transferPage,
   transferDetailPage,
   getMyPendingTransfers,
@@ -2824,6 +2828,17 @@ if (r === 'dashboard') {
     lang,
     page
   });
+
+} else if (r === 'promotions') {
+
+  promotionsPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page
+  });
+
 
 } else if (r === 'refund') {
 
