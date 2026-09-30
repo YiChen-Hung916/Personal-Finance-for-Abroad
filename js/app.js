@@ -71,6 +71,10 @@ import {
 } from './refund.js';
 
 import {
+  authorizedUserRelatedPage
+} from './authorizeduserrelated.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -520,8 +524,12 @@ function menu(role) {
 </a>
 
       <a href="#related">
-        My Related Receipts
-      </a>
+  ${
+    lang === 'zh-TW'
+      ? '我的相關收據'
+      : 'My Related Receipts'
+  }
+</a>
 
       <a href="#transfer">
         ＋ ${
@@ -532,8 +540,12 @@ function menu(role) {
       </a>
 
       <a href="#unmatched">
-        Report Unmatched Transaction
-      </a>
+  ＋ ${
+    lang === 'zh-TW'
+      ? '回報未找到的交易'
+      : 'Report Unmatched Transaction'
+  }
+</a>
 
       <a href="#history">
         ${t('history', lang)}
@@ -3608,6 +3620,19 @@ if (r === 'dashboard') {
     page,
     receiptId
   });
+
+  
+} else if (r === 'related') {
+
+  authorizedUserRelatedPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page
+  });
+
+
 } else if (r === 'history') {
 
   historyPage({
