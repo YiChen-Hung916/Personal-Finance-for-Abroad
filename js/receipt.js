@@ -7,6 +7,24 @@ import {
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
+import {
+  getProducts,
+  normalizeProductKey,
+  detectProductCategory,
+  PRODUCT_CATEGORIES
+} from './products.js';
+
+
+import {
+  getStores,
+  normalizeStoreKey
+} from './stores.js';
+
+
+import {
+  getBrands,
+  normalizeBrandKey
+} from './brands.js';
 
 // ======================================================
 // Receipt Module
@@ -42,6 +60,15 @@ let formatDisplayName = null;
 
 
 // ======================================================
+// Receipt Master Data Cache
+// ======================================================
+
+let receiptProducts = [];
+let receiptStores = [];
+let receiptBrands = [];
+
+
+// ======================================================
 // Public Entry Point
 // ======================================================
 
@@ -67,6 +94,481 @@ export async function receiptPage({
   formatDisplayName = formatDisplayNameHelper;
 
   await receiptForm();
+}
+
+
+// ======================================================
+// Master Data Search Helpers
+// ======================================================
+
+function getMasterSearchKeys(
+  item,
+  normalizeFunction
+) {
+
+  return [
+    item.name,
+    ...(
+      Array.isArray(item.aliases)
+        ? item.aliases
+        : []
+    )
+  ]
+    .filter(Boolean)
+    .map(normalizeFunction);
+}
+
+
+function masterMatches(
+  item,
+  searchValue,
+  normalizeFunction
+) {
+
+  const searchKey =
+    normalizeFunction(
+      searchValue
+    );
+
+
+  if (!searchKey) {
+    return true;
+  }
+
+
+  return getMasterSearchKeys(
+    item,
+    normalizeFunction
+  )
+    .some(key =>
+      key.includes(searchKey)
+    );
+}
+
+
+function sortMasterSuggestions(
+  items,
+  searchValue,
+  normalizeFunction
+) {
+
+  const searchKey =
+    normalizeFunction(
+      searchValue
+    );
+
+
+  return [...items]
+    .sort((a, b) => {
+
+      const aName =
+        normalizeFunction(
+          a.name || ''
+        );
+
+      const bName =
+        normalizeFunction(
+          b.name || ''
+        );
+
+
+      // Exact canonical match first
+      const aExact =
+        aName === searchKey;
+
+      const bExact =
+        bName === searchKey;
+
+
+      if (aExact !== bExact) {
+        return aExact ? -1 : 1;
+      }
+
+
+      // Exact alias match second
+      const aAliasExact =
+        (
+          Array.isArray(a.aliases)
+            ? a.aliases
+            : []
+        )
+          .some(alias =>
+            normalizeFunction(alias) ===
+            searchKey
+          );
+
+
+      const bAliasExact =
+        (
+          Array.isArray(b.aliases)
+            ? b.aliases
+            : []
+        )
+          .some(alias =>
+            normalizeFunction(alias) ===
+            searchKey
+          );
+
+
+      if (
+        aAliasExact !==
+        bAliasExact
+      ) {
+
+        return aAliasExact
+          ? -1
+          : 1;
+      }
+
+
+      // Frequent before non-frequent
+      if (
+        Boolean(a.isFrequent) !==
+        Boolean(b.isFrequent)
+      ) {
+
+        return a.isFrequent
+          ? -1
+          : 1;
+      }
+
+
+      // Higher usage first
+      const usageDifference =
+        Number(b.usageCount || 0) -
+        Number(a.usageCount || 0);
+
+
+      if (usageDifference !== 0) {
+        return usageDifference;
+      }
+
+
+      // Alphabetical fallback
+      return String(a.name || '')
+        .localeCompare(
+          String(b.name || ''),
+          undefined,
+          {
+            sensitivity: 'base'
+          }
+        );
+    });
+}
+
+
+// ======================================================
+// Resolve Typed Value to Canonical Master
+// ======================================================
+
+function resolveMasterItem(
+  items,
+  value,
+  normalizeFunction
+) {
+
+  const key =
+    normalizeFunction(value);
+
+
+  if (!key) {
+    return null;
+  }
+
+
+  return items.find(item => {
+
+    if (
+      normalizeFunction(
+        item.name || ''
+      ) === key
+    ) {
+      return true;
+    }
+
+
+    return (
+      Array.isArray(item.aliases)
+        ? item.aliases
+        : []
+    )
+      .some(alias =>
+        normalizeFunction(alias) ===
+        key
+      );
+
+  }) || null;
+}
+
+
+// ======================================================
+// Receipt Autocomplete
+// ======================================================
+
+function attachReceiptAutocomplete({
+  input,
+  items,
+  normalizeFunction,
+  onSelect = null,
+  onInput = null
+}) {
+
+  if (!input) {
+    return;
+  }
+
+
+  const wrapper =
+    document.createElement('div');
+
+
+  wrapper.className =
+    'receipt-autocomplete';
+
+
+  input.parentNode.insertBefore(
+    wrapper,
+    input
+  );
+
+
+  wrapper.appendChild(input);
+
+
+  const dropdown =
+    document.createElement('div');
+
+
+  dropdown.className =
+    'receipt-autocomplete-list';
+
+
+  dropdown.hidden = true;
+
+
+  wrapper.appendChild(
+    dropdown
+  );
+
+
+  function closeDropdown() {
+
+    dropdown.hidden = true;
+
+    dropdown.innerHTML = '';
+  }
+
+
+  function renderSuggestions() {
+
+    const value =
+      input.value;
+
+
+    const matching =
+      sortMasterSuggestions(
+
+        items.filter(item =>
+          masterMatches(
+            item,
+            value,
+            normalizeFunction
+          )
+        ),
+
+        value,
+        normalizeFunction
+      )
+        .slice(0, 8);
+
+
+    dropdown.innerHTML = '';
+
+
+    if (!matching.length) {
+
+      closeDropdown();
+
+      return;
+    }
+
+
+    matching.forEach(item => {
+
+      const button =
+        document.createElement(
+          'button'
+        );
+
+
+      button.type =
+        'button';
+
+
+      button.className =
+        'receipt-autocomplete-option';
+
+
+      const main =
+        document.createElement(
+          'span'
+        );
+
+
+      main.className =
+        'receipt-autocomplete-name';
+
+
+      main.textContent =
+        item.name || '';
+
+
+      button.appendChild(main);
+
+
+      if (item.isFrequent) {
+
+        const badge =
+          document.createElement(
+            'span'
+          );
+
+
+        badge.className =
+          'receipt-autocomplete-frequent';
+
+
+        badge.textContent =
+          lang === 'zh-TW'
+            ? '常用'
+            : 'Frequent';
+
+
+        button.appendChild(
+          badge
+        );
+      }
+
+
+      button.addEventListener(
+        'mousedown',
+        event => {
+
+          event.preventDefault();
+
+
+          input.value =
+            item.name || '';
+
+
+          input.dataset.masterId =
+            item.id || '';
+
+
+          input.dataset.masterName =
+            item.name || '';
+
+
+          closeDropdown();
+
+
+          if (onSelect) {
+
+            onSelect(
+              item,
+              input
+            );
+          }
+        }
+      );
+
+
+      dropdown.appendChild(
+        button
+      );
+    });
+
+
+    dropdown.hidden = false;
+  }
+
+
+  input.addEventListener(
+    'focus',
+    () => {
+
+      renderSuggestions();
+    }
+  );
+
+
+  input.addEventListener(
+    'input',
+    () => {
+
+      // Once the user edits the text,
+      // the previous selection is no longer trusted.
+      input.dataset.masterId = '';
+
+      input.dataset.masterName = '';
+
+
+      if (onInput) {
+
+        onInput(
+          input.value,
+          input
+        );
+      }
+
+
+      renderSuggestions();
+    }
+  );
+
+
+  input.addEventListener(
+    'blur',
+    () => {
+
+      const resolved =
+        resolveMasterItem(
+          items,
+          input.value,
+          normalizeFunction
+        );
+
+
+      if (resolved) {
+
+        input.value =
+          resolved.name || '';
+
+
+        input.dataset.masterId =
+          resolved.id || '';
+
+
+        input.dataset.masterName =
+          resolved.name || '';
+
+
+        if (onSelect) {
+
+          onSelect(
+            resolved,
+            input
+          );
+        }
+      }
+
+
+      window.setTimeout(
+        closeDropdown,
+        120
+      );
+    }
+  );
 }
 
 
@@ -99,6 +601,48 @@ async function receiptForm() {
   }
 
 
+  // ------------------------------------------------------
+  // Load Receipt Master Data
+  // ------------------------------------------------------
+
+  try {
+
+    [
+      receiptProducts,
+      receiptStores,
+      receiptBrands
+    ] =
+      await Promise.all([
+
+        getProducts(
+          db,
+          { includeMerged: false }
+        ),
+
+        getStores(
+          db,
+          { includeMerged: false }
+        ),
+
+        getBrands(
+          db,
+          { includeMerged: false }
+        )
+      ]);
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Receipt master data:',
+      error
+    );
+
+    receiptProducts = [];
+    receiptStores = [];
+    receiptBrands = [];
+  }
+
+  
   // ------------------------------------------------------
   // Load active cards
   // ------------------------------------------------------
@@ -190,9 +734,11 @@ async function receiptForm() {
           </span>
 
           <input
-            id="receiptStore"
-            placeholder="Target"
-          >
+  id="receiptStore"
+  class="receipt-master-input"
+  placeholder="Target"
+  autocomplete="off"
+>
 
         </label>
 
@@ -719,6 +1265,39 @@ async function receiptForm() {
   `;
 
 
+  // ----------------------------------------------------
+  // Store Autocomplete
+  // ----------------------------------------------------
+
+  const receiptStoreInput =
+    document.querySelector(
+      '#receiptStore'
+    );
+
+
+  attachReceiptAutocomplete({
+
+    input:
+      receiptStoreInput,
+
+    items:
+      receiptStores,
+
+    normalizeFunction:
+      normalizeStoreKey,
+
+    onSelect:
+      store => {
+
+        receiptStoreInput.dataset.masterId =
+          store.id;
+
+        receiptStoreInput.dataset.masterName =
+          store.name;
+      }
+  });
+
+  
   // ====================================================
   // Bind Events
   // ====================================================
@@ -833,6 +1412,16 @@ async function receiptForm() {
 
 function addItem() {
 
+  const categoryOptions =
+    PRODUCT_CATEGORIES
+      .map(category => `
+        <option value="${escapeHtml(category)}">
+          ${escapeHtml(category)}
+        </option>
+      `)
+      .join('');
+
+
   const d =
     document.createElement('div');
 
@@ -858,47 +1447,17 @@ function addItem() {
 
         <select class="itemCategory">
 
-          <option value="">
-            ${
-              lang === 'zh-TW'
-                ? '請選擇分類…'
-                : 'Select category...'
-            }
-          </option>
+  <option value="">
+    ${
+      lang === 'zh-TW'
+        ? '自動辨識 / 請選擇…'
+        : 'Auto detect / Select...'
+    }
+  </option>
 
-          <option value="Beverages">
-            Beverages
-          </option>
+  ${categoryOptions}
 
-          <option value="Food">
-            Food
-          </option>
-
-          <option value="Snacks">
-            Snacks
-          </option>
-
-          <option value="Household">
-            Household
-          </option>
-
-          <option value="Personal Care">
-            Personal Care
-          </option>
-
-          <option value="Clothing">
-            Clothing
-          </option>
-
-          <option value="Electronics">
-            Electronics
-          </option>
-
-          <option value="Other">
-            Other
-          </option>
-
-        </select>
+</select>
 
       </label>
 
@@ -917,7 +1476,10 @@ function addItem() {
 
         </span>
 
-        <input class="itemProduct">
+        <input
+  class="itemProduct receipt-master-input"
+  autocomplete="off"
+>
 
       </label>
 
@@ -930,7 +1492,10 @@ function addItem() {
             : 'Brand'
         }
 
-        <input class="itemBrand">
+        <input
+  class="itemBrand receipt-master-input"
+  autocomplete="off"
+>
 
       </label>
 
@@ -1285,6 +1850,108 @@ function addItem() {
     .appendChild(d);
 
 
+  // ------------------------------------------------------
+  // Product / Brand Master Data
+  // ------------------------------------------------------
+
+  const productInput =
+    d.querySelector(
+      '.itemProduct'
+    );
+
+
+  const brandInput =
+    d.querySelector(
+      '.itemBrand'
+    );
+
+
+  const categorySelect =
+    d.querySelector(
+      '.itemCategory'
+    );
+
+
+  attachReceiptAutocomplete({
+
+    input:
+      productInput,
+
+    items:
+      receiptProducts,
+
+    normalizeFunction:
+      normalizeProductKey,
+
+    onSelect:
+      product => {
+
+        productInput.dataset.masterId =
+          product.id;
+
+        productInput.dataset.masterName =
+          product.name;
+
+
+        // Existing Product master category
+        // has priority.
+        if (product.category) {
+
+          categorySelect.value =
+            product.category;
+
+        } else {
+
+          categorySelect.value =
+            detectProductCategory(
+              product.name
+            );
+        }
+
+
+        updateReceiptTotal();
+      },
+
+    onInput:
+      value => {
+
+        const detected =
+          detectProductCategory(
+            value
+          );
+
+
+        categorySelect.value =
+          detected || '';
+
+
+        updateReceiptTotal();
+      }
+  });
+
+  attachReceiptAutocomplete({
+
+    input:
+      brandInput,
+
+    items:
+      receiptBrands,
+
+    normalizeFunction:
+      normalizeBrandKey,
+
+    onSelect:
+      brand => {
+
+        brandInput.dataset.masterId =
+          brand.id;
+
+        brandInput.dataset.masterName =
+          brand.name;
+      }
+  });
+  
+  
   // ------------------------------------------------------
   // Discount Show / Hide
   // ------------------------------------------------------
