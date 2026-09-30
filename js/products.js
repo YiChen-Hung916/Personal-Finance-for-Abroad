@@ -878,3 +878,89 @@ export async function recordProductUsage({
     }
   );
 }
+
+
+// ======================================================
+// Remove Product Usage
+// ======================================================
+//
+// Used when Owner deletes a submitted Receipt.
+//
+// One submitted Receipt counts each Product once,
+// so Receipt deletion must reverse that count once.
+//
+// usageCount is never allowed to go below 0.
+// ======================================================
+
+export async function removeProductUsage({
+  db,
+  currentUser,
+  productId
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !productId
+  ) {
+    return;
+  }
+
+
+  const productRef =
+    doc(
+      db,
+      'products',
+      productId
+    );
+
+
+  const snapshot =
+    await getDoc(
+      productRef
+    );
+
+
+  if (!snapshot.exists()) {
+    return;
+  }
+
+
+  const product =
+    snapshot.data();
+
+
+  const currentUsage =
+    Math.max(
+      0,
+      Number(
+        product.usageCount || 0
+      )
+    );
+
+
+  const nextUsage =
+    Math.max(
+      0,
+      currentUsage - 1
+    );
+
+
+  await updateDoc(
+    productRef,
+    {
+
+      usageCount:
+        nextUsage,
+
+      isFrequent:
+        nextUsage >= 5,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
