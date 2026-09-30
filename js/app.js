@@ -75,6 +75,10 @@ import {
 } from './authorizeduserrelated.js';
 
 import {
+  authorizedUserUnmatchedPage
+} from './authorizeduserunmatched.js';
+
+import {
   initializeApp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 
@@ -3628,6 +3632,18 @@ if (r === 'dashboard') {
     db,
     currentUser,
     currentRole,
+    lang,
+    page
+  });
+
+
+} else if (r === 'unmatched') {
+
+  authorizedUserUnmatchedPage({
+    db,
+    currentUser,
+    currentRole,
+    currentProfile,
     lang,
     page
   });
