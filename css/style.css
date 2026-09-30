@@ -2217,3 +2217,161 @@
     font-size: 0.78rem;
   }
 }
+
+
+/* ======================================================
+   Dashboard Recent Activity
+   ====================================================== */
+
+.dashboard-activity-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+
+.dashboard-activity-heading h2 {
+  margin: 0;
+}
+
+
+.dashboard-activity-list {
+  border-top: 1px solid #eeeeee;
+}
+
+
+.dashboard-activity-row {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 6px 12px;
+
+  padding: 6px 2px;
+
+  border-bottom: 1px solid #eeeeee;
+
+  cursor: pointer;
+}
+
+
+.dashboard-activity-row:hover {
+  background: #fafafa;
+}
+
+
+.dashboard-activity-main {
+  display: flex;
+
+  align-items: baseline;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+
+.dashboard-activity-main strong {
+  flex: 0 0 auto;
+}
+
+
+.dashboard-activity-detail {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  color: #555;
+
+  font-size: 0.88rem;
+}
+
+
+.dashboard-activity-meta {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  white-space: nowrap;
+
+  font-size: 0.82rem;
+}
+
+
+.dashboard-activity-status {
+  font-weight: 600;
+}
+
+
+.dashboard-activity-more {
+  display: inline-block;
+
+  margin-top: 7px;
+}
+
+
+@media (max-width: 700px) {
+
+  .dashboard-activity-row {
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
+
+    gap: 3px 8px;
+
+    padding: 6px 0;
+  }
+
+
+  .dashboard-activity-main {
+    display: block;
+  }
+
+
+  .dashboard-activity-main strong {
+    display: block;
+
+    line-height: 1.25;
+  }
+
+
+  .dashboard-activity-detail {
+    display: block;
+
+    margin-top: 1px;
+
+    font-size: 0.81rem;
+  }
+
+
+  .dashboard-activity-meta {
+    display: block;
+
+    text-align: right;
+
+    font-size: 0.76rem;
+  }
+
+
+  .dashboard-activity-status {
+    display: block;
+  }
+
+
+  .dashboard-activity-meta .muted {
+    display: block;
+
+    margin-top: 1px;
+  }
+}
