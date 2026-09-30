@@ -2021,8 +2021,16 @@ function authorizedUserMismatchCardHtml({
   if (
     reasons.includes('currencyType')
   ) {
-    
-if (
+
+    reasonLabels.push(
+      lang === 'zh-TW'
+        ? '幣別類型不符'
+        : 'Currency mismatch'
+    );
+  }
+
+
+  if (
     reasons.includes('unmatched')
   ) {
 
@@ -2030,13 +2038,6 @@ if (
       lang === 'zh-TW'
         ? '找不到對應 Receipt'
         : 'No matching Receipt'
-    );
-  }
-    
-    reasonLabels.push(
-      lang === 'zh-TW'
-        ? '幣別類型不符'
-        : 'Currency mismatch'
     );
   }
 
@@ -2069,6 +2070,47 @@ if (
         );
 
 
+  let resolutionDetailText = '';
+
+
+  if (
+    item.type === 'unmatched' &&
+    item.resolved
+  ) {
+
+    if (
+      item.resolutionType ===
+      'linkedReceipt'
+    ) {
+
+      resolutionDetailText =
+        lang === 'zh-TW'
+          ? '找到對應 Receipt'
+          : 'Matching Receipt found';
+
+    } else if (
+      item.resolutionType ===
+      'unrecordedTransaction'
+    ) {
+
+      resolutionDetailText =
+        lang === 'zh-TW'
+          ? '確認為尚未記錄的交易'
+          : 'Confirmed as unrecorded transaction';
+
+    } else if (
+      item.resolutionType ===
+      'invalidTransaction'
+    ) {
+
+      resolutionDetailText =
+        lang === 'zh-TW'
+          ? '非有效交易 / 不需處理'
+          : 'Invalid / no action required';
+    }
+  }
+
+  
   // --------------------------------------------------
   // Reported amount
   // --------------------------------------------------
@@ -2132,34 +2174,61 @@ if (
           </div>
 
 
-          <div class="muted">
+          ${
+            item.type === 'unmatched'
+              ? `
 
-            ${
-              lang === 'zh-TW'
-                ? '原始金額：'
-                : 'Original: '
-            }
+                  <div class="muted">
 
-            ${escapeHtml(
-              formatMoney(
-                item.amount,
-                item.currency
-              )
-            )}
+                    ${
+                      lang === 'zh-TW'
+                        ? '交易金額：'
+                        : 'Amount: '
+                    }
 
-            ·
+                    ${escapeHtml(
+                      formatMoney(
+                        item.amount,
+                        item.currency
+                      )
+                    )}
 
-            ${
-              lang === 'zh-TW'
-                ? '回報：'
-                : 'Reported: '
-            }
+                  </div>
 
-            ${escapeHtml(
-              reportedText
-            )}
+                `
+              : `
 
-          </div>
+                  <div class="muted">
+
+                    ${
+                      lang === 'zh-TW'
+                        ? '原始金額：'
+                        : 'Original: '
+                    }
+
+                    ${escapeHtml(
+                      formatMoney(
+                        item.amount,
+                        item.currency
+                      )
+                    )}
+
+                    ·
+
+                    ${
+                      lang === 'zh-TW'
+                        ? '回報：'
+                        : 'Reported: '
+                    }
+
+                    ${escapeHtml(
+                      reportedText
+                    )}
+
+                  </div>
+
+                `
+          }
 
 
           <div class="muted">
@@ -2177,6 +2246,53 @@ if (
           </div>
 
         </div>
+
+${
+            resolutionDetailText
+              ? `
+
+                  <div class="muted">
+
+                    ${
+                      lang === 'zh-TW'
+                        ? '處理結果：'
+                        : 'Resolution: '
+                    }
+
+                    ${escapeHtml(
+                      resolutionDetailText
+                    )}
+
+                  </div>
+
+                `
+              : ''
+          }
+
+
+          ${
+            item.type === 'unmatched' &&
+            item.resolved &&
+            item.resolutionNotes
+              ? `
+
+                  <div class="muted">
+
+                    ${
+                      lang === 'zh-TW'
+                        ? 'Owner 備註：'
+                        : 'Owner note: '
+                    }
+
+                    ${escapeHtml(
+                      item.resolutionNotes
+                    )}
+
+                  </div>
+
+                `
+              : ''
+          }
 
       </div>
 
