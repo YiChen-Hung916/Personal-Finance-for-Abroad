@@ -2245,7 +2245,6 @@ function authorizedUserMismatchCardHtml({
 
           </div>
 
-        </div>
 
 ${
             resolutionDetailText
@@ -2297,6 +2296,7 @@ ${
       </div>
 
     </div>
+  </div>
   `;
 }
 
