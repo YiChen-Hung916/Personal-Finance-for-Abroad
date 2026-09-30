@@ -132,9 +132,52 @@ service cloud.firestore {
         if authorized();
 
 
-      // Only Owner manages users.
-      allow create, update, delete:
-        if owner();
+      // Owner may create family user profiles.
+allow create:
+  if owner()
+
+  && (
+    request.resource.data.role == "owner"
+    ||
+    request.resource.data.role == "authorizedUser"
+  )
+
+  && request.resource.data.active is bool;
+
+
+// Owner may update family user profiles.
+//
+// If editing their own profile, the signed-in Owner
+// must remain an active Owner.
+allow update:
+  if owner()
+
+  && (
+    request.resource.data.role == "owner"
+    ||
+    request.resource.data.role == "authorizedUser"
+  )
+
+  && request.resource.data.active is bool
+
+  && (
+    uid != request.auth.uid
+
+    ||
+
+    (
+      request.resource.data.role == "owner"
+      &&
+      request.resource.data.active == true
+    )
+  );
+
+
+// Never delete the currently signed-in Owner profile.
+// We are not using delete from the UI anyway.
+allow delete:
+  if owner()
+  && uid != request.auth.uid;
     }
 
 // ==================================================
