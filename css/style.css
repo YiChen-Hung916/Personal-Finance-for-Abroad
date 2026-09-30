@@ -2423,3 +2423,87 @@
   margin-top: 2px;
   line-height: 1.35;
 }
+
+/* ==================================================
+   Authorized User - Related Receipts
+   ================================================== */
+
+.authorized-related-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.authorized-related-heading h2 {
+  margin-bottom: 4px;
+}
+
+.authorized-related-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+
+.authorized-related-filter {
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+
+.authorized-related-filter.active {
+  font-weight: 700;
+}
+
+.authorized-related-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.authorized-related-receipt {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  cursor: pointer;
+}
+
+.authorized-related-receipt:last-child {
+  border-bottom: none;
+}
+
+.authorized-related-receipt-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.authorized-related-receipt-status {
+  margin-top: 3px;
+  font-size: 0.88rem;
+}
+
+.authorized-related-receipt-status.is-pending {
+  font-weight: 700;
+}
+
+.authorized-related-receipt-status.is-confirmed {
+  opacity: 0.8;
+}
+
+.authorized-related-open {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 600px) {
+
+  .authorized-related-receipt-main {
+    align-items: flex-start;
+  }
+
+  .authorized-related-open {
+    padding: 5px 8px;
+  }
+}
