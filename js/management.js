@@ -1259,261 +1259,259 @@ export async function managementPage({
   });
 
 
-    
+    // ====================================================
+    // Store / Brand Merge
+    // ====================================================
+
     document
-  .querySelectorAll(
-    '[data-simple-merge]'
-  )
-  .forEach(button => {
+      .querySelectorAll(
+        '[data-simple-merge]'
+      )
+      .forEach(button => {
 
-    button.onclick = async () => {
+        button.onclick = async () => {
 
-      const mainItem =
-        active.find(
-          item =>
-            item.id ===
-            button.dataset.simpleMerge
-        );
-
-
-      if (!mainItem) {
-        return;
-      }
-
-
-      const candidates =
-        active.filter(item => {
-
-          if (item.id === mainItem.id) {
-            return false;
-          }
-
-
-          const itemIsAlreadyMain =
-            merged.some(
-              mergedItem =>
-                mergedItem.mergedIntoId ===
-                item.id
+          // 按 Merge 的這一筆 = source = 要消失
+          const sourceItem =
+            active.find(
+              item =>
+                item.id ===
+                button.dataset.simpleMerge
             );
 
 
-          return !itemIsAlreadyMain;
-        });
+          if (!sourceItem) {
+            return;
+          }
 
 
-      if (!candidates.length) {
-
-        alert(
-          '沒有其他可合併的資料。'
-        );
-
-        return;
-      }
-
-
-      const answer =
-        prompt(
-          [
-            `「${mainItem.name}」會保留為主項目。`,
-            '',
-            '要把哪一筆合併進來？',
-            '',
-            ...candidates.map(
-              (item, index) =>
-                `${index + 1}. ${item.name}`
-            ),
-            '',
-            '請輸入編號：'
-          ].join('\n')
-        );
+          // 如果這一筆本身已經是其他 Merge 的主項，
+          // 先取消底下的 Merge，避免形成 chain。
+          const sourceHasMergedChildren =
+            merged.some(
+              mergedItem =>
+                mergedItem.mergedIntoId ===
+                sourceItem.id
+            );
 
 
-      if (!answer) {
-        return;
-      }
+          if (sourceHasMergedChildren) {
+
+            alert(
+              `「${sourceItem.name}」目前是其他 Merge 的主項目。\n\n請先取消它現有的 Merge，再把它合併到其他項目。`
+            );
+
+            return;
+          }
 
 
-      const sourceItem =
-        candidates[
-          Number(answer) - 1
-        ];
+          // 可以 Merge 到任何其他 active 項目。
+          // target 即使已經有其他 source merge 進去，
+          // 仍然可以繼續作為主項。
+          const candidates =
+            active.filter(
+              item =>
+                item.id !== sourceItem.id
+            );
 
 
-      if (!sourceItem) {
+          if (!candidates.length) {
 
-        alert('無效的選擇。');
+            alert(
+              '沒有其他可合併的資料。'
+            );
 
-        return;
-      }
-
-
-      if (
-        !confirm(
-          `確定將「${sourceItem.name}」Merge 到「${mainItem.name}」？\n\nMerge 後主畫面會保留「${mainItem.name}」。`
-        )
-      ) {
-        return;
-      }
+            return;
+          }
 
 
-      try {
+          const answer =
+            prompt(
+              [
+                `要把「${sourceItem.name}」Merge 到哪一筆？`,
+                '',
+                '選擇後，被選的項目會保留在主畫面。',
+                '',
+                ...candidates.map(
+                  (item, index) =>
+                    `${index + 1}. ${item.name}`
+                ),
+                '',
+                '請輸入編號：'
+              ].join('\n')
+            );
 
-        await mergeFunction({
-          db,
-          currentUser,
 
-          // 消失
-          sourceId:
-            sourceItem.id,
-
-          // 主項目
-          targetId:
-            mainItem.id
-        });
+          if (!answer) {
+            return;
+          }
 
 
-        await rerender();
+          const targetItem =
+            candidates[
+              Number(answer) - 1
+            ];
 
-      } catch (error) {
 
-        console.error(error);
+          if (!targetItem) {
 
-        alert(error.message);
-      }
-    };
-  });
+            alert('無效的選擇。');
 
+            return;
+          }
+
+
+          if (
+            !confirm(
+              `確定將「${sourceItem.name}」Merge 到「${targetItem.name}」？\n\nMerge 後「${sourceItem.name}」會從主畫面隱藏，只保留「${targetItem.name}」。`
+            )
+          ) {
+            return;
+          }
+
+
+          try {
+
+            await mergeFunction({
+              db,
+              currentUser,
+
+              // 按 Merge 的項目 → 消失
+              sourceId:
+                sourceItem.id,
+
+              // 選擇的項目 → 保留
+              targetId:
+                targetItem.id
+            });
+
+
+            await rerender();
+
+          } catch (error) {
+
+            console.error(error);
+
+            alert(error.message);
+          }
+        };
+      });
+
+
+    // ====================================================
+    // Store / Brand Undo Merge
+    // ====================================================
 
     document
-  .querySelectorAll(
-    '[data-simple-merge]'
-  )
-  .forEach(button => {
+      .querySelectorAll(
+        '[data-simple-undo-main]'
+      )
+      .forEach(button => {
 
-    button.onclick = async () => {
+        button.onclick = async () => {
 
-      // 按 Merge 的這一筆 = source = 要消失
-      const sourceItem =
-        active.find(
-          item =>
-            item.id ===
-            button.dataset.simpleMerge
-        );
+          const mainId =
+            button.dataset.simpleUndoMain;
 
 
-      if (!sourceItem) {
-        return;
-      }
+          const mainItem =
+            active.find(
+              item =>
+                item.id === mainId
+            );
 
 
-      // 如果 source 自己已經是其他項目的主 Merge，
-      // 先取消底下的 Merge，避免 chain。
-      const sourceHasMergedChildren =
-        merged.some(
-          mergedItem =>
-            mergedItem.mergedIntoId ===
-            sourceItem.id
-        );
+          if (!mainItem) {
+            return;
+          }
 
 
-      if (sourceHasMergedChildren) {
-
-        alert(
-          `「${sourceItem.name}」目前是其他 Merge 的主項目。\n\n請先取消它現有的 Merge，再把它合併到其他項目。`
-        );
-
-        return;
-      }
+          const mergedIntoMain =
+            merged.filter(
+              item =>
+                item.mergedIntoId ===
+                mainId
+            );
 
 
-      const candidates =
-        active.filter(
-          item =>
-            item.id !== sourceItem.id
-        );
+          if (!mergedIntoMain.length) {
+
+            alert(
+              '這個項目沒有可以取消的 Merge。'
+            );
+
+            return;
+          }
 
 
-      if (!candidates.length) {
-
-        alert(
-          '沒有其他可合併的資料。'
-        );
-
-        return;
-      }
-
-
-      const answer =
-        prompt(
-          [
-            `要把「${sourceItem.name}」Merge 到哪一筆？`,
-            '',
-            '選擇後，被選的項目會保留在主畫面。',
-            '',
-            ...candidates.map(
-              (item, index) =>
-                `${index + 1}. ${item.name}`
-            ),
-            '',
-            '請輸入編號：'
-          ].join('\n')
-        );
+          const answer =
+            prompt(
+              [
+                `要取消「${mainItem.name}」的哪一次 Merge？`,
+                '',
+                ...mergedIntoMain.map(
+                  (item, index) =>
+                    `${index + 1}. ${mainItem.name} ↔ ${item.name}`
+                ),
+                '',
+                '請輸入編號：'
+              ].join('\n')
+            );
 
 
-      if (!answer) {
-        return;
-      }
+          if (!answer) {
+            return;
+          }
 
 
-      const targetItem =
-        candidates[
-          Number(answer) - 1
-        ];
+          const selected =
+            mergedIntoMain[
+              Number(answer) - 1
+            ];
 
 
-      if (!targetItem) {
+          if (!selected) {
 
-        alert('無效的選擇。');
+            alert('無效的選擇。');
 
-        return;
-      }
-
-
-      if (
-        !confirm(
-          `確定將「${sourceItem.name}」Merge 到「${targetItem.name}」？\n\nMerge 後「${sourceItem.name}」會從主畫面隱藏，只保留「${targetItem.name}」。`
-        )
-      ) {
-        return;
-      }
+            return;
+          }
 
 
-      try {
-
-        await mergeFunction({
-          db,
-          currentUser,
-
-          // 按 Merge 的項目 → 消失
-          sourceId:
-            sourceItem.id,
-
-          // 選擇的項目 → 保留
-          targetId:
-            targetItem.id
-        });
+          if (
+            !confirm(
+              `確定取消「${mainItem.name} ↔ ${selected.name}」的 Merge？`
+            )
+          ) {
+            return;
+          }
 
 
-        await rerender();
+          try {
 
-      } catch (error) {
+            await undoFunction({
+              db,
+              currentUser,
 
-        console.error(error);
+              // 被 merge 掉的 source
+              sourceId:
+                selected.id
+            });
 
-        alert(error.message);
-      }
-    };
-  });
+
+            await rerender();
+
+          } catch (error) {
+
+            console.error(error);
+
+            alert(error.message);
+          }
+        };
+      });
+
+  }
+    
 
   // ====================================================
   // Users
