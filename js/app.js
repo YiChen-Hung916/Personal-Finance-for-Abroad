@@ -50,6 +50,10 @@ import {
 } from './management.js';
 
 import {
+  productDetailPage
+} from './productdetail.js';
+
+import {
   transferPage,
   transferDetailPage,
   getMyPendingTransfers,
@@ -2902,6 +2906,28 @@ if (r === 'dashboard') {
     currentRole,
     lang,
     page
+  });
+
+
+} else if (
+  r.startsWith(
+    'product-detail/'
+  )
+) {
+
+  const productId =
+    r.substring(
+      'product-detail/'.length
+    );
+
+
+  productDetailPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    productId
   });
 
 
