@@ -2507,3 +2507,48 @@
     padding: 5px 8px;
   }
 }
+
+
+/* ==================================================
+   Authorized User - Unmatched Transaction
+   ================================================== */
+
+.unmatched-transaction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.unmatched-transaction-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.unmatched-amount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(90px, 1fr);
+  gap: 10px;
+}
+
+.unmatched-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+
+  .unmatched-transaction-form {
+    gap: 10px;
+  }
+
+  .unmatched-amount-row {
+    grid-template-columns: minmax(0, 1fr) 100px;
+  }
+
+  .unmatched-actions button {
+    width: 100%;
+  }
+}
