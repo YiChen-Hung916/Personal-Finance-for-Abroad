@@ -5,7 +5,8 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  increment
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 
@@ -414,6 +415,85 @@ export async function undoStoreMerge({
 
       mergedBy:
         null,
+
+      updatedAt:
+        serverTimestamp(),
+
+      updatedBy:
+        currentUser.uid
+    }
+  );
+}
+
+
+// ======================================================
+// Record Store Usage
+// ======================================================
+
+export async function recordStoreUsage({
+  db,
+  currentUser,
+  storeId
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !storeId
+  ) {
+    return;
+  }
+
+
+  const storeRef =
+    doc(
+      db,
+      'stores',
+      storeId
+    );
+
+
+  const snapshot =
+    await getDoc(
+      storeRef
+    );
+
+
+  if (!snapshot.exists()) {
+    return;
+  }
+
+
+  const store =
+    snapshot.data();
+
+
+  if (
+    store.status === 'merged'
+  ) {
+    return;
+  }
+
+
+  const currentUsage =
+    Number(
+      store.usageCount || 0
+    );
+
+
+  const nextUsage =
+    currentUsage + 1;
+
+
+  await updateDoc(
+    storeRef,
+    {
+
+      usageCount:
+        increment(1),
+
+      isFrequent:
+        nextUsage >= 5,
 
       updatedAt:
         serverTimestamp(),
