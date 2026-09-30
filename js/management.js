@@ -10,6 +10,7 @@ import {
 import {
   getStores,
   createStore,
+  updateStore,
   mergeStore,
   undoStoreMerge
 } from './stores.js';
@@ -17,6 +18,7 @@ import {
 import {
   getBrands,
   createBrand,
+  updateBrand,
   mergeBrand,
   undoBrandMerge
 } from './brands.js';
@@ -383,21 +385,113 @@ export async function managementPage({
               );
         });
 
+      document
+  .querySelectorAll(
+    '[data-undo-product-main]'
+  )
+  .forEach(button => {
+
+    button.onclick = async () => {
+
+      const mainProductId =
+        button.dataset.undoProductMain;
 
 
+      const mainProduct =
+        activeProducts.find(
+          product =>
+            product.id === mainProductId
+        );
 
 
-              await renderProducts();
+      if (!mainProduct) {
+        return;
+      }
 
-            } catch (error) {
 
-              console.error(error);
+      const mergedIntoThisProduct =
+        mergedProducts.filter(
+          product =>
+            product.mergedIntoId ===
+            mainProductId
+        );
 
-              alert(error.message);
-            }
-          };
+
+      if (!mergedIntoThisProduct.length) {
+
+        alert(
+          '這個 Product 沒有可以取消的 Merge。'
+        );
+
+        return;
+      }
+
+
+      const answer =
+        prompt(
+          [
+            `要取消「${mainProduct.name}」的哪一次 Merge？`,
+            '',
+            ...mergedIntoThisProduct.map(
+              (product, index) =>
+                `${index + 1}. ${mainProduct.name} ↔ ${product.name}`
+            ),
+            '',
+            '請輸入編號：'
+          ].join('\n')
+        );
+
+
+      if (!answer) {
+        return;
+      }
+
+
+      const selected =
+        mergedIntoThisProduct[
+          Number(answer) - 1
+        ];
+
+
+      if (!selected) {
+
+        alert('無效的選擇。');
+
+        return;
+      }
+
+
+      if (
+        !confirm(
+          `確定取消「${mainProduct.name} ↔ ${selected.name}」的 Merge？`
+        )
+      ) {
+        return;
+      }
+
+
+      try {
+
+        await undoProductMerge({
+          db,
+          currentUser,
+
+          // selected 是當初被 merge 掉的 source
+          sourceId:
+            selected.id
         });
 
+
+        await renderProducts();
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(error.message);
+      }
+    };
+  });
 
     } catch (error) {
 
@@ -525,114 +619,6 @@ export async function managementPage({
 
       </div>
     `;
-
-    document
-  .querySelectorAll(
-    '[data-undo-product-main]'
-  )
-  .forEach(button => {
-
-    button.onclick = async () => {
-
-      const mainProductId =
-        button.dataset.undoProductMain;
-
-
-      const mainProduct =
-        activeProducts.find(
-          product =>
-            product.id === mainProductId
-        );
-
-
-      if (!mainProduct) {
-        return;
-      }
-
-
-      const mergedIntoThisProduct =
-        mergedProducts.filter(
-          product =>
-            product.mergedIntoId ===
-            mainProductId
-        );
-
-
-      if (!mergedIntoThisProduct.length) {
-
-        alert(
-          '這個 Product 沒有可以取消的 Merge。'
-        );
-
-        return;
-      }
-
-
-      const answer =
-        prompt(
-          [
-            `要取消「${mainProduct.name}」的哪一次 Merge？`,
-            '',
-            ...mergedIntoThisProduct.map(
-              (product, index) =>
-                `${index + 1}. ${mainProduct.name} ↔ ${product.name}`
-            ),
-            '',
-            '請輸入編號：'
-          ].join('\n')
-        );
-
-
-      if (!answer) {
-        return;
-      }
-
-
-      const selected =
-        mergedIntoThisProduct[
-          Number(answer) - 1
-        ];
-
-
-      if (!selected) {
-
-        alert('無效的選擇。');
-
-        return;
-      }
-
-
-      if (
-        !confirm(
-          `確定取消「${mainProduct.name} ↔ ${selected.name}」的 Merge？`
-        )
-      ) {
-        return;
-      }
-
-
-      try {
-
-        await undoProductMerge({
-          db,
-          currentUser,
-
-          // selected 是當初被 merge 掉的 source
-          sourceId:
-            selected.id
-        });
-
-
-        await renderProducts();
-
-      } catch (error) {
-
-        console.error(error);
-
-        alert(error.message);
-      }
-    };
-  });
 
 
     document.querySelector(
@@ -847,6 +833,9 @@ export async function managementPage({
       createFunction:
         createStore,
 
+      updateFunction:
+        updateStore,
+
       mergeFunction:
         mergeStore,
 
@@ -887,6 +876,10 @@ export async function managementPage({
 
       createFunction:
         createBrand,
+      
+      updateFunction:
+        updateBrand,
+
 
       mergeFunction:
         mergeBrand,
@@ -905,15 +898,16 @@ export async function managementPage({
   // ====================================================
 
   function renderSimpleMaster({
-    title,
-    items,
-    createLabel,
-    placeholder,
-    createFunction,
-    mergeFunction,
-    undoFunction,
-    rerender
-  }) {
+  title,
+  items,
+  createLabel,
+  placeholder,
+  createFunction,
+  updateFunction,
+  mergeFunction,
+  undoFunction,
+  rerender
+}) {
 
     const content =
       document.querySelector(
@@ -988,6 +982,13 @@ export async function managementPage({
 
 
                     <div class="management-row-meta">
+
+                    <button
+    type="button"
+    data-simple-edit="${item.id}"
+  >
+    編輯
+  </button>
 
   <button
     type="button"
@@ -1117,6 +1118,133 @@ export async function managementPage({
     };
 
 
+
+    document
+  .querySelectorAll(
+    '[data-simple-edit]'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      const item =
+        active.find(
+          candidate =>
+            candidate.id ===
+            button.dataset.simpleEdit
+        );
+
+
+      if (!item) {
+        return;
+      }
+
+
+      const holder =
+        document.querySelector(
+          '#managementSimpleForm'
+        );
+
+
+      holder.innerHTML = `
+
+        <div class="management-editor">
+
+          <h3>
+            編輯${title === 'Stores' ? '商店' : '品牌'}
+          </h3>
+
+          <label class="field">
+
+            名稱
+
+            <input
+              id="managementSimpleEditName"
+              value="${escapeLocal(item.name)}"
+            >
+
+          </label>
+
+
+          <div class="actions">
+
+            <button
+              id="managementSimpleEditSave"
+              class="primary"
+              type="button"
+            >
+              儲存
+            </button>
+
+            <button
+              id="managementSimpleEditCancel"
+              type="button"
+            >
+              取消
+            </button>
+
+          </div>
+
+        </div>
+      `;
+
+
+      document.querySelector(
+        '#managementSimpleEditCancel'
+      ).onclick = () => {
+
+        holder.innerHTML = '';
+      };
+
+
+      document.querySelector(
+        '#managementSimpleEditSave'
+      ).onclick = async () => {
+
+        const name =
+          document.querySelector(
+            '#managementSimpleEditName'
+          ).value;
+
+
+        try {
+
+          if (title === 'Stores') {
+
+            await updateFunction({
+              db,
+              currentUser,
+              storeId:
+                item.id,
+              name
+            });
+
+          } else {
+
+            await updateFunction({
+              db,
+              currentUser,
+              brandId:
+                item.id,
+              name
+            });
+          }
+
+
+          await rerender();
+
+        } catch (error) {
+
+          console.error(error);
+
+          alert(error.message);
+        }
+      };
+    };
+  });
+
+
+    
     document
   .querySelectorAll(
     '[data-simple-merge]'
