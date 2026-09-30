@@ -9,6 +9,8 @@ import {
 
 import {
   getProducts,
+  createProduct,
+  recordProductUsage,
   normalizeProductKey,
   detectProductCategory,
   PRODUCT_CATEGORIES
@@ -17,12 +19,15 @@ import {
 
 import {
   getStores,
+  createStore,
+  recordStoreUsage,
   normalizeStoreKey
 } from './stores.js';
 
 
 import {
   getBrands,
+  createBrand,
   normalizeBrandKey
 } from './brands.js';
 
@@ -298,6 +303,252 @@ function resolveMasterItem(
       );
 
   }) || null;
+}
+
+
+// ======================================================
+// Resolve / Create Store
+// ======================================================
+
+async function resolveReceiptStore(
+  storeName
+) {
+
+  const cleanName =
+    String(storeName || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+
+  if (!cleanName) {
+    return null;
+  }
+
+
+  // ----------------------------------------------------
+  // Existing canonical name or alias
+  // ----------------------------------------------------
+
+  let store =
+    resolveMasterItem(
+      receiptStores,
+      cleanName,
+      normalizeStoreKey
+    );
+
+
+  if (store) {
+    return store;
+  }
+
+
+  // ----------------------------------------------------
+  // New Store
+  // ----------------------------------------------------
+
+  await createStore({
+    db,
+    currentUser,
+    name:
+      cleanName
+  });
+
+
+  // Reload from Firestore so we get
+  // the complete document + ID.
+  receiptStores =
+    await getStores(
+      db,
+      {
+        includeMerged: false
+      }
+    );
+
+
+  store =
+    resolveMasterItem(
+      receiptStores,
+      cleanName,
+      normalizeStoreKey
+    );
+
+
+  if (!store) {
+
+    throw new Error(
+      `Unable to resolve Store: ${cleanName}`
+    );
+  }
+
+
+  return store;
+}
+
+
+// ======================================================
+// Resolve / Create Product
+// ======================================================
+
+async function resolveReceiptProduct({
+  name,
+  category
+}) {
+
+  const cleanName =
+    String(name || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+
+  if (!cleanName) {
+    return null;
+  }
+
+
+  // ----------------------------------------------------
+  // Existing canonical name or alias
+  // ----------------------------------------------------
+
+  let product =
+    resolveMasterItem(
+      receiptProducts,
+      cleanName,
+      normalizeProductKey
+    );
+
+
+  if (product) {
+    return product;
+  }
+
+
+  // ----------------------------------------------------
+  // New Product
+  // ----------------------------------------------------
+
+  const finalCategory =
+    category ||
+    detectProductCategory(
+      cleanName
+    ) ||
+    'Other';
+
+
+  await createProduct({
+    db,
+    currentUser,
+
+    name:
+      cleanName,
+
+    category:
+      finalCategory
+  });
+
+
+  receiptProducts =
+    await getProducts(
+      db,
+      {
+        includeMerged: false
+      }
+    );
+
+
+  product =
+    resolveMasterItem(
+      receiptProducts,
+      cleanName,
+      normalizeProductKey
+    );
+
+
+  if (!product) {
+
+    throw new Error(
+      `Unable to resolve Product: ${cleanName}`
+    );
+  }
+
+
+  return product;
+}
+
+
+// ======================================================
+// Resolve / Create Brand
+// ======================================================
+
+async function resolveReceiptBrand(
+  brandName
+) {
+
+  const cleanName =
+    String(brandName || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+
+  if (!cleanName) {
+    return null;
+  }
+
+
+  // ----------------------------------------------------
+  // Existing canonical name or alias
+  // ----------------------------------------------------
+
+  let brand =
+    resolveMasterItem(
+      receiptBrands,
+      cleanName,
+      normalizeBrandKey
+    );
+
+
+  if (brand) {
+    return brand;
+  }
+
+
+  // ----------------------------------------------------
+  // New Brand
+  // ----------------------------------------------------
+
+  await createBrand({
+    db,
+    currentUser,
+    name:
+      cleanName
+  });
+
+
+  receiptBrands =
+    await getBrands(
+      db,
+      {
+        includeMerged: false
+      }
+    );
+
+
+  brand =
+    resolveMasterItem(
+      receiptBrands,
+      cleanName,
+      normalizeBrandKey
+    );
+
+
+  if (!brand) {
+
+    throw new Error(
+      `Unable to resolve Brand: ${cleanName}`
+    );
+  }
+
+
+  return brand;
 }
 
 
@@ -2461,12 +2712,6 @@ async function saveReceipt(status) {
     ).value;
 
 
-  const storeKey =
-    normalizeNameKey(
-      storeInput
-    );
-
-
   const store =
     formatDisplayName(
       storeInput
@@ -2972,7 +3217,169 @@ if (paymentMethod === 'card') {
     return;
   }
 
+  // ------------------------------------------------------
+  // Resolve Store Master Data
+  // ------------------------------------------------------
 
+  let resolvedStore;
+
+
+  try {
+
+    resolvedStore =
+      await resolveReceiptStore(
+        store
+      );
+
+  } catch (error) {
+
+    console.error(
+      'Failed to resolve Store:',
+      error
+    );
+
+
+    alert(
+      `${
+        lang === 'zh-TW'
+          ? '無法建立或辨識商店'
+          : 'Unable to resolve store'
+      }: ${error.message}`
+    );
+
+    return;
+  }
+
+
+  if (!resolvedStore) {
+
+    alert(
+      lang === 'zh-TW'
+        ? '無法辨識商店。'
+        : 'Unable to resolve store.'
+    );
+
+    return;
+  }
+
+
+  // ------------------------------------------------------
+  // Resolve Product / Brand Master Data
+  // ------------------------------------------------------
+
+  const resolvedItems = [];
+
+
+  try {
+
+    for (
+      const item of meaningfulItems
+    ) {
+
+      const resolvedProduct =
+        await resolveReceiptProduct({
+
+          name:
+            item.product,
+
+          category:
+            item.category
+        });
+
+
+      let resolvedBrand =
+        null;
+
+
+      if (item.brand) {
+
+        resolvedBrand =
+          await resolveReceiptBrand(
+            item.brand
+          );
+      }
+
+
+      resolvedItems.push({
+
+        ...item,
+
+
+        // ============================================
+        // Product relationship + historical snapshot
+        // ============================================
+
+        productId:
+          resolvedProduct?.id ||
+          null,
+
+        product:
+          resolvedProduct?.name ||
+          item.product,
+
+        productKey:
+          normalizeProductKey(
+            resolvedProduct?.name ||
+            item.product
+          ),
+
+
+        // ============================================
+        // Brand relationship + historical snapshot
+        // ============================================
+
+        brandId:
+          resolvedBrand?.id ||
+          null,
+
+        brand:
+          resolvedBrand?.name ||
+          item.brand ||
+          '',
+
+        brandKey:
+          resolvedBrand
+            ? normalizeBrandKey(
+                resolvedBrand.name
+              )
+            : '',
+
+
+        // ============================================
+        // Product category snapshot
+        // ============================================
+
+        category:
+          resolvedProduct?.category ||
+          item.category ||
+          detectProductCategory(
+            resolvedProduct?.name ||
+            item.product
+          ) ||
+          'Other'
+      });
+    }
+
+  } catch (error) {
+
+    console.error(
+      'Failed to resolve Receipt items:',
+      error
+    );
+
+
+    alert(
+      `${
+        lang === 'zh-TW'
+          ? '無法建立或辨識產品 / 品牌'
+          : 'Unable to resolve products / brands'
+      }: ${error.message}`
+    );
+
+    return;
+  }
+
+  
   // ------------------------------------------------------
   // Discount Validation
   // ------------------------------------------------------
@@ -3043,7 +3450,7 @@ if (paymentMethod === 'card') {
 
 
   const originalItemsSubtotal =
-    meaningfulItems.reduce(
+  resolvedItems.reduce(
       (sum, item) =>
         sum +
         item.originalSubtotal,
@@ -3052,7 +3459,7 @@ if (paymentMethod === 'card') {
 
 
   const itemsSubtotal =
-    meaningfulItems.reduce(
+  resolvedItems.reduce(
       (sum, item) =>
         sum +
         item.finalTotal,
@@ -3061,7 +3468,7 @@ if (paymentMethod === 'card') {
 
 
   const itemDiscountTotal =
-    meaningfulItems.reduce(
+  resolvedItems.reduce(
       (sum, item) =>
         sum +
         Math.max(
@@ -3088,18 +3495,18 @@ if (paymentMethod === 'card') {
   // ------------------------------------------------------
 
   const categories =
-    [
-      ...new Set(
+  [
+    ...new Set(
 
-        meaningfulItems
-          .map(
-            item =>
-              item.category
-          )
-          .filter(Boolean)
+      resolvedItems
+        .map(
+          item =>
+            item.category
+        )
+        .filter(Boolean)
 
-      )
-    ];
+    )
+  ];
 
 
   // ------------------------------------------------------
@@ -3118,11 +3525,19 @@ if (paymentMethod === 'card') {
 
         {
 
-          store,
-          storeKey,
+          storeId:
+  resolvedStore.id,
 
-          branch,
-          purchaseType,
+store:
+  resolvedStore.name,
+
+storeKey:
+  normalizeStoreKey(
+    resolvedStore.name
+  ),
+
+branch,
+purchaseType,
 
           purchaseDate,
           purchaseTime,
@@ -3240,10 +3655,10 @@ if (paymentMethod === 'card') {
     // ----------------------------------------------------
 
     for (
-      const item of meaningfulItems
-    ) {
+  const item of resolvedItems
+) {
 
-      await addDoc(
+  await addDoc(
 
         collection(
           db,
@@ -3268,6 +3683,72 @@ if (paymentMethod === 'card') {
     }
 
 
+
+    // ----------------------------------------------------
+    // Master Data Usage
+    // ----------------------------------------------------
+    //
+    // Only submitted Receipts count as actual usage.
+    //
+    // Drafts do NOT affect usageCount.
+    //
+    // One Receipt counts each Product only once,
+    // even if the Product appears in multiple item rows.
+    // ----------------------------------------------------
+
+    if (
+      status === 'pending'
+    ) {
+
+      // ================================================
+      // Store
+      // ================================================
+
+      await recordStoreUsage({
+
+        db,
+        currentUser,
+
+        storeId:
+          resolvedStore.id
+      });
+
+
+      // ================================================
+      // Products
+      // ================================================
+
+      const uniqueProductIds =
+        [
+          ...new Set(
+
+            resolvedItems
+              .map(
+                item =>
+                  item.productId
+              )
+              .filter(Boolean)
+
+          )
+        ];
+
+
+      for (
+        const productId
+        of uniqueProductIds
+      ) {
+
+        await recordProductUsage({
+
+          db,
+          currentUser,
+          productId
+        });
+      }
+    }
+
+    
+
     // ----------------------------------------------------
     // Merchant Currency-Choice History
     // ----------------------------------------------------
@@ -3286,12 +3767,16 @@ if (paymentMethod === 'card') {
 
         {
 
-          storeName:
-            store,
+          storeId:
+  resolvedStore.id,
 
-          storeKey:
-            storeKey,
+storeName:
+  resolvedStore.name,
 
+storeKey:
+  normalizeStoreKey(
+    resolvedStore.name
+  ),
           branch:
             branch || '',
 
