@@ -981,14 +981,94 @@ allow update:
 
 
       // ------------------------------------------------
+      // UPDATE
+      // ------------------------------------------------
+      //
       // Authorized User cannot edit after submission.
       //
-      // Owner resolution will be added in the next
-      // phase together with Owner Needs Attention.
+      // Owner may resolve an open report, but may only
+      // change resolution-related fields.
       // ------------------------------------------------
 
       allow update:
-        if false;
+        if owner()
+
+        && resource.data.status ==
+          "open"
+
+        && request.resource.data.status ==
+          "resolved"
+
+        && (
+          request.resource.data.resolutionType ==
+            "linkedReceipt"
+
+          ||
+
+          request.resource.data.resolutionType ==
+            "unrecordedTransaction"
+
+          ||
+
+          request.resource.data.resolutionType ==
+            "invalidTransaction"
+        )
+
+        && (
+          (
+            request.resource.data.resolutionType ==
+              "linkedReceipt"
+
+            &&
+
+            request.resource.data.linkedReceiptId
+              is string
+
+            &&
+
+            request.resource.data.linkedReceiptId
+              .size() > 0
+
+            &&
+
+            exists(
+              /databases/$(database)/documents/receipts/$(request.resource.data.linkedReceiptId)
+            )
+          )
+
+          ||
+
+          (
+            request.resource.data.resolutionType !=
+              "linkedReceipt"
+
+            &&
+
+            request.resource.data.linkedReceiptId ==
+              null
+          )
+        )
+
+        && request.resource.data.resolutionNotes
+          is string
+
+        && request.resource.data.resolvedBy ==
+          request.auth.uid
+
+        && request.resource.data.resolvedAt !=
+          null
+
+        && request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          "status",
+          "resolutionType",
+          "resolutionNotes",
+          "linkedReceiptId",
+          "resolvedBy",
+          "resolvedAt",
+          "updatedAt"
+        ]);
 
 
       // ------------------------------------------------
