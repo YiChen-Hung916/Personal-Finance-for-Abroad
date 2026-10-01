@@ -291,12 +291,40 @@ export async function getReceiptDraft({
 
   const receipt = {
 
-    id:
-      receiptSnapshot.id,
+  id:
+    receiptSnapshot.id,
 
-    ...receiptSnapshot.data()
+  ...receiptSnapshot.data()
 
-  };
+};
+
+
+// ----------------------------------------------------
+// Safety:
+// only status === draft may enter Draft editor.
+// ----------------------------------------------------
+
+if (
+  receipt.status !== 'draft'
+) {
+
+  return null;
+}
+
+
+const items =
+  await getReceiptDraftItems({
+    db,
+    receiptId
+  });
+
+
+return {
+  receipt,
+  items
+};
+
+}
 
 
   // ======================================================
@@ -646,32 +674,6 @@ export function populateReceiptDraft({
 }
 
   
-  // ----------------------------------------------------
-  // Safety:
-  // only status === draft may enter Draft editor.
-  // ----------------------------------------------------
-
-  if (
-    receipt.status !== 'draft'
-  ) {
-
-    return null;
-  }
-
-
-  const items =
-    await getReceiptDraftItems({
-      db,
-      receiptId
-    });
-
-
-  return {
-    receipt,
-    items
-  };
-}
-
 
 // ======================================================
 // Load All Drafts
