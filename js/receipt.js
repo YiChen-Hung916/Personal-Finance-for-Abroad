@@ -1742,6 +1742,7 @@ if (draftData) {
   updateReceiptTotal();
 }
 
+}
 
 // ======================================================
 // Add Receipt Item
