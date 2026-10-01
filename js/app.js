@@ -485,6 +485,14 @@ function menu(role) {
   }
 </a>
 
+<a href="#receipt-drafts">
+  ${
+    lang === 'zh-TW'
+      ? '草稿'
+      : 'Drafts'
+  }
+</a>
+
       <a href="#pending">
         ${t('pendingAll', lang)}
       </a>
@@ -3535,6 +3543,7 @@ if (r === 'dashboard') {
 
   dashboard();
 
+
 } else if (r === 'pending') {
 
   pendingPage({
@@ -3544,7 +3553,8 @@ if (r === 'dashboard') {
     page
   });
 
-} if (r === 'receipt-drafts') {
+
+} else if (r === 'receipt-drafts') {
 
   receiptDraftsPage({
     db,
@@ -3553,11 +3563,26 @@ if (r === 'dashboard') {
     lang,
     page
   });
-  
+
+
 } else if (
-  r === 'receipt-draft' &&
-  receiptId
+  r.startsWith('receipt-draft/')
 ) {
+
+  const draftId =
+    r.substring(
+      'receipt-draft/'.length
+    );
+
+
+  if (!draftId) {
+
+    location.hash =
+      '#receipt-drafts';
+
+    return;
+  }
+
 
   receiptPage({
     db,
@@ -3569,21 +3594,23 @@ if (r === 'dashboard') {
     normalizeNameKey,
     formatDisplayName,
 
-    draftId:
-      receiptId
+    draftId
   });
+
+
 } else if (r === 'new-receipt') {
 
   receiptPage({
-  db,
-  currentUser,
-  currentRole,
-  lang,
-  page,
-  escapeHtml,
-  normalizeNameKey,
-  formatDisplayName
-});
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    escapeHtml,
+    normalizeNameKey,
+    formatDisplayName
+  });
+
 
 } else if (
   r === 'my-confirmations' ||
