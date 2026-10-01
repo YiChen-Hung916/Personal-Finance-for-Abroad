@@ -1,4 +1,4 @@
-import {
+ import {
   collection,
   doc,
   getDoc,
@@ -2784,6 +2784,28 @@ async function saveReceipt(status) {
     return;
   }
 
+
+  const isDraft =
+    status === 'draft';
+
+  const isSubmit =
+    status === 'pending';
+
+
+  if (
+    !isDraft &&
+    !isSubmit
+  ) {
+
+    console.error(
+      'Invalid Receipt save status:',
+      status
+    );
+
+    return;
+  }
+
+  
 // ------------------------------------------------------
   // Submission calendar date
   // ------------------------------------------------------
@@ -2882,8 +2904,11 @@ async function saveReceipt(status) {
   // ------------------------------------------------------
 
   if (
-    !store ||
-    !purchaseDate
+    isSubmit &&
+    (
+      !store ||
+      !purchaseDate
+    )
   ) {
 
     alert(
@@ -2894,9 +2919,10 @@ async function saveReceipt(status) {
 
     return;
   }
-
+  
 
   if (
+    isSubmit &&
     paymentMethod === 'card' &&
     !cardId
   ) {
@@ -2939,7 +2965,10 @@ let cardSnapshotData =
   null;
 
 
-if (paymentMethod === 'card') {
+if (
+  isSubmit &&
+  paymentMethod === 'card'
+) {
 
   const cardDocument =
     await getDoc(
@@ -3305,7 +3334,10 @@ const promotionRequiredQuantity =
     );
 
 
-  if (meaningfulItems.length === 0) {
+  if (
+    isSubmit &&
+    meaningfulItems.length === 0
+  ) {
 
     alert(
       lang === 'zh-TW'
@@ -3331,7 +3363,10 @@ const promotionRequiredQuantity =
     );
 
 
-  if (invalidItem) {
+  if (
+    isSubmit &&
+    invalidItem
+  ) {
 
     alert(
       lang === 'zh-TW'
@@ -3341,50 +3376,55 @@ const promotionRequiredQuantity =
 
     return;
   }
+  
 
   // ------------------------------------------------------
   // Resolve Store Master Data
   // ------------------------------------------------------
 
-  let resolvedStore;
+ let resolvedStore =
+    null;
 
 
-  try {
+  if (isSubmit) {
 
-    resolvedStore =
-      await resolveReceiptStore(
-        store
+    try {
+
+      resolvedStore =
+        await resolveReceiptStore(
+          store
+        );
+
+    } catch (error) {
+
+      console.error(
+        'Failed to resolve Store:',
+        error
       );
 
-  } catch (error) {
 
-    console.error(
-      'Failed to resolve Store:',
-      error
-    );
+      alert(
+        `${
+          lang === 'zh-TW'
+            ? '無法建立或辨識商店'
+            : 'Unable to resolve store'
+        }: ${error.message}`
+      );
+
+      return;
+    }
 
 
-    alert(
-      `${
+    if (!resolvedStore) {
+
+      alert(
         lang === 'zh-TW'
-          ? '無法建立或辨識商店'
-          : 'Unable to resolve store'
-      }: ${error.message}`
-    );
+          ? '無法辨識商店。'
+          : 'Unable to resolve store.'
+      );
 
-    return;
-  }
-
-
-  if (!resolvedStore) {
-
-    alert(
-      lang === 'zh-TW'
-        ? '無法辨識商店。'
-        : 'Unable to resolve store.'
-    );
-
-    return;
+      return;
+    }
   }
 
 
@@ -3392,116 +3432,178 @@ const promotionRequiredQuantity =
   // Resolve Product / Brand Master Data
   // ------------------------------------------------------
 
-  const resolvedItems = [];
+  let resolvedItems = [];
 
 
-  try {
+  if (isDraft) {
 
-    for (
-      const item of meaningfulItems
-    ) {
+    // ----------------------------------------------------
+    // Draft
+    // ----------------------------------------------------
+    //
+    // Keep exactly what the Owner has typed so far.
+    //
+    // IMPORTANT:
+    // Drafts must NOT create / resolve Master Data.
+    // The text may still be incomplete.
+    // ----------------------------------------------------
 
-      const resolvedProduct =
-        await resolveReceiptProduct({
-
-          name:
-            item.product,
-
-          category:
-            item.category
-        });
-
-
-      let resolvedBrand =
-        null;
-
-
-      if (item.brand) {
-
-        resolvedBrand =
-          await resolveReceiptBrand(
-            item.brand
-          );
-      }
-
-
-      resolvedItems.push({
+    resolvedItems =
+      meaningfulItems.map(item => ({
 
         ...item,
 
-
-        // ============================================
-        // Product relationship + historical snapshot
-        // ============================================
-
         productId:
-          resolvedProduct?.id ||
           null,
 
         product:
-          resolvedProduct?.name ||
-          item.product,
+          item.product || '',
 
         productKey:
-          normalizeProductKey(
-            resolvedProduct?.name ||
-            item.product
-          ),
-
-
-        // ============================================
-        // Brand relationship + historical snapshot
-        // ============================================
-
-        brandId:
-          resolvedBrand?.id ||
-          null,
-
-        brand:
-          resolvedBrand?.name ||
-          item.brand ||
-          '',
-
-        brandKey:
-          resolvedBrand
-            ? normalizeBrandKey(
-                resolvedBrand.name
+          item.product
+            ? normalizeProductKey(
+                item.product
               )
             : '',
 
+        brandId:
+          null,
 
-        // ============================================
-        // Product category snapshot
-        // ============================================
+        brand:
+          item.brand || '',
+
+        brandKey:
+          item.brand
+            ? normalizeBrandKey(
+                item.brand
+              )
+            : '',
 
         category:
-          resolvedProduct?.category ||
-          item.category ||
-          detectProductCategory(
+          item.category || ''
+
+      }));
+
+
+  } else {
+
+    // ----------------------------------------------------
+    // Submitted Receipt
+    // ----------------------------------------------------
+    //
+    // Only a real submitted Receipt may resolve / create
+    // Store / Product / Brand Master Data.
+    // ----------------------------------------------------
+
+    try {
+
+      for (
+        const item of meaningfulItems
+      ) {
+
+        const resolvedProduct =
+          await resolveReceiptProduct({
+
+            name:
+              item.product,
+
+            category:
+              item.category
+          });
+
+
+        let resolvedBrand =
+          null;
+
+
+        if (item.brand) {
+
+          resolvedBrand =
+            await resolveReceiptBrand(
+              item.brand
+            );
+        }
+
+
+        resolvedItems.push({
+
+          ...item,
+
+
+          // ============================================
+          // Product relationship + historical snapshot
+          // ============================================
+
+          productId:
+            resolvedProduct?.id ||
+            null,
+
+          product:
             resolvedProduct?.name ||
-            item.product
-          ) ||
-          'Other'
-      });
+            item.product,
+
+          productKey:
+            normalizeProductKey(
+              resolvedProduct?.name ||
+              item.product
+            ),
+
+
+          // ============================================
+          // Brand relationship + historical snapshot
+          // ============================================
+
+          brandId:
+            resolvedBrand?.id ||
+            null,
+
+          brand:
+            resolvedBrand?.name ||
+            item.brand ||
+            '',
+
+          brandKey:
+            resolvedBrand
+              ? normalizeBrandKey(
+                  resolvedBrand.name
+                )
+              : '',
+
+
+          // ============================================
+          // Product category snapshot
+          // ============================================
+
+          category:
+            resolvedProduct?.category ||
+            item.category ||
+            detectProductCategory(
+              resolvedProduct?.name ||
+              item.product
+            ) ||
+            'Other'
+
+        });
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Failed to resolve Receipt items:',
+        error
+      );
+
+
+      alert(
+        `${
+          lang === 'zh-TW'
+            ? '無法建立或辨識產品 / 品牌'
+            : 'Unable to resolve products / brands'
+        }: ${error.message}`
+      );
+
+      return;
     }
-
-  } catch (error) {
-
-    console.error(
-      'Failed to resolve Receipt items:',
-      error
-    );
-
-
-    alert(
-      `${
-        lang === 'zh-TW'
-          ? '無法建立或辨識產品 / 品牌'
-          : 'Unable to resolve products / brands'
-      }: ${error.message}`
-    );
-
-    return;
   }
 
   
@@ -3534,7 +3636,10 @@ const promotionRequiredQuantity =
       });
 
 
-  if (incompleteDiscount) {
+  if (
+    isSubmit &&
+    incompleteDiscount
+  ) {
 
     alert(
       lang === 'zh-TW'
@@ -3651,15 +3756,27 @@ const promotionRequiredQuantity =
         {
 
           storeId:
-  resolvedStore.id,
+  isSubmit
+    ? resolvedStore.id
+    : null,
 
 store:
-  resolvedStore.name,
+  isSubmit
+    ? resolvedStore.name
+    : store,
 
 storeKey:
-  normalizeStoreKey(
-    resolvedStore.name
-  ),
+  isSubmit
+    ? normalizeStoreKey(
+        resolvedStore.name
+      )
+    : (
+        store
+          ? normalizeStoreKey(
+              store
+            )
+          : ''
+      ),
 
 branch,
 purchaseType,
