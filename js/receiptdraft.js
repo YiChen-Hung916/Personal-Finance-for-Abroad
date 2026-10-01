@@ -1449,5 +1449,177 @@ export async function receiptDraftsPage({
 
 
 // ======================================================
+// Save / Update Draft Receipt Document
+// ======================================================
+//
+// Used for:
+//
+// 1. Save a new Draft
+// 2. Update an existing Draft
+// 3. Convert an existing Draft into Pending
+//
+// IMPORTANT:
+//
+// This function only handles the Receipt parent document
+// and its item subcollection.
+//
+// Master Data usage and merchantCurrencyOptions remain
+// the responsibility of the submitted Receipt workflow.
+// ======================================================
+
+export async function saveReceiptDraftDocument({
+  db,
+  currentUser,
+  draftId = null,
+  receiptData,
+  items = []
+}) {
+
+  if (
+    !db ||
+    !currentUser?.uid ||
+    !receiptData
+  ) {
+
+    throw new Error(
+      'Missing Receipt save information.'
+    );
+  }
+
+
+  let receiptRef;
+
+
+  // ====================================================
+  // Existing Draft
+  // ====================================================
+
+  if (draftId) {
+
+    receiptRef =
+      doc(
+        db,
+        'receipts',
+        draftId
+      );
+
+
+    const snapshot =
+      await getDoc(
+        receiptRef
+      );
+
+
+    if (!snapshot.exists()) {
+
+      throw new Error(
+        'Draft does not exist.'
+      );
+    }
+
+
+    const existingReceipt =
+      snapshot.data();
+
+
+    if (
+      existingReceipt.status !== 'draft'
+    ) {
+
+      throw new Error(
+        'This Receipt is no longer a Draft.'
+      );
+    }
+
+
+    await updateDoc(
+      receiptRef,
+      receiptData
+    );
+
+
+    // --------------------------------------------------
+    // Replace old Draft items
+    // --------------------------------------------------
+
+    const oldItemsSnapshot =
+      await getDocs(
+        collection(
+          db,
+          'receipts',
+          draftId,
+          'items'
+        )
+      );
+
+
+    for (
+      const oldItemDoc
+      of oldItemsSnapshot.docs
+    ) {
+
+      await deleteDoc(
+        oldItemDoc.ref
+      );
+    }
+
+
+  // ====================================================
+  // New Receipt / Draft
+  // ====================================================
+
+  } else {
+
+    receiptRef =
+      await addDoc(
+        collection(
+          db,
+          'receipts'
+        ),
+        {
+          ...receiptData,
+
+          createdAt:
+            serverTimestamp(),
+
+          createdBy:
+            currentUser.uid
+        }
+      );
+  }
+
+
+  // ====================================================
+  // Write Items
+  // ====================================================
+
+  for (
+    const item of items
+  ) {
+
+    await addDoc(
+      collection(
+        db,
+        'receipts',
+        receiptRef.id,
+        'items'
+      ),
+      {
+        ...item,
+
+        createdAt:
+          serverTimestamp(),
+
+        createdBy:
+          currentUser.uid
+      }
+    );
+  }
+
+
+  return receiptRef;
+}
+
+// ======================================================
 // END OF RECEIPT DRAFT MODULE
 // ======================================================
