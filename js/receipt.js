@@ -85,7 +85,9 @@ export async function receiptPage({
   page: pageElement,
   escapeHtml: escapeHtmlHelper,
   normalizeNameKey: normalizeNameKeyHelper,
-  formatDisplayName: formatDisplayNameHelper
+  formatDisplayName: formatDisplayNameHelper,
+
+  draftId = null
 }) {
 
   db = firestoreDb;
@@ -98,7 +100,9 @@ export async function receiptPage({
   normalizeNameKey = normalizeNameKeyHelper;
   formatDisplayName = formatDisplayNameHelper;
 
-  await receiptForm();
+  await receiptForm()({
+    draftId
+  });
 }
 
 
@@ -827,7 +831,9 @@ function attachReceiptAutocomplete({
 // Receipt Form
 // ======================================================
 
-async function receiptForm() {
+async function receiptForm({
+  draftId = null
+} = {}) {
 
   // Only owner can create receipts
   if (currentRole !== 'owner') {
@@ -956,12 +962,22 @@ async function receiptForm() {
     <section class="panel">
 
       <h1>
-        ${
+  ${
+    draftId
+
+      ? (
+          lang === 'zh-TW'
+            ? '編輯收據草稿'
+            : 'Edit Receipt Draft'
+        )
+
+      : (
           lang === 'zh-TW'
             ? '新增收據'
             : 'New Receipt'
-        }
-      </h1>
+        )
+  }
+</h1>
 
 
       <!-- ============================================== -->
