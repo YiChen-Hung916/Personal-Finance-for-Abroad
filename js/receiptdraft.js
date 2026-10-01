@@ -21,15 +21,17 @@
 // receiptdraft.js manages Draft data / Draft list only.
 // ======================================================
 
-
 import {
   collection,
   doc,
   getDoc,
   getDocs,
+  addDoc,
+  updateDoc,
   query,
   where,
-  deleteDoc
+  deleteDoc,
+  serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 
@@ -297,6 +299,353 @@ export async function getReceiptDraft({
   };
 
 
+  // ======================================================
+// Populate Draft Into Receipt Form
+// ======================================================
+
+export function populateReceiptDraft({
+  draftData,
+  addItem,
+  updatePaymentMethodUI,
+  updateReceiptTotal
+}) {
+
+  if (!draftData) {
+    return;
+  }
+
+
+  const {
+    receipt,
+    items = []
+  } = draftData;
+
+
+  // ====================================================
+  // Receipt Fields
+  // ====================================================
+
+  const storeInput =
+    document.querySelector(
+      '#receiptStore'
+    );
+
+
+  storeInput.value =
+    receipt.store || '';
+
+  storeInput.dataset.masterId =
+    receipt.storeId || '';
+
+  storeInput.dataset.masterName =
+    receipt.store || '';
+
+
+  document.querySelector(
+    '#receiptBranch'
+  ).value =
+    receipt.branch || '';
+
+
+  document.querySelector(
+    '#receiptPurchaseType'
+  ).value =
+    receipt.purchaseType || 'inStore';
+
+
+  document.querySelector(
+    '#receiptDate'
+  ).value =
+    receipt.purchaseDate || '';
+
+
+  document.querySelector(
+    '#receiptTime'
+  ).value =
+    receipt.purchaseTime || '';
+
+
+  document.querySelector(
+    '#receiptTimezone'
+  ).value =
+    receipt.timezone ||
+    'America/New_York';
+
+
+  document.querySelector(
+    '#receiptCurrency'
+  ).value =
+    receipt.currency || 'USD';
+
+
+  document.querySelector(
+    '#receiptPaymentMethod'
+  ).value =
+    receipt.paymentMethod || 'cash';
+
+
+  // ----------------------------------------------------
+  // Payment UI first
+  // ----------------------------------------------------
+
+  updatePaymentMethodUI();
+
+
+  document.querySelector(
+    '#receiptCard'
+  ).value =
+    receipt.cardId || '';
+
+
+  document.querySelector(
+    '#foreignCurrencySettlementOffered'
+  ).checked =
+    receipt.foreignCurrencySettlementOffered === true;
+
+
+  document.querySelector(
+    '#receiptDiscount'
+  ).value =
+    Number(
+      receipt.receiptDiscount || 0
+    );
+
+
+  document.querySelector(
+    '#receiptTax'
+  ).value =
+    Number(
+      receipt.tax || 0
+    );
+
+
+  document.querySelector(
+    '#receiptFees'
+  ).value =
+    Number(
+      receipt.fees || 0
+    );
+
+
+  // ====================================================
+  // Items
+  // ====================================================
+
+  const itemsContainer =
+    document.querySelector(
+      '#items'
+    );
+
+
+  itemsContainer.innerHTML = '';
+
+
+  if (!items.length) {
+
+    addItem();
+
+    updateReceiptTotal();
+
+    return;
+  }
+
+
+  items.forEach(item => {
+
+    const itemElement =
+      addItem();
+
+
+    itemElement.querySelector(
+      '.itemCategory'
+    ).value =
+      item.category || '';
+
+
+    // ==================================================
+    // Product
+    // ==================================================
+
+    const productInput =
+      itemElement.querySelector(
+        '.itemProduct'
+      );
+
+
+    productInput.value =
+      item.product || '';
+
+    productInput.dataset.masterId =
+      item.productId || '';
+
+    productInput.dataset.masterName =
+      item.product || '';
+
+
+    // ==================================================
+    // Brand
+    // ==================================================
+
+    const brandInput =
+      itemElement.querySelector(
+        '.itemBrand'
+      );
+
+
+    brandInput.value =
+      item.brand || '';
+
+    brandInput.dataset.masterId =
+      item.brandId || '';
+
+    brandInput.dataset.masterName =
+      item.brand || '';
+
+
+    // ==================================================
+    // Quantity / Package
+    // ==================================================
+
+    itemElement.querySelector(
+      '.itemUnitsPerPackage'
+    ).value =
+      item.unitsPerPackage ?? 1;
+
+
+    itemElement.querySelector(
+      '.itemCapacity'
+    ).value =
+      item.capacity ?? '';
+
+
+    itemElement.querySelector(
+      '.itemUnit'
+    ).value =
+      item.unit || '';
+
+
+    itemElement.querySelector(
+      '.itemQuantity'
+    ).value =
+      item.quantity ?? 1;
+
+
+    itemElement.querySelector(
+      '.itemPrice'
+    ).value =
+      item.originalPricePerPackage ?? '';
+
+
+    // ==================================================
+    // Discount
+    // ==================================================
+
+    const hasDiscount =
+      item.hasDiscount === true;
+
+
+    itemElement.querySelector(
+      '.itemHasDiscount'
+    ).checked =
+      hasDiscount;
+
+
+    itemElement.querySelector(
+      '.itemDiscountSection'
+    ).style.display =
+      hasDiscount
+        ? 'block'
+        : 'none';
+
+
+    itemElement.querySelector(
+      '.itemDiscountRequiredMark'
+    ).style.display =
+      hasDiscount
+        ? ''
+        : 'none';
+
+
+    itemElement.querySelector(
+      '.itemDiscountedTotal'
+    ).value =
+      item.discountedTotal ?? '';
+
+
+    itemElement.querySelector(
+      '.itemPromotionType'
+    ).value =
+      item.promotionType || 'sale';
+
+
+    itemElement.querySelector(
+      '.itemPromotionRequiredQuantity'
+    ).value =
+      item.promotionRequiredQuantity ?? '';
+
+
+    itemElement.querySelector(
+      '.itemPromotionNote'
+    ).value =
+      item.promotionNote || '';
+
+
+    itemElement.querySelector(
+      '.itemNotes'
+    ).value =
+      item.notes || '';
+
+
+    // ==================================================
+    // Original Subtotal
+    // ==================================================
+    //
+    // Preserve a manually overridden subtotal.
+    // ==================================================
+
+    const originalSubtotalInput =
+      itemElement.querySelector(
+        '.itemOriginalSubtotal'
+      );
+
+
+    const calculatedSubtotal =
+      Number(
+        item.quantity || 0
+      ) *
+      Number(
+        item.originalPricePerPackage || 0
+      );
+
+
+    const savedSubtotal =
+      Number(
+        item.originalSubtotal || 0
+      );
+
+
+    const manuallyOverridden =
+      Math.abs(
+        savedSubtotal -
+        calculatedSubtotal
+      ) > 0.005;
+
+
+    originalSubtotalInput.value =
+      savedSubtotal.toFixed(2);
+
+
+    originalSubtotalInput.dataset.manualOverride =
+      manuallyOverridden
+        ? 'true'
+        : 'false';
+  });
+
+
+  updateReceiptTotal();
+}
+
+  
   // ----------------------------------------------------
   // Safety:
   // only status === draft may enter Draft editor.
