@@ -3544,6 +3544,15 @@ if (r === 'dashboard') {
     page
   });
 
+} if (r === 'receipt-drafts') {
+
+  receiptDraftsPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page
+  });
 } else if (r === 'new-receipt') {
 
   receiptPage({
