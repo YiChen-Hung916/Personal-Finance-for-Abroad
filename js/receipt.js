@@ -35,7 +35,8 @@ import {
 
 import {
   getReceiptDraft,
-  populateReceiptDraft
+  populateReceiptDraft,
+  saveReceiptDraftDocument
 } from './receiptdraft.js';
 
 // ======================================================
@@ -3908,92 +3909,21 @@ const promotionRequiredQuantity =
 };
 
 
-    let receiptRef;
+    const receiptRef =
+  await saveReceiptDraftDocument({
+    db,
+    currentUser,
 
-if (currentDraftId) {
+    draftId:
+      currentDraftId,
 
-  receiptRef =
-    doc(
-      db,
-      'receipts',
-      currentDraftId
-    );
+    receiptData,
 
-  await updateDoc(
-    receiptRef,
-    receiptData
-  );
-
-  // Delete old items before rewriting them
-  const oldItemsSnapshot =
-    await getDocs(
-      collection(
-        db,
-        'receipts',
-        currentDraftId,
-        'items'
-      )
-    );
-
-  for (const oldItemDoc of oldItemsSnapshot.docs) {
-    await deleteDoc(oldItemDoc.ref);
-  }
-
-} else {
-
-  receiptRef =
-    await addDoc(
-      collection(
-        db,
-        'receipts'
-      ),
-      {
-        ...receiptData,
-
-        createdAt:
-          serverTimestamp(),
-
-        createdBy:
-          currentUser.uid
-      }
-    );
-}
+    items:
+      resolvedItems
+  });
 
     
-    // ----------------------------------------------------
-    // Save Items
-    // ----------------------------------------------------
-
-    for (
-  const item of resolvedItems
-) {
-
-  await addDoc(
-
-        collection(
-          db,
-          'receipts',
-          receiptRef.id,
-          'items'
-        ),
-
-        {
-
-          ...item,
-
-
-          createdAt:
-            serverTimestamp(),
-
-
-          createdBy:
-            currentUser.uid
-        }
-      );
-    }
-
-
-
     // ----------------------------------------------------
     // Master Data Usage
     // ----------------------------------------------------
