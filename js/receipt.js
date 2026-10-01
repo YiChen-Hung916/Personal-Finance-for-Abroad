@@ -34,7 +34,8 @@ import {
 } from './brands.js';
 
 import {
-  getReceiptDraft
+  getReceiptDraft,
+  populateReceiptDraft
 } from './receiptdraft.js';
 
 // ======================================================
@@ -1721,234 +1722,23 @@ if (draftId) {
 
 
 // ====================================================
-// Draft Edit Mode
+// Draft / New Receipt Initialization
 // ====================================================
 
 if (draftData) {
 
-  const {
-    receipt,
-    items
-  } = draftData;
-
-
-  // --------------------------------------------------
-  // Receipt fields
-  // --------------------------------------------------
-
-  document.querySelector('#receiptStore').value =
-    receipt.store || '';
-
-  document.querySelector('#receiptBranch').value =
-    receipt.branch || '';
-
-  document.querySelector('#receiptPurchaseType').value =
-    receipt.purchaseType || 'inStore';
-
-  document.querySelector('#receiptDate').value =
-    receipt.purchaseDate || '';
-
-  document.querySelector('#receiptTime').value =
-    receipt.purchaseTime || '';
-
-  document.querySelector('#receiptTimezone').value =
-    receipt.timezone || 'America/New_York';
-
-  document.querySelector('#receiptCurrency').value =
-    receipt.currency || 'USD';
-
-  document.querySelector('#receiptPaymentMethod').value =
-    receipt.paymentMethod || 'cash';
-
-  document.querySelector('#receiptCard').value =
-    receipt.cardId || '';
-
-  document.querySelector(
-    '#foreignCurrencySettlementOffered'
-  ).checked =
-    receipt.foreignCurrencySettlementOffered === true;
-
-  document.querySelector('#receiptDiscount').value =
-    Number(receipt.receiptDiscount || 0);
-
-  document.querySelector('#receiptTax').value =
-    Number(receipt.tax || 0);
-
-  document.querySelector('#receiptFees').value =
-    Number(receipt.fees || 0);
-
-
-  // Payment method may affect card section visibility
-  updatePaymentMethodUI();
-
-
-  // --------------------------------------------------
-  // Items
-  // --------------------------------------------------
-
-  document.querySelector('#items').innerHTML = '';
-
-  if (items.length) {
-
-    items.forEach(item => {
-
-      const itemElement =
-        addItem();
-
-
-      itemElement.querySelector(
-        '.itemCategory'
-      ).value =
-        item.category || '';
-
-
-      const productInput =
-        itemElement.querySelector(
-          '.itemProduct'
-        );
-
-      productInput.value =
-        item.product || '';
-
-      productInput.dataset.masterId =
-        item.productId || '';
-
-      productInput.dataset.masterName =
-        item.product || '';
-
-
-      const brandInput =
-        itemElement.querySelector(
-          '.itemBrand'
-        );
-
-      brandInput.value =
-        item.brand || '';
-
-      brandInput.dataset.masterId =
-        item.brandId || '';
-
-      brandInput.dataset.masterName =
-        item.brand || '';
-
-
-      itemElement.querySelector(
-        '.itemUnitsPerPackage'
-      ).value =
-        item.unitsPerPackage ?? 1;
-
-
-      itemElement.querySelector(
-        '.itemCapacity'
-      ).value =
-        item.capacity ?? '';
-
-
-      itemElement.querySelector(
-        '.itemUnit'
-      ).value =
-        item.unit || '';
-
-
-      itemElement.querySelector(
-        '.itemQuantity'
-      ).value =
-        item.quantity ?? 1;
-
-
-      itemElement.querySelector(
-        '.itemPrice'
-      ).value =
-        item.originalPricePerPackage ?? '';
-
-
-      const hasDiscount =
-        item.hasDiscount === true;
-
-
-      itemElement.querySelector(
-        '.itemHasDiscount'
-      ).checked =
-        hasDiscount;
-
-
-      itemElement.querySelector(
-        '.itemDiscountSection'
-      ).style.display =
-        hasDiscount
-          ? 'block'
-          : 'none';
-
-
-      itemElement.querySelector(
-        '.itemDiscountRequiredMark'
-      ).style.display =
-        hasDiscount
-          ? ''
-          : 'none';
-
-
-      itemElement.querySelector(
-        '.itemDiscountedTotal'
-      ).value =
-        item.discountedTotal ?? '';
-
-
-      itemElement.querySelector(
-        '.itemPromotionType'
-      ).value =
-        item.promotionType || 'sale';
-
-
-      itemElement.querySelector(
-        '.itemPromotionRequiredQuantity'
-      ).value =
-        item.promotionRequiredQuantity ?? '';
-
-
-      itemElement.querySelector(
-        '.itemPromotionNote'
-      ).value =
-        item.promotionNote || '';
-
-
-      itemElement.querySelector(
-        '.itemNotes'
-      ).value =
-        item.notes || '';
-
-
-      const originalSubtotalInput =
-        itemElement.querySelector(
-          '.itemOriginalSubtotal'
-        );
-
-      originalSubtotalInput.value =
-        Number(
-          item.originalSubtotal || 0
-        ).toFixed(2);
-
-      originalSubtotalInput.dataset.manualOverride =
-        'false';
-    });
-
-  } else {
-
-    addItem();
-  }
-
+  populateReceiptDraft({
+    draftData,
+    addItem,
+    updatePaymentMethodUI,
+    updateReceiptTotal
+  });
 
 } else {
 
-  // ==================================================
-  // New Receipt Mode
-  // ==================================================
-
   addItem();
-}
 
-
-updateReceiptTotal();
+  updateReceiptTotal();
 }
 
 
