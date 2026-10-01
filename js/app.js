@@ -16,6 +16,10 @@ import {
 } from './receiptdetail.js';
 
 import {
+  receiptDraftsPage
+} from './receiptdraft.js';
+
+import {
   pendingPage,
   getAllPendingReceipts,
   groupPendingByUser,
