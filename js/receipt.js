@@ -1,9 +1,11 @@
- import {
+import {
   collection,
   doc,
   getDoc,
   getDocs,
   addDoc,
+  updateDoc,
+  deleteDoc,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
@@ -31,6 +33,10 @@ import {
   normalizeBrandKey
 } from './brands.js';
 
+import {
+  getReceiptDraft
+} from './receiptdraft.js';
+
 // ======================================================
 // Receipt Module
 // ======================================================
@@ -56,6 +62,7 @@ import {
 let db = null;
 let currentUser = null;
 let currentRole = null;
+let currentDraftId = null;
 let lang = 'zh-TW';
 let page = null;
 
@@ -100,9 +107,9 @@ export async function receiptPage({
   normalizeNameKey = normalizeNameKeyHelper;
   formatDisplayName = formatDisplayNameHelper;
 
-  await receiptForm()({
-    draftId
-  });
+  await receiptForm({
+  draftId
+});
 }
 
 
@@ -858,6 +865,52 @@ async function receiptForm({
   }
 
 
+ let draftData = null;
+
+if (draftId) {
+
+  try {
+
+    draftData =
+      await getReceiptDraft({
+        db,
+        receiptId: draftId
+      });
+
+    if (!draftData) {
+
+      alert(
+        lang === 'zh-TW'
+          ? '找不到這份草稿。'
+          : 'Draft not found.'
+      );
+
+      location.hash =
+        '#receipt-drafts';
+
+      return;
+    }
+
+  } catch (error) {
+
+    console.error(
+      'Failed to load Receipt Draft:',
+      error
+    );
+
+    alert(
+      `${
+        lang === 'zh-TW'
+          ? '無法載入草稿'
+          : 'Unable to load draft'
+      }: ${error.message}`
+    );
+
+    return;
+  }
+}
+
+ 
   // ------------------------------------------------------
   // Load Receipt Master Data
   // ------------------------------------------------------
@@ -1665,11 +1718,235 @@ async function receiptForm({
   updatePaymentMethodUI();
 
 
-  // Start with one item
+// ====================================================
+// Draft Edit Mode
+// ====================================================
+
+if (draftData) {
+
+  const {
+    receipt,
+    items
+  } = draftData;
+
+
+  // --------------------------------------------------
+  // Receipt fields
+  // --------------------------------------------------
+
+  document.querySelector('#receiptStore').value =
+    receipt.store || '';
+
+  document.querySelector('#receiptBranch').value =
+    receipt.branch || '';
+
+  document.querySelector('#receiptPurchaseType').value =
+    receipt.purchaseType || 'inStore';
+
+  document.querySelector('#receiptDate').value =
+    receipt.purchaseDate || '';
+
+  document.querySelector('#receiptTime').value =
+    receipt.purchaseTime || '';
+
+  document.querySelector('#receiptTimezone').value =
+    receipt.timezone || 'America/New_York';
+
+  document.querySelector('#receiptCurrency').value =
+    receipt.currency || 'USD';
+
+  document.querySelector('#receiptPaymentMethod').value =
+    receipt.paymentMethod || 'cash';
+
+  document.querySelector('#receiptCard').value =
+    receipt.cardId || '';
+
+  document.querySelector(
+    '#foreignCurrencySettlementOffered'
+  ).checked =
+    receipt.foreignCurrencySettlementOffered === true;
+
+  document.querySelector('#receiptDiscount').value =
+    Number(receipt.receiptDiscount || 0);
+
+  document.querySelector('#receiptTax').value =
+    Number(receipt.tax || 0);
+
+  document.querySelector('#receiptFees').value =
+    Number(receipt.fees || 0);
+
+
+  // Payment method may affect card section visibility
+  updatePaymentMethodUI();
+
+
+  // --------------------------------------------------
+  // Items
+  // --------------------------------------------------
+
+  document.querySelector('#items').innerHTML = '';
+
+  if (items.length) {
+
+    items.forEach(item => {
+
+      const itemElement =
+        addItem();
+
+
+      itemElement.querySelector(
+        '.itemCategory'
+      ).value =
+        item.category || '';
+
+
+      const productInput =
+        itemElement.querySelector(
+          '.itemProduct'
+        );
+
+      productInput.value =
+        item.product || '';
+
+      productInput.dataset.masterId =
+        item.productId || '';
+
+      productInput.dataset.masterName =
+        item.product || '';
+
+
+      const brandInput =
+        itemElement.querySelector(
+          '.itemBrand'
+        );
+
+      brandInput.value =
+        item.brand || '';
+
+      brandInput.dataset.masterId =
+        item.brandId || '';
+
+      brandInput.dataset.masterName =
+        item.brand || '';
+
+
+      itemElement.querySelector(
+        '.itemUnitsPerPackage'
+      ).value =
+        item.unitsPerPackage ?? 1;
+
+
+      itemElement.querySelector(
+        '.itemCapacity'
+      ).value =
+        item.capacity ?? '';
+
+
+      itemElement.querySelector(
+        '.itemUnit'
+      ).value =
+        item.unit || '';
+
+
+      itemElement.querySelector(
+        '.itemQuantity'
+      ).value =
+        item.quantity ?? 1;
+
+
+      itemElement.querySelector(
+        '.itemPrice'
+      ).value =
+        item.originalPricePerPackage ?? '';
+
+
+      const hasDiscount =
+        item.hasDiscount === true;
+
+
+      itemElement.querySelector(
+        '.itemHasDiscount'
+      ).checked =
+        hasDiscount;
+
+
+      itemElement.querySelector(
+        '.itemDiscountSection'
+      ).style.display =
+        hasDiscount
+          ? 'block'
+          : 'none';
+
+
+      itemElement.querySelector(
+        '.itemDiscountRequiredMark'
+      ).style.display =
+        hasDiscount
+          ? ''
+          : 'none';
+
+
+      itemElement.querySelector(
+        '.itemDiscountedTotal'
+      ).value =
+        item.discountedTotal ?? '';
+
+
+      itemElement.querySelector(
+        '.itemPromotionType'
+      ).value =
+        item.promotionType || 'sale';
+
+
+      itemElement.querySelector(
+        '.itemPromotionRequiredQuantity'
+      ).value =
+        item.promotionRequiredQuantity ?? '';
+
+
+      itemElement.querySelector(
+        '.itemPromotionNote'
+      ).value =
+        item.promotionNote || '';
+
+
+      itemElement.querySelector(
+        '.itemNotes'
+      ).value =
+        item.notes || '';
+
+
+      const originalSubtotalInput =
+        itemElement.querySelector(
+          '.itemOriginalSubtotal'
+        );
+
+      originalSubtotalInput.value =
+        Number(
+          item.originalSubtotal || 0
+        ).toFixed(2);
+
+      originalSubtotalInput.dataset.manualOverride =
+        'false';
+    });
+
+  } else {
+
+    addItem();
+  }
+
+
+} else {
+
+  // ==================================================
+  // New Receipt Mode
+  // ==================================================
+
   addItem();
+}
 
 
-  updateReceiptTotal();
+updateReceiptTotal();
 }
 
 
@@ -2279,7 +2556,9 @@ function addItem() {
 
 
         updateReceiptTotal();
-      }
+
+return d;
+}
   });
 
   attachReceiptAutocomplete({
@@ -3761,151 +4040,79 @@ const promotionRequiredQuantity =
 
   try {
 
-    const receiptRef =
-      await addDoc(
+    const receiptData = {
 
-        collection(
-          db,
-          'receipts'
+  storeId:
+    isSubmit
+      ? resolvedStore.id
+      : null,
+
+  store:
+    isSubmit
+      ? resolvedStore.name
+      : store,
+
+  storeKey:
+    isSubmit
+      ? normalizeStoreKey(
+          resolvedStore.name
+        )
+      : (
+          store
+            ? normalizeStoreKey(store)
+            : ''
         ),
 
-        {
+  branch,
+  purchaseType,
 
-          storeId:
-  isSubmit
-    ? resolvedStore.id
-    : null,
+  purchaseDate,
+  purchaseTime,
+  timezone,
 
-store:
-  isSubmit
-    ? resolvedStore.name
-    : store,
+  currency,
+  paymentMethod,
 
-storeKey:
-  isSubmit
-    ? normalizeStoreKey(
-        resolvedStore.name
-      )
-    : (
-        store
-          ? normalizeStoreKey(
-              store
-            )
-          : ''
-      ),
+  cardId,
+  cardSnapshot:
+    cardSnapshotData,
 
-branch,
-purchaseType,
+  confirmationUserIds,
+  confirmationUserId,
 
-          purchaseDate,
-          purchaseTime,
-          timezone,
+  originalItemsSubtotal,
+  itemsSubtotal,
+  itemDiscountTotal,
+  receiptDiscount,
+  tax,
+  fees,
+  total,
 
-          currency,
+  foreignCurrencySettlementOffered,
 
-          paymentMethod,
+  expectedSettlementCurrency:
+    currency,
 
-          // ============================================
-          // Card Snapshot
-          // ============================================
-          //
-          // cardId keeps the relationship to the current
-          // Card document.
-          //
-          // cardSnapshot preserves what the card looked
-          // like when THIS Receipt was created.
-          // ============================================
+  categories,
 
-          cardId,
-          cardSnapshot:
-            cardSnapshotData,
+  status,
 
-          // ============================================
-          // Confirmation Assignment Snapshot
-          // ============================================
-          //
-          // This array belongs to the Receipt itself.
-          //
-          // Future changes to the Card's confirmation users
-          // must NOT modify this Receipt.
-          // ============================================
+  updatedAt:
+    serverTimestamp(),
 
-          confirmationUserIds,
+  updatedBy:
+    currentUser.uid,
 
-          // Temporary backward compatibility.
-          //
-          // Existing confirmation modules still use this
-          // field until they are migrated.
+  submittedAt:
+    status === 'pending'
+      ? serverTimestamp()
+      : null,
 
-          confirmationUserId,
-
-          originalItemsSubtotal,
-
-          itemsSubtotal,
-
-          itemDiscountTotal,
-
-          receiptDiscount,
-
-          tax,
-
-          fees,
-
-          total,
-
-
-          // ============================================
-          // Foreign Currency Settlement
-          // ============================================
-
-          foreignCurrencySettlementOffered,
-
-
-          // Expected card-notification currency.
-          //
-          // This is independent from whether the merchant
-          // explicitly offered a currency choice.
-          //
-          // TWD receipt:
-          //   expected notification type = local
-          //
-          // Foreign-currency receipt:
-          //   expected notification type = foreign
-          expectedSettlementCurrency:
-            currency,
-
-
-          categories,
-
-          status,
-
-
-          createdAt:
-            serverTimestamp(),
-
-
-          createdBy:
-            currentUser.uid,
-
-
-          updatedAt:
-            serverTimestamp(),
-
-
-          updatedBy:
-            currentUser.uid,
-
-
-          submittedAt:
-            status === 'pending'
-              ? serverTimestamp()
-              : null,
-          submittedDate:
-            status === 'pending'
-              ? localSubmittedDate
-              : null
-        }
-      );
+  submittedDate:
+    status === 'pending'
+      ? localSubmittedDate
+      : null
+};
 
 
     // ----------------------------------------------------
