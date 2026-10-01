@@ -3553,6 +3553,25 @@ if (r === 'dashboard') {
     lang,
     page
   });
+  
+} else if (
+  r === 'receipt-draft' &&
+  receiptId
+) {
+
+  receiptPage({
+    db,
+    currentUser,
+    currentRole,
+    lang,
+    page,
+    escapeHtml,
+    normalizeNameKey,
+    formatDisplayName,
+
+    draftId:
+      receiptId
+  });
 } else if (r === 'new-receipt') {
 
   receiptPage({
