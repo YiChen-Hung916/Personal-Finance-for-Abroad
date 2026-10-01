@@ -107,7 +107,9 @@ export async function receiptPage({
   normalizeNameKey = normalizeNameKeyHelper;
   formatDisplayName = formatDisplayNameHelper;
 
-  await receiptForm({
+currentDraftId = draftId;
+
+await receiptForm({
   draftId
 });
 }
@@ -2557,7 +2559,7 @@ function addItem() {
 
         updateReceiptTotal();
 
-return d;
+
 }
   });
 
@@ -2719,7 +2721,6 @@ return d;
         updateReceiptTotal
       );
 
-
       element.addEventListener(
         'change',
         updateReceiptTotal
@@ -2728,6 +2729,8 @@ return d;
 
 
   updateReceiptTotal();
+
+  return d;
 }
 
 
@@ -4115,6 +4118,58 @@ const promotionRequiredQuantity =
 };
 
 
+    let receiptRef;
+
+if (currentDraftId) {
+
+  receiptRef =
+    doc(
+      db,
+      'receipts',
+      currentDraftId
+    );
+
+  await updateDoc(
+    receiptRef,
+    receiptData
+  );
+
+  // Delete old items before rewriting them
+  const oldItemsSnapshot =
+    await getDocs(
+      collection(
+        db,
+        'receipts',
+        currentDraftId,
+        'items'
+      )
+    );
+
+  for (const oldItemDoc of oldItemsSnapshot.docs) {
+    await deleteDoc(oldItemDoc.ref);
+  }
+
+} else {
+
+  receiptRef =
+    await addDoc(
+      collection(
+        db,
+        'receipts'
+      ),
+      {
+        ...receiptData,
+
+        createdAt:
+          serverTimestamp(),
+
+        createdBy:
+          currentUser.uid
+      }
+    );
+}
+
+    
     // ----------------------------------------------------
     // Save Items
     // ----------------------------------------------------
