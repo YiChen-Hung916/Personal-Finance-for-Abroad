@@ -1688,38 +1688,28 @@ receiptStoreInput.addEventListener(
       '#foreignSettlementSection'
     );
 
-
   function updatePaymentMethodUI() {
+  const isCard = paymentMethodSelect.value === 'card';
 
-    const isCard =
-      paymentMethodSelect.value === 'card';
+  cardSection.style.display = isCard ? '' : 'none';
+  foreignSettlementSection.style.display = isCard ? '' : 'none';
 
+  if (!isCard) {
+    document.querySelector('#receiptCard').value = '';
 
-    cardSection.style.display =
-      isCard
-        ? ''
-        : 'none';
+    document.querySelector(
+      '#foreignCurrencySettlementOffered'
+    ).checked = false;
 
+    const unknownRadio = document.querySelector(
+      'input[name="foreignCurrencyAnswer"][value="unknown"]'
+    );
 
-    foreignSettlementSection.style.display =
-      isCard
-        ? ''
-        : 'none';
-
-
-    if (!isCard) {
-
-      document.querySelector(
-        '#receiptCard'
-      ).value = '';
-
-
-      document.querySelector(
-        '#foreignCurrencySettlementOffered'
-      ).checked = false;
+    if (unknownRadio) {
+      unknownRadio.checked = true;
     }
   }
-
+}
 
   paymentMethodSelect.addEventListener(
     'change',
@@ -1762,6 +1752,8 @@ if (draftData) {
     updatePaymentMethodUI,
     updateReceiptTotal
   });
+  
+    updateForeignCurrencyReminder();
 
 } else {
 
@@ -2924,6 +2916,17 @@ function updateForeignCurrencyReminder() {
     : { everOffered: false, paused: false };
 
   const showReminder = status.everOffered && !status.paused;
+  const previousStoreId = reminder.dataset.storeId || '';
+const currentStoreId = store?.id || '';
+
+if (
+  previousStoreId === currentStoreId &&
+  reminder.style.display !== 'none'
+) {
+  return;
+}
+
+reminder.dataset.storeId = currentStoreId;
 
   // 保留原 checkbox 作為儲存時的相容欄位。
   const originalLabel = checkbox.closest('label');
