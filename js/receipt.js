@@ -39,6 +39,12 @@ import {
   saveReceiptDraftDocument
 } from './receiptdraft.js';
 
+import {
+  getCurrencyData,
+  getStoreCurrencyStatus,
+  saveCurrencyResponse
+} from './foreign-currency-available.js';
+
 // ======================================================
 // Receipt Module
 // ======================================================
@@ -80,7 +86,7 @@ let formatDisplayName = null;
 let receiptProducts = [];
 let receiptStores = [];
 let receiptBrands = [];
-
+let currencyHistory = [];
 
 // ======================================================
 // Public Entry Point
@@ -1545,7 +1551,10 @@ if (draftId) {
           </small>
 
         </label>
-
+<div
+  id="foreignCurrencyReminder"
+  style="display:none; width:100%; margin-top:12px;"
+></div>
       </div>
 
 
@@ -1618,9 +1627,28 @@ if (draftId) {
 
         receiptStoreInput.dataset.masterName =
           store.name;
+
+        updateForeignCurrencyReminder();
       }
   });
 
+  await loadForeignCurrencyHistory();
+
+receiptStoreInput.addEventListener(
+  'input',
+  updateForeignCurrencyReminder
+);
+
+receiptStoreInput.addEventListener(
+  'change',
+  updateForeignCurrencyReminder
+);
+
+receiptStoreInput.addEventListener(
+  'blur',
+  updateForeignCurrencyReminder
+);
+  
   
   // ====================================================
   // Bind Events
@@ -2860,6 +2888,115 @@ function updateReceiptTotal() {
 }
 
 
+
+async function loadForeignCurrencyHistory() {
+  try {
+    currencyHistory = await getCurrencyData(db);
+  } catch (error) {
+    console.error('Unable to load currency history:', error);
+    currencyHistory = [];
+  }
+}
+
+function updateForeignCurrencyReminder() {
+  const input = document.querySelector('#receiptStore');
+  const section = document.querySelector(
+    '#foreignSettlementSection'
+  );
+  const reminder = document.querySelector(
+    '#foreignCurrencyReminder'
+  );
+  const checkbox = document.querySelector(
+    '#foreignCurrencySettlementOffered'
+  );
+
+  if (!input || !section || !reminder || !checkbox) return;
+
+  const name = normalizeStoreKey(input.value);
+
+  const store = receiptStores.find(
+    s => s.id === input.dataset.masterId ||
+      normalizeStoreKey(s.name) === name
+  );
+
+  const status = store
+    ? getStoreCurrencyStatus(currencyHistory, store)
+    : { everOffered: false, paused: false };
+
+  const showReminder = status.everOffered && !status.paused;
+
+  // 保留原 checkbox 作為儲存時的相容欄位。
+  const originalLabel = checkbox.closest('label');
+  if (originalLabel) {
+    originalLabel.style.display = showReminder ? 'none' : '';
+  }
+
+  reminder.style.display = showReminder ? '' : 'none';
+
+  if (!showReminder) {
+    reminder.innerHTML = '';
+    return;
+  }
+
+  const safeName = String(store.name)
+    .replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[c]);
+
+  reminder.innerHTML = `
+    <div class="panel">
+      <strong>外幣結帳提醒</strong>
+      <p>${safeName} 曾提供外幣結帳選項，
+      本次是否也有提供？</p>
+
+      <label>
+        <input type="radio" name="foreignCurrencyAnswer"
+          value="offered">
+        有提供，且我選擇以外幣結帳
+      </label>
+
+      <label>
+        <input type="radio" name="foreignCurrencyAnswer"
+          value="not_offered">
+        沒有提供
+      </label>
+
+      <label>
+        <input type="radio" name="foreignCurrencyAnswer"
+          value="unknown" checked>
+        不確定／未確認
+      </label>
+    </div>
+  `;
+
+  reminder.querySelectorAll(
+    'input[name="foreignCurrencyAnswer"]'
+  ).forEach(radio => {
+    radio.addEventListener('change', () => {
+      checkbox.checked = radio.value === 'offered';
+    });
+  });
+}
+
+function getForeignCurrencyAnswer() {
+  const selected = document.querySelector(
+    'input[name="foreignCurrencyAnswer"]:checked'
+  );
+
+  if (selected) return selected.value;
+
+  return document.querySelector(
+    '#foreignCurrencySettlementOffered'
+  )?.checked
+    ? 'offered'
+    : 'unknown';
+}
+
+
 // ======================================================
 // Save Receipt
 // ======================================================
@@ -2982,11 +3119,11 @@ async function saveReceipt(status) {
       : null;
 
 
-  const foreignCurrencySettlementOffered =
-    paymentMethod === 'card' &&
-    document.querySelector(
-      '#foreignCurrencySettlementOffered'
-    ).checked === true;
+  const currencyAnswer = getForeignCurrencyAnswer();
+
+const foreignCurrencySettlementOffered =
+  paymentMethod === 'card' &&
+  currencyAnswer === 'offered';
 
 
   // ------------------------------------------------------
@@ -3994,56 +4131,18 @@ const promotionRequiredQuantity =
     // Merchant Currency-Choice History
     // ----------------------------------------------------
 
-    if (
-      status === 'pending' &&
-      foreignCurrencySettlementOffered
-    ) {
-
-      await addDoc(
-
-        collection(
-          db,
-          'merchantCurrencyOptions'
-        ),
-
-        {
-
-          storeId:
-  resolvedStore.id,
-
-storeName:
-  resolvedStore.name,
-
-storeKey:
-  normalizeStoreKey(
-    resolvedStore.name
-  ),
-          branch:
-            branch || '',
-
-          settlementCurrency:
-            currency,
-
-          categories,
-
-          sourceReceiptId:
-            receiptRef.id,
-
-          observedPurchaseDate:
-            purchaseDate,
-
-          observedAt:
-            serverTimestamp(),
-
-          createdAt:
-            serverTimestamp(),
-
-          createdBy:
-            currentUser.uid
-        }
-      );
-    }
-
+    if (status === 'pending') {
+  await saveCurrencyResponse({
+    db,
+    currentUser,
+    receiptId: receiptRef.id,
+    store: resolvedStore,
+    purchaseDate,
+    result: paymentMethod === 'card'
+      ? currencyAnswer
+      : 'unknown'
+  });
+}
 
     // ----------------------------------------------------
     // Success
