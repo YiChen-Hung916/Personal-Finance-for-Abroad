@@ -125,6 +125,14 @@ export async function managementPage({
           Users
         </button>
 
+        <button
+  type="button"
+  class="management-tab"
+  data-management-tab="foreign-currency"
+>
+  可用外幣的店家
+</button>
+
       </div>
 
 
@@ -184,6 +192,15 @@ export async function managementPage({
 
 if (tab === 'users') {
   await renderUsers();
+  return;
+}
+
+    if (tab === 'foreign-currency') {
+  await renderForeignCurrencyStores({
+    db,
+    container: document.querySelector('#managementContent'),
+    lang
+  });
   return;
 }
   }
