@@ -2674,3 +2674,40 @@
     flex: 1;
   }
 }
+
+
+.foreign-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.foreign-store-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 10px;
+}
+
+.foreign-store-item strong {
+  flex: 1;
+  min-width: 140px;
+}
+
+#foreignCurrencyReminder .panel {
+  padding: 14px;
+}
+
+#foreignCurrencyReminder label {
+  display: block;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+#foreignCurrencyReminder input[type="radio"] {
+  margin-right: 8px;
+}
