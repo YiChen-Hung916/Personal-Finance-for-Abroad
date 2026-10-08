@@ -30,6 +30,10 @@ import {
   getUserRoleLabel
 } from './users.js';
 
+import {
+  renderForeignCurrencyStores
+} from './foreign-currency-available.js';
+
 export async function managementPage({
   db,
   currentUser,
