@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "archiveDate": "2026-10-21",
+  "homeCurrency": "TWD",
+  "fetchedAt": "2026-10-21T07:54:53Z",
+  "rates": {
+    "USD": {
+      "firstBank": {
+        "rate": 32.527,
+        "buyRate": 32.427,
+        "sellRate": 32.527,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-10-21T07:54:53Z"
+      },
+      "visa": {
+        "rate": 32.662,
+        "source": "Visa",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 32.6844346,
+        "source": "Mastercard",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": 32.527,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": 32.527,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      }
+    },
+    "JPY": {
+      "firstBank": {
+        "rate": 0.2074,
+        "buyRate": 0.2034,
+        "sellRate": 0.2074,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-10-21T07:54:53Z"
+      },
+      "visa": {
+        "rate": 0.2069702005,
+        "source": "Visa",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 0.2071126,
+        "source": "Mastercard",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": 0.2074,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": 0.2074,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      }
+    },
+    "EUR": {
+      "firstBank": {
+        "rate": 36.66,
+        "buyRate": 36.26,
+        "sellRate": 36.66,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-10-21T07:54:53Z"
+      },
+      "visa": {
+        "rate": 36.7839076226,
+        "source": "Visa",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 36.8091999,
+        "source": "Mastercard",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": 36.66,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": 36.66,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      }
+    },
+    "GBP": {
+      "firstBank": {
+        "rate": 43.676,
+        "buyRate": 43.276,
+        "sellRate": 43.676,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-10-21T07:54:53Z"
+      },
+      "visa": {
+        "rate": 43.8127630003,
+        "source": "Visa",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 43.842888,
+        "source": "Mastercard",
+        "rateDate": "2026-10-21",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": 43.676,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": 43.676,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "rateDate": null,
+        "fetchedAt": "2026-10-21T07:54:53Z",
+        "fallbackUsed": true
+      }
+    }
+  }
+}
