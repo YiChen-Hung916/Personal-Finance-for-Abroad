@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "archiveDate": "2026-10-30",
+  "archiveDate": "2026-10-31",
   "homeCurrency": "TWD",
-  "fetchedAt": "2026-10-30T08:52:36Z",
+  "fetchedAt": "2026-10-31T08:42:04Z",
   "rates": {
     "USD": {
       "firstBank": {
@@ -11,7 +11,7 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-10-30T08:52:36Z"
+        "fetchedAt": "2026-10-31T08:42:04Z"
       },
       "visa": {
         "rate": null,
@@ -20,9 +20,9 @@
         "fallbackUsed": true
       },
       "mastercard": {
-        "rate": 32.5980736,
+        "rate": 32.6564217,
         "source": "Mastercard",
-        "rateDate": "2026-10-30",
+        "rateDate": "2026-10-31",
         "fallbackUsed": false
       },
       "jcb": {
@@ -45,7 +45,7 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-10-30T08:52:36Z"
+        "fetchedAt": "2026-10-31T08:42:04Z"
       },
       "visa": {
         "rate": null,
@@ -54,9 +54,9 @@
         "fallbackUsed": true
       },
       "mastercard": {
-        "rate": 0.2068668,
+        "rate": 0.2080822,
         "source": "Mastercard",
-        "rateDate": "2026-10-30",
+        "rateDate": "2026-10-31",
         "fallbackUsed": false
       },
       "jcb": {
@@ -79,7 +79,7 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-10-30T08:52:36Z"
+        "fetchedAt": "2026-10-31T08:42:04Z"
       },
       "visa": {
         "rate": null,
@@ -88,9 +88,9 @@
         "fallbackUsed": true
       },
       "mastercard": {
-        "rate": 36.4283304,
+        "rate": 36.6274201,
         "source": "Mastercard",
-        "rateDate": "2026-10-30",
+        "rateDate": "2026-10-31",
         "fallbackUsed": false
       },
       "jcb": {
@@ -113,7 +113,7 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-10-30T08:52:36Z"
+        "fetchedAt": "2026-10-31T08:42:04Z"
       },
       "visa": {
         "rate": null,
@@ -122,9 +122,9 @@
         "fallbackUsed": true
       },
       "mastercard": {
-        "rate": 43.6292494,
+        "rate": 43.8869642,
         "source": "Mastercard",
-        "rateDate": "2026-10-30",
+        "rateDate": "2026-10-31",
         "fallbackUsed": false
       },
       "jcb": {
