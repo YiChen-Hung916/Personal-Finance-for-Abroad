@@ -337,9 +337,16 @@ export async function openCategoryBatchUpdate({
       '#categoryBatchSelectAll'
     ).onclick = () => {
       checkboxes.forEach(checkbox => {
-        if (!checkbox.disabled) {
-          checkbox.checked = true;
-        }
+        const entry = matches[
+  Number(checkbox.dataset.index)
+];
+
+if (
+  !checkbox.disabled &&
+  entry.source !== 'legacy'
+) {
+  checkbox.checked = true;
+}
       });
 
       updateCount();
