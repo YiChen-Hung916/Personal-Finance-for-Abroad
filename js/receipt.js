@@ -447,23 +447,23 @@ async function resolveReceiptProduct({
   // New Product
   // ----------------------------------------------------
 
-  const finalCategory =
-    category ||
-    detectProductCategory(
-      cleanName
-    ) ||
-    'Other';
+  const detectedCategory =
+    detectProductCategory(cleanName) || 'Other';
 
+  const finalCategory =
+    category || detectedCategory;
 
   await createProduct({
     db,
     currentUser,
+    name: cleanName,
 
-    name:
-      cleanName,
-
+    // Let createProduct distinguish an explicitly
+    // selected category from automatic detection.
     category:
-      finalCategory
+      category && category !== detectedCategory
+        ? category
+        : ''
   });
 
 
@@ -2315,6 +2315,15 @@ function addItem() {
       '.itemCategory'
     );
 
+    // Track whether the user explicitly changed
+    // the category for this receipt item.
+    categorySelect.dataset.manualOverride = 'false';
+
+    categorySelect.addEventListener('change', () => {
+      categorySelect.dataset.manualOverride = 'true';
+      updateReceiptTotal();
+    });
+
 
   attachReceiptAutocomplete({
 
@@ -2352,7 +2361,8 @@ function addItem() {
             );
         }
 
-
+        categorySelect.dataset.manualOverride = 'false';
+        
         updateReceiptTotal();
       },
 
@@ -2367,6 +2377,8 @@ function addItem() {
 
         categorySelect.value =
           detected || '';
+
+        categorySelect.dataset.manualOverride = 'false';
 
 
         updateReceiptTotal();
@@ -3392,10 +3404,15 @@ if (
         : '';
 
 
+    const categoryElement =
+      item.querySelector('.itemCategory');
+
     const category =
-      item.querySelector(
-        '.itemCategory'
-      ).value;
+      categoryElement.value;
+
+    const categoryManuallySelected =
+      categoryElement.dataset.manualOverride === 'true';
+    
 
 
     const unitsPerPackage =
@@ -3515,6 +3532,7 @@ const promotionRequiredQuantity =
       brandKey,
 
       category,
+      categoryManuallySelected,
 
       unitsPerPackage,
       capacity,
@@ -3805,13 +3823,26 @@ const promotionRequiredQuantity =
           // ============================================
 
           category:
-            resolvedProduct?.category ||
-            item.category ||
-            detectProductCategory(
-              resolvedProduct?.name ||
-              item.product
-            ) ||
-            'Other'
+            item.categoryManuallySelected &&
+            item.category
+              ? item.category
+              : (
+                  resolvedProduct?.category ||
+                  item.category ||
+                  detectProductCategory(
+                    resolvedProduct?.name ||
+                    item.product
+                  ) ||
+                  'Other'
+                ),
+
+          categorySource:
+            item.categoryManuallySelected &&
+            resolvedProduct &&
+            item.category &&
+            item.category !== resolvedProduct.category
+              ? 'manual'
+              : 'default'
 
         });
       }
