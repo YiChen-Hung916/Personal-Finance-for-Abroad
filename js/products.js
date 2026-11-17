@@ -29,6 +29,8 @@ export const PRODUCT_CATEGORIES = [
   'Personal Care',
   'Clothing',
   'Electronics',
+  'Souvenirs',
+  'Travel',
   'Other'
 ];
 
@@ -518,40 +520,40 @@ export async function updateProduct({
   name,
   category
 }) {
-
-  const cleanName =
-    String(name || '')
-      .trim()
-      .replace(/\s+/g, ' ');
-
+  const cleanName = String(name || '')
+    .trim()
+    .replace(/\s+/g, ' ');
 
   if (!cleanName) {
     throw new Error('Product name is required.');
   }
 
+  const productRef = doc(db, 'products', productId);
+  const snapshot = await getDoc(productRef);
 
-  await updateDoc(
-    doc(db, 'products', productId),
-    {
-      name: cleanName,
+  if (!snapshot.exists()) {
+    throw new Error('Product could not be found.');
+  }
 
-      normalizedName:
-        normalizeProductKey(cleanName),
+  const existing = snapshot.data();
+  const newCategory = category || 'Other';
 
-      category:
-        category || 'Other',
+  const changes = {
+    name: cleanName,
+    normalizedName: normalizeProductKey(cleanName),
+    category: newCategory,
+    updatedAt: serverTimestamp(),
+    updatedBy: currentUser.uid
+  };
 
-      categorySource:
-        'manual',
+  // Only change categorySource when the category changes.
+  if (existing.category !== newCategory) {
+    changes.categorySource = 'manual';
+  }
 
-      updatedAt:
-        serverTimestamp(),
-
-      updatedBy:
-        currentUser.uid
-    }
-  );
+  await updateDoc(productRef, changes);
 }
+
 
 
 // ======================================================
