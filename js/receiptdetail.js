@@ -31,6 +31,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 import {
+  openReceiptAmountEditor
+} from './receipt-edit-amounts.js';
+
+import {
   attachPendingReminderInfo,
   getPendingReminderClass
 } from './pending.js';
@@ -1031,13 +1035,38 @@ function renderReceiptDetail({
 
       <div class="card">
 
-        <h2>
-          ${
-            lang === 'zh-TW'
-              ? '金額摘要'
-              : 'Amount Summary'
-          }
-        </h2>
+  <div
+    style="
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    "
+  >
+
+    <h2 style="margin:0">
+      ${
+        lang === 'zh-TW'
+          ? '金額摘要'
+          : 'Amount Summary'
+      }
+    </h2>
+
+    ${
+      currentRole === 'owner'
+        ? `
+          <button
+            type="button"
+            id="editReceiptAmountsButton"
+          >
+            ✎ ${lang === 'zh-TW' ? '編輯' : 'Edit'}
+          </button>
+        `
+        : ''
+    }
+
+  </div>
 
 
         <div class="grid">
@@ -1351,6 +1380,42 @@ ${
     );
   }
 
+
+  // ====================================================
+// Edit Receipt Amount Summary
+// Owner only
+// ====================================================
+
+const editAmountsButton =
+  page.querySelector('#editReceiptAmountsButton');
+
+if (
+  editAmountsButton &&
+  currentRole === 'owner'
+) {
+  editAmountsButton.addEventListener('click', () => {
+    openReceiptAmountEditor({
+      db,
+      currentUser,
+      currentRole,
+      receipt,
+      lang,
+
+      onSaved: async () => {
+        await receiptDetailPage({
+          db,
+          currentUser,
+          currentRole,
+          lang,
+          page,
+          receiptId: receipt.id
+        });
+      }
+    });
+  });
+}
+
+  
   // ====================================================
   // Delete Receipt
   // Owner only
