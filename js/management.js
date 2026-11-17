@@ -8,6 +8,10 @@ import {
 } from './products.js';
 
 import {
+  openCategoryBatchUpdate
+} from './category-update.js';
+
+import {
   getStores,
   createStore,
   updateStore,
@@ -700,27 +704,34 @@ if (tab === 'users') {
           '#managementProductName'
         ).value;
 
-
       const category =
         document.querySelector(
           '#managementProductCategory'
         ).value;
 
+      const oldCategory =
+        product?.category || 'Other';
+
+      const newCategory =
+        category ||
+        product?.category ||
+        'Other';
+
+      const categoryChanged =
+        Boolean(product) &&
+        oldCategory !== newCategory;
 
       try {
 
         if (product) {
 
+          // Update product default category first.
           await updateProduct({
             db,
             currentUser,
-            productId:
-              product.id,
+            productId: product.id,
             name,
-            category:
-              category ||
-              product.category ||
-              'Other'
+            category: newCategory
           });
 
         } else {
@@ -733,12 +744,41 @@ if (tab === 'users') {
           });
         }
 
+        // Ask whether to inspect historical receipts
+        // only when editing an existing product and
+        // its category actually changed.
+        const inspectHistory =
+          categoryChanged &&
+          window.confirm(
+            lang === 'zh-TW'
+              ? `Product「${name}」已從 ${oldCategory} 改為 ${newCategory}。\n\n是否檢查過去的 Receipt，並選擇要同步更新的紀錄？\n\n按「取消」只會保留新的 Product 預設分類，不會修改歷史 Receipt。`
+              : `Product category changed from ${oldCategory} to ${newCategory}.\n\nReview historical receipts for optional updates?\n\nCancel keeps the product change without updating history.`
+          );
 
         await renderProducts();
 
+        if (inspectHistory) {
+          await openCategoryBatchUpdate({
+            db,
+            currentUser,
+            currentRole,
+            product: {
+              ...product,
+              name: String(name || '').trim(),
+              category: newCategory
+            },
+            oldCategory,
+            newCategory,
+            lang
+          });
+        }
+
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          'Failed to save product or update categories:',
+          error
+        );
 
         alert(error.message);
       }
