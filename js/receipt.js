@@ -1870,7 +1870,7 @@ function addItem() {
 
         ${
           lang === 'zh-TW'
-            ? '每包件數'
+            ? '內含數量（如：每包件數）'
             : 'Units per package'
         }
 
@@ -1975,7 +1975,7 @@ function addItem() {
 
           ${
             lang === 'zh-TW'
-              ? '購買數量（包）'
+              ? '購買數量（如：包數）'
               : 'Purchase Quantity (packages)'
           }
 
@@ -1999,7 +1999,7 @@ function addItem() {
 
           ${
             lang === 'zh-TW'
-              ? '每包原價'
+              ? '單位原價（如：每包原價）'
               : 'Original Price per Package'
           }
 
@@ -3600,7 +3600,7 @@ const promotionRequiredQuantity =
 
     alert(
       lang === 'zh-TW'
-        ? '每個品項都必須填寫產品名稱、購買數量與每包原價。'
+        ? '每個品項都必須填寫產品名稱、購買數量與單位原價。'
         : 'Each item requires a product name, purchase quantity, and original price.'
     );
 
