@@ -35,6 +35,10 @@ import {
 } from './receipt-edit-amounts.js';
 
 import {
+  openReceiptItemsEditor
+} from './receipt-edit-items.js';
+
+import {
   attachPendingReminderInfo,
   getPendingReminderClass
 } from './pending.js';
@@ -991,13 +995,43 @@ function renderReceiptDetail({
 
       <div class="card">
 
-        <h2>
-          ${
-            lang === 'zh-TW'
-              ? '商品明細'
-              : 'Items'
-          }
-        </h2>
+  <div
+    style="
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    "
+  >
+
+    <h2 style="margin: 0">
+      ${
+        lang === 'zh-TW'
+          ? '商品明細'
+          : 'Items'
+      }
+    </h2>
+
+    ${
+      currentRole === 'owner'
+        ? `
+          <button
+            type="button"
+            id="editReceiptItemsButton"
+            style="
+              width: auto;
+              min-width: 0;
+              padding: 6px 12px;
+            "
+          >
+            ✎ ${lang === 'zh-TW' ? '編輯' : 'Edit'}
+          </button>
+        `
+        : ''
+    }
+
+  </div>
 
 
         ${
@@ -1379,6 +1413,71 @@ ${
       }
     );
   }
+
+
+
+// ====================================================
+// Edit Receipt Items
+// Owner only
+// ====================================================
+
+const editItemsButton =
+  page.querySelector('#editReceiptItemsButton');
+
+if (
+  editItemsButton &&
+  currentRole === 'owner'
+) {
+
+  editItemsButton.addEventListener(
+    'click',
+    async () => {
+
+      editItemsButton.disabled = true;
+
+      try {
+
+        await openReceiptItemsEditor({
+          db,
+          currentUser,
+          currentRole,
+          receipt,
+          items,
+          lang,
+
+          onSaved: async () => {
+
+            await receiptDetailPage({
+              db,
+              currentUser,
+              currentRole,
+              lang,
+              page,
+              receiptId: receipt.id
+            });
+
+          }
+        });
+
+      } catch (error) {
+
+        console.error(
+          'Unable to open Edit Items:',
+          error
+        );
+
+        alert(error.message);
+
+      } finally {
+
+        editItemsButton.disabled = false;
+
+      }
+
+    }
+  );
+
+}
 
 
   // ====================================================
