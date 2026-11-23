@@ -3255,6 +3255,37 @@ const amountMessage = page.querySelector('#historyAmountMessage');
 const resetFiltersButton = page.querySelector('#historyResetFilters');
 
 let amountRangeMax = 0;
+    const dualRange = page.querySelector('#historyDualRange');
+
+function updateDualRangeVisual() {
+  const min = Number(amountMinSlider.value) || 0;
+  const max = Number(amountMaxSlider.value) || 0;
+
+  const lower = amountRangeMax > 0
+    ? (min / amountRangeMax) * 100
+    : 0;
+
+  const upper = amountRangeMax > 0
+    ? (max / amountRangeMax) * 100
+    : 100;
+
+  dualRange.style.setProperty(
+    '--range-start',
+    `${lower}%`
+  );
+
+  dualRange.style.setProperty(
+    '--range-end',
+    `${upper}%`
+  );
+
+  // When thumbs overlap, keep the active thumb accessible.
+  amountMinSlider.style.zIndex =
+    min >= max ? '3' : '2';
+
+  amountMaxSlider.style.zIndex =
+    min >= max ? '2' : '3';
+}
 
 function updateAmountRange() {
   const currency = currencySelect.value;
@@ -3300,6 +3331,7 @@ function updateAmountRange() {
         ? '請先選擇單一幣別，再設定金額範圍。'
         : 'Select one currency to filter by amount.')
     : `${currency} 0 – ${amountRangeMax}`;
+  updateDualRangeVisual();
 }
 
 function syncAmountControls(changed) {
@@ -3329,6 +3361,7 @@ function syncAmountControls(changed) {
   amountMessage.textContent =
     `${currencySelect.value} ${min} – ${max}`;
 
+  updateDualRangeVisual();
   renderTransactions();
 }
 
