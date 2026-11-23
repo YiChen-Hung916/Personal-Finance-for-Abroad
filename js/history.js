@@ -3127,14 +3127,30 @@ if (
     </div>
   </div>
 
-  <div style="display:grid;gap:8px;margin-top:12px;">
-    <input id="historyAmountMinSlider"
-      type="range" min="0" max="100" step="0.01" value="0"
-      aria-label="Minimum amount">
-    <input id="historyAmountMaxSlider"
-      type="range" min="0" max="100" step="0.01" value="100"
-      aria-label="Maximum amount">
-  </div>
+  <div class="history-dual-range" id="historyDualRange">
+  <div class="history-range-track"></div>
+  <div class="history-range-selected" id="historyRangeSelected"></div>
+
+  <input
+    id="historyAmountMinSlider"
+    type="range"
+    min="0"
+    max="100"
+    step="0.01"
+    value="0"
+    aria-label="Minimum amount"
+  >
+
+  <input
+    id="historyAmountMaxSlider"
+    type="range"
+    min="0"
+    max="100"
+    step="0.01"
+    value="100"
+    aria-label="Maximum amount"
+  >
+</div>
 
   <p id="historyAmountMessage" class="muted"></p>
 </div>
