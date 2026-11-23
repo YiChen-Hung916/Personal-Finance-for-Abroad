@@ -2910,6 +2910,39 @@ if (
 
         <div class="history-filters">
 
+        <div class="field">
+  <label for="historyStoreSearch" class="field-label">
+    ${lang === 'zh-TW' ? '商店搜尋' : 'Store Search'}
+  </label>
+  <input
+    id="historyStoreSearch"
+    type="search"
+    placeholder="${lang === 'zh-TW' ? '搜尋商店名稱...' : 'Search store name...'}"
+    autocomplete="off"
+  >
+</div>
+
+<div class="field">
+  <label for="historyCurrency" class="field-label">
+    ${lang === 'zh-TW' ? '幣別' : 'Currency'}
+  </label>
+  <select id="historyCurrency">
+    <option value="all">
+      ${lang === 'zh-TW' ? '所有幣別' : 'All currencies'}
+    </option>
+    ${[...new Set(
+      allTransactions
+        .map(t => t.currency)
+        .filter(Boolean)
+    )].sort().map(currency => `
+      <option value="${escapeHtml(currency)}">
+        ${escapeHtml(currency)}
+      </option>
+    `).join('')}
+  </select>
+</div>
+
+
           <div class="field">
 
             <label
@@ -3073,6 +3106,49 @@ if (
         </div>
 
 
+<div class="card" style="margin: 12px 0; padding: 14px;">
+  <label class="field-label">
+    ${lang === 'zh-TW' ? '金額範圍' : 'Amount Range'}
+  </label>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+    <div class="field" style="flex:1;min-width:130px;">
+      <label for="historyAmountMin">
+        ${lang === 'zh-TW' ? '最低金額' : 'Minimum'}
+      </label>
+      <input id="historyAmountMin" type="number" min="0" step="0.01">
+    </div>
+
+    <div class="field" style="flex:1;min-width:130px;">
+      <label for="historyAmountMax">
+        ${lang === 'zh-TW' ? '最高金額' : 'Maximum'}
+      </label>
+      <input id="historyAmountMax" type="number" min="0" step="0.01">
+    </div>
+  </div>
+
+  <div style="display:grid;gap:8px;margin-top:12px;">
+    <input id="historyAmountMinSlider"
+      type="range" min="0" max="100" step="0.01" value="0"
+      aria-label="Minimum amount">
+    <input id="historyAmountMaxSlider"
+      type="range" min="0" max="100" step="0.01" value="100"
+      aria-label="Maximum amount">
+  </div>
+
+  <p id="historyAmountMessage" class="muted"></p>
+</div>
+
+<button
+  id="historyResetFilters"
+  type="button"
+  class="secondary"
+  style="width:auto;margin-bottom:14px;"
+>
+  ${lang === 'zh-TW' ? '重設篩選條件' : 'Reset Filters'}
+</button>
+
+
         <div
           id="historyFilterMessage"
           class="muted"
@@ -3149,6 +3225,134 @@ const exportPdfButton =
     '#historyExportPdfButton'
   );
 
+
+    const storeSearch = page.querySelector('#historyStoreSearch');
+const currencySelect = page.querySelector('#historyCurrency');
+
+const amountMinInput = page.querySelector('#historyAmountMin');
+const amountMaxInput = page.querySelector('#historyAmountMax');
+
+const amountMinSlider = page.querySelector('#historyAmountMinSlider');
+const amountMaxSlider = page.querySelector('#historyAmountMaxSlider');
+
+const amountMessage = page.querySelector('#historyAmountMessage');
+const resetFiltersButton = page.querySelector('#historyResetFilters');
+
+let amountRangeMax = 0;
+
+function updateAmountRange() {
+  const currency = currencySelect.value;
+
+  const matching = allTransactions.filter(t =>
+    currency === 'all' || t.currency === currency
+  );
+
+  amountRangeMax = Math.max(
+    0,
+    ...matching.map(t => {
+      const amount = Number(t.amount);
+      return Number.isFinite(amount) ? Math.abs(amount) : 0;
+    })
+  );
+
+  amountRangeMax = Math.ceil(amountRangeMax * 100) / 100;
+
+  amountMinInput.value = '0';
+  amountMaxInput.value = String(amountRangeMax);
+
+  for (const slider of [amountMinSlider, amountMaxSlider]) {
+    slider.min = '0';
+    slider.max = String(amountRangeMax);
+  }
+
+  amountMinSlider.value = '0';
+  amountMaxSlider.value = String(amountRangeMax);
+
+  const disabled = currency === 'all';
+
+  for (const control of [
+    amountMinInput,
+    amountMaxInput,
+    amountMinSlider,
+    amountMaxSlider
+  ]) {
+    control.disabled = disabled;
+  }
+
+  amountMessage.textContent = disabled
+    ? (lang === 'zh-TW'
+        ? '請先選擇單一幣別，再設定金額範圍。'
+        : 'Select one currency to filter by amount.')
+    : `${currency} 0 – ${amountRangeMax}`;
+}
+
+function syncAmountControls(changed) {
+  const readAmount = (input, fallback) => {
+    if (input.value.trim() === '') return fallback;
+    const value = Number(input.value);
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  let min = readAmount(amountMinInput, 0);
+  let max = readAmount(amountMaxInput, amountRangeMax);
+
+  min = Math.max(0, Math.min(min, amountRangeMax));
+  max = Math.max(0, Math.min(max, amountRangeMax));
+
+  if (min > max) {
+    if (changed === 'min') max = min;
+    else min = max;
+  }
+
+  amountMinInput.value = String(min);
+  amountMaxInput.value = String(max);
+
+  amountMinSlider.value = String(min);
+  amountMaxSlider.value = String(max);
+
+  amountMessage.textContent =
+    `${currencySelect.value} ${min} – ${max}`;
+
+  renderTransactions();
+}
+
+storeSearch.addEventListener('input', renderTransactions);
+
+currencySelect.addEventListener('change', () => {
+  updateAmountRange();
+  renderTransactions();
+});
+
+amountMinInput.addEventListener('change', () =>
+  syncAmountControls('min')
+);
+
+amountMaxInput.addEventListener('change', () =>
+  syncAmountControls('max')
+);
+
+amountMinSlider.addEventListener('input', () => {
+  amountMinInput.value = amountMinSlider.value;
+  syncAmountControls('min');
+});
+
+amountMaxSlider.addEventListener('input', () => {
+  amountMaxInput.value = amountMaxSlider.value;
+  syncAmountControls('max');
+});
+
+resetFiltersButton.addEventListener('click', () => {
+  storeSearch.value = '';
+  currencySelect.value = 'all';
+  periodSelect.value = '1m';
+  typeSelect.value = 'all';
+
+  syncPeriodDates();
+  updateAmountRange();
+  renderTransactions();
+});
+
+    
     function syncPeriodDates() {
 
   const period =
@@ -3251,13 +3455,47 @@ const exportPdfButton =
 
 
       visibleTransactions =
-        filterByType(
-          visibleTransactions,
-          type
-        );
+  filterByType(
+    visibleTransactions,
+    type
+  );
 
-      currentVisibleTransactions =
-        [...visibleTransactions];
+// Store name search
+const storeKeyword =
+  storeSearch.value.trim().toLocaleLowerCase();
+
+if (storeKeyword) {
+  visibleTransactions = visibleTransactions.filter(t =>
+    String(t.store || '')
+      .toLocaleLowerCase()
+      .includes(storeKeyword)
+  );
+}
+
+// Currency filter
+const selectedCurrency = currencySelect.value;
+
+if (selectedCurrency !== 'all') {
+  visibleTransactions = visibleTransactions.filter(t =>
+    t.currency === selectedCurrency
+  );
+
+  // Amount filter, using the transaction amount.
+  const minAmount = Number(amountMinInput.value);
+  const maxAmount = Number(amountMaxInput.value);
+
+  visibleTransactions = visibleTransactions.filter(t => {
+    const amount = Math.abs(Number(t.amount));
+
+    return Number.isFinite(amount) &&
+      amount >= minAmount &&
+      amount <= maxAmount;
+  });
+}
+
+// Keep filtered data for Excel and PDF exports.
+currentVisibleTransactions =
+  [...visibleTransactions];
 
       visibleTransactions.sort(
         (a, b) =>
@@ -3643,7 +3881,8 @@ exportPdfButton.onclick = () => {
 
 
     // First render
-    syncPeriodDates();
+syncPeriodDates();
+updateAmountRange();
 renderTransactions();
 
 
