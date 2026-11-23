@@ -915,7 +915,7 @@ async function loadChinesePdfFont() {
   if (!chinesePdfFontPromise) {
     chinesePdfFontPromise = (async () => {
       const fontUrl = new URL(
-        '../fonts/NotoSansTC-Regular.ttf',
+        '../fonts/NotoSansTC-VariableFont_wght.ttf',
         import.meta.url
       );
 
@@ -1052,19 +1052,19 @@ const pdf =
 
 // Register the Traditional Chinese font.
 pdf.addFileToVFS(
-  'NotoSansTC-Regular.ttf',
+  'NotoSansTC-VariableFont_wght.ttf',
   fontBase64
 );
 
 pdf.addFont(
-  'NotoSansTC-Regular.ttf',
+  'NotoSansTC-VariableFont_wght.ttf',
   'NotoSansTC',
   'normal'
 );
 
 // Use the same font for bold text as a fallback.
 pdf.addFont(
-  'NotoSansTC-Regular.ttf',
+  'NotoSansTC-VariableFont_wght.ttf',
   'NotoSansTC',
   'bold'
 );
