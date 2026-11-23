@@ -908,11 +908,57 @@ function exportTransactionsToExcel({
 }
 
 
+
+let chinesePdfFontPromise = null;
+
+async function loadChinesePdfFont() {
+  if (!chinesePdfFontPromise) {
+    chinesePdfFontPromise = (async () => {
+      const fontUrl = new URL(
+        '../fonts/NotoSansTC-Regular.ttf',
+        import.meta.url
+      );
+
+      const response = await fetch(fontUrl);
+
+      if (!response.ok) {
+        throw new Error(
+          `Unable to load PDF font: ${response.status}`
+        );
+      }
+
+      const buffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      // Convert font bytes to Base64 for jsPDF.
+      let binary = '';
+      const chunkSize = 8192;
+
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+
+        for (let j = 0; j < chunk.length; j++) {
+          binary += String.fromCharCode(chunk[j]);
+        }
+      }
+
+      return btoa(binary);
+    })().catch(error => {
+      chinesePdfFontPromise = null;
+      throw error;
+    });
+  }
+
+  return chinesePdfFontPromise;
+}
+
+
+
 // ======================================================
 // PDF Export
 // ======================================================
 
-function exportTransactionsToPdf({
+async function exportTransactionsToPdf({
   transactions,
   period,
   type,
@@ -995,12 +1041,38 @@ function exportTransactionsToPdf({
   // PDF
   // ==================================================
 
-  const pdf =
-    new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
+  const fontBase64 = await loadChinesePdfFont();
+
+const pdf =
+  new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+// Register the Traditional Chinese font.
+pdf.addFileToVFS(
+  'NotoSansTC-Regular.ttf',
+  fontBase64
+);
+
+pdf.addFont(
+  'NotoSansTC-Regular.ttf',
+  'NotoSansTC',
+  'normal'
+);
+
+// Use the same font for bold text as a fallback.
+pdf.addFont(
+  'NotoSansTC-Regular.ttf',
+  'NotoSansTC',
+  'bold'
+);
+
+pdf.setFont(
+  'NotoSansTC',
+  'normal'
+);
 
 
   const pageWidth =
@@ -1104,7 +1176,7 @@ function exportTransactionsToPdf({
     pdf.setFontSize(8);
 
     pdf.setFont(
-      'helvetica',
+      'NotoSansTC',
       'bold'
     );
 
@@ -1169,7 +1241,7 @@ function exportTransactionsToPdf({
 
 
     pdf.setFont(
-      'helvetica',
+      'NotoSansTC',
       'normal'
     );
 
@@ -3903,9 +3975,12 @@ endDateInput.onchange =
 };
 
 
-exportPdfButton.onclick = () => {
+exportPdfButton.onclick = async () => {
 
-  exportTransactionsToPdf({
+  try {
+  exportPdfButton.disabled = true;
+
+  await exportTransactionsToPdf({
 
     transactions:
       currentVisibleTransactions,
@@ -3925,8 +4000,21 @@ exportPdfButton.onclick = () => {
     lang
 
   });
+} catch (error) {
+  console.error('PDF export failed:', error);
+
+  alert(
+    lang === 'zh-TW'
+      ? 'PDF 匯出失敗，請確認中文字型檔已正確上傳。'
+      : 'PDF export failed. Please check the Chinese font file.'
+  );
+
+} finally {
+  exportPdfButton.disabled = false;
+}
 
 };
+
 
 
     // First render
