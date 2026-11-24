@@ -38,6 +38,195 @@ import {
   renderForeignCurrencyStores
 } from './foreign-currency-available.js';
 
+
+
+function chooseMergeItem({
+  title,
+  items,
+  getLabel = item => item.name
+}) {
+
+  return new Promise(resolve => {
+
+    const dialog = document.createElement('dialog');
+
+    dialog.style.cssText = `
+      width: min(520px, 92vw);
+      max-height: 85vh;
+      box-sizing: border-box;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow: 0 12px 40px #0004;
+    `;
+
+    const heading = document.createElement('h3');
+
+    heading.textContent = title;
+    heading.style.margin = '0 0 16px';
+
+    // 搜尋欄
+    const search = document.createElement('input');
+
+    search.type = 'search';
+    search.placeholder = '搜尋名稱 / Search name...';
+
+    search.style.cssText = `
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      border: 1px solid #aaa;
+      border-radius: 8px;
+      font-size: 15px;
+    `;
+
+    // 候選項目數量
+    const count = document.createElement('div');
+
+    count.style.cssText = `
+      font-size: 13px;
+      opacity: 0.7;
+      margin-bottom: 8px;
+    `;
+
+    // 可上下捲動的候選清單
+    const list = document.createElement('div');
+
+    list.style.cssText = `
+      max-height: min(360px, 45vh);
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    `;
+
+    const footer = document.createElement('div');
+
+    footer.style.cssText = `
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    `;
+
+    const cancel = document.createElement('button');
+
+    cancel.type = 'button';
+    cancel.textContent = '取消 / Cancel';
+
+    let selected = null;
+
+    function finish(item) {
+
+      selected = item;
+      dialog.close();
+
+    }
+
+    function renderList() {
+
+      const keyword =
+        search.value.trim().toLowerCase();
+
+      const filtered = items.filter(item =>
+        String(getLabel(item))
+          .toLowerCase()
+          .includes(keyword)
+      );
+
+      count.textContent =
+        `${filtered.length} / ${items.length} items`;
+
+      list.replaceChildren();
+
+      if (!filtered.length) {
+
+        const empty = document.createElement('div');
+
+        empty.textContent =
+          '沒有符合的項目 / No results';
+
+        empty.style.padding = '16px';
+
+        list.appendChild(empty);
+
+        return;
+      }
+
+      filtered.forEach(item => {
+
+        const option = document.createElement('button');
+
+        option.type = 'button';
+        option.textContent = getLabel(item);
+
+        option.style.cssText = `
+          display: block;
+          width: 100%;
+          padding: 12px;
+          text-align: left;
+          border: 0;
+          border-bottom: 1px solid #8883;
+          background: transparent;
+          color: inherit;
+          font-size: 14px;
+          white-space: normal;
+          overflow-wrap: anywhere;
+          cursor: pointer;
+        `;
+
+        option.onmouseenter = () => {
+          option.style.background = '#8882';
+        };
+
+        option.onmouseleave = () => {
+          option.style.background = 'transparent';
+        };
+
+        option.onclick = () => finish(item);
+
+        list.appendChild(option);
+
+      });
+
+      list.scrollTop = 0;
+    }
+
+    search.oninput = renderList;
+
+    cancel.onclick = () => finish(null);
+
+    dialog.addEventListener('close', () => {
+
+      dialog.remove();
+      resolve(selected);
+
+    }, { once: true });
+
+    footer.appendChild(cancel);
+
+    dialog.append(
+      heading,
+      search,
+      count,
+      list,
+      footer
+    );
+
+    document.body.appendChild(dialog);
+
+    renderList();
+
+    dialog.showModal();
+
+    search.focus();
+
+  });
+
+}
+
+
 export async function managementPage({
   db,
   currentUser,
@@ -493,36 +682,16 @@ if (tab === 'users') {
       }
 
 
-      const answer =
-        prompt(
-          [
-            `要取消「${mainProduct.name}」的哪一次 Merge？`,
-            '',
-            ...mergedIntoThisProduct.map(
-              (product, index) =>
-                `${index + 1}. ${mainProduct.name} ↔ ${product.name}`
-            ),
-            '',
-            '請輸入編號：'
-          ].join('\n')
-        );
-
-
-      if (!answer) {
-        return;
-      }
-
-
       const selected =
-        mergedIntoThisProduct[
-          Number(answer) - 1
-        ];
-
+        await chooseMergeItem({
+          title:
+            `要取消「${mainProduct.name}」的哪一次 Merge？`,
+          items: mergedIntoThisProduct,
+          getLabel: product =>
+            `${mainProduct.name} ↔ ${product.name}`
+        });
 
       if (!selected) {
-
-        alert('無效的選擇。');
-
         return;
       }
 
@@ -786,7 +955,7 @@ if (tab === 'users') {
   }
 
 
-  function showProductMerge(
+  async function showProductMerge(
   sourceProductId,
   activeProducts,
   mergedProducts
@@ -848,41 +1017,16 @@ if (tab === 'users') {
   }
 
 
-  const answer =
-    prompt(
-      [
-        `要把「${sourceProduct.name}」Merge 到哪個 Product？`,
-        '',
-        '選擇後，被選的 Product 會保留在主畫面。',
-        '',
-        ...candidates.map(
-          (product, index) =>
-            `${index + 1}. ${product.name}`
-        ),
-        '',
-        '請輸入編號：'
-      ].join('\n')
-    );
-
-
-  if (!answer) {
-    return;
-  }
-
-
   const targetProduct =
-    candidates[
-      Number(answer) - 1
-    ];
-
+    await chooseMergeItem({
+      title:
+        `要把「${sourceProduct.name}」Merge 到哪個 Product？`,
+      items: candidates
+    });
 
   if (!targetProduct) {
-
-    alert('無效的選擇。');
-
     return;
   }
-
 
   if (
     !confirm(
@@ -1427,38 +1571,14 @@ if (tab === 'users') {
           }
 
 
-          const answer =
-            prompt(
-              [
-                `要把「${sourceItem.name}」Merge 到哪一筆？`,
-                '',
-                '選擇後，被選的項目會保留在主畫面。',
-                '',
-                ...candidates.map(
-                  (item, index) =>
-                    `${index + 1}. ${item.name}`
-                ),
-                '',
-                '請輸入編號：'
-              ].join('\n')
-            );
-
-
-          if (!answer) {
-            return;
-          }
-
-
           const targetItem =
-            candidates[
-              Number(answer) - 1
-            ];
-
+            await chooseMergeItem({
+              title:
+                `要把「${sourceItem.name}」Merge 到哪一筆？`,
+              items: candidates
+            });
 
           if (!targetItem) {
-
-            alert('無效的選擇。');
-
             return;
           }
 
@@ -1546,36 +1666,16 @@ if (tab === 'users') {
           }
 
 
-          const answer =
-            prompt(
-              [
-                `要取消「${mainItem.name}」的哪一次 Merge？`,
-                '',
-                ...mergedIntoMain.map(
-                  (item, index) =>
-                    `${index + 1}. ${mainItem.name} ↔ ${item.name}`
-                ),
-                '',
-                '請輸入編號：'
-              ].join('\n')
-            );
-
-
-          if (!answer) {
-            return;
-          }
-
-
           const selected =
-            mergedIntoMain[
-              Number(answer) - 1
-            ];
-
+            await chooseMergeItem({
+              title:
+                `要取消「${mainItem.name}」的哪一次 Merge？`,
+              items: mergedIntoMain,
+              getLabel: item =>
+                `${mainItem.name} ↔ ${item.name}`
+            });
 
           if (!selected) {
-
-            alert('無效的選擇。');
-
             return;
           }
 
