@@ -40,11 +40,6 @@ import {
 } from './receiptdraft.js';
 
 import {
-  chooseReceiptOverwrite,
-  overwriteReceiptItemsAndAmounts
-} from './receipt-overwrite.js';
-
-import {
   getCurrencyData,
   getStoreCurrencyStatus,
   saveCurrencyResponse
@@ -4084,61 +4079,6 @@ const promotionRequiredQuantity =
       ? localSubmittedDate
       : null
 };
-
-
-// ====================================================
-// Receipt Overwrite
-// Check possible duplicates before saving
-// ====================================================
-
-let overwriteTarget = null;
-
-if (isSubmit) {
-
-  const decision = await chooseReceiptOverwrite({
-    db,
-    receiptData,
-    lang
-  });
-
-  // User canceled submission.
-  if (decision.action === 'cancel') {
-    return;
-  }
-
-  // User explicitly selected an existing receipt.
-  if (decision.action === 'overwrite') {
-    overwriteTarget = decision.receipt;
-  }
-
-}
-
-
-// ====================================================
-// Overwrite existing receipt: items and amounts only
-// ====================================================
-
-if (overwriteTarget) {
-
-  await overwriteReceiptItemsAndAmounts({
-    db,
-    currentUser,
-    oldReceipt: overwriteTarget,
-    receiptData,
-    items: resolvedItems
-  });
-
-  alert(
-    lang === 'zh-TW'
-      ? '已覆蓋原收據的商品與金額，其他資料保持不變。'
-      : 'Items and amounts overwritten. Protected fields unchanged.'
-  );
-
-  location.hash = '#dashboard';
-
-  return;
-}
-
 
     
     const receiptRef =
