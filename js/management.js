@@ -749,10 +749,42 @@ if (tab === 'users') {
     product = null
   ) {
 
-    const holder =
+    const existingDialog =
       document.querySelector(
-        '#managementProductForm'
+        '#managementProductDialog'
       );
+
+    if (existingDialog) {
+      existingDialog.close();
+      existingDialog.remove();
+    }
+
+    const holder =
+      document.createElement('dialog');
+
+    holder.id = 'managementProductDialog';
+
+    holder.style.cssText = `
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      width: min(560px, 92vw);
+      max-height: 85vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      background: Canvas;
+      color: CanvasText;
+      box-shadow: 0 12px 40px #0004;
+    `;
+
+    document.body.appendChild(holder);
+
+    holder.addEventListener('close', () => {
+      holder.remove();
+    }, { once: true });
 
 
     const categoryOptions =
@@ -856,11 +888,13 @@ if (tab === 'users') {
     `;
 
 
+    holder.showModal();
+
     document.querySelector(
       '#managementCancelProduct'
     ).onclick =
       () => {
-        holder.innerHTML = '';
+        holder.close();
       };
 
 
@@ -890,6 +924,28 @@ if (tab === 'users') {
         Boolean(product) &&
         oldCategory !== newCategory;
 
+      const saveButton =
+        holder.querySelector(
+          '#managementSaveProduct'
+        );
+
+      const cancelButton =
+        holder.querySelector(
+          '#managementCancelProduct'
+        );
+
+      saveButton.disabled = true;
+      cancelButton.disabled = true;
+
+      const preventClose = event => {
+        event.preventDefault();
+      };
+
+      holder.addEventListener(
+        'cancel',
+        preventClose
+      );
+
       try {
 
         if (product) {
@@ -913,6 +969,9 @@ if (tab === 'users') {
           });
         }
 
+        holder.close();
+        holder.remove();
+
         // Ask whether to inspect historical receipts
         // only when editing an existing product and
         // its category actually changed.
@@ -924,7 +983,15 @@ if (tab === 'users') {
               : `Product category changed from ${oldCategory} to ${newCategory}.\n\nReview historical receipts for optional updates?\n\nCancel keeps the product change without updating history.`
           );
 
+        const previousScrollX = window.scrollX;
+        const previousScrollY = window.scrollY;
+
         await renderProducts();
+
+        window.scrollTo(
+          previousScrollX,
+          previousScrollY
+        );
 
         if (inspectHistory) {
           await openCategoryBatchUpdate({
@@ -948,6 +1015,18 @@ if (tab === 'users') {
           'Failed to save product or update categories:',
           error
         );
+
+        if (holder.open) {
+
+          saveButton.disabled = false;
+          cancelButton.disabled = false;
+
+          holder.removeEventListener(
+            'cancel',
+            preventClose
+          );
+
+        }
 
         alert(error.message);
       }
