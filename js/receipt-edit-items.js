@@ -144,7 +144,6 @@ export async function openReceiptItemsEditor({db, currentUser, currentRole, rece
   add.onclick=()=>addRow();cancel.onclick=()=>overlay.remove();
   save.onclick=async()=>{
     let data;try{data=[...rows.children].map(readRow);}catch(e){error.textContent=e.message;return;}
-    if(!confirm(zh?`確定儲存 ${data.length} 個商品？`:`Save ${data.length} items?`))return;
     save.disabled=true;cancel.disabled=true;error.textContent='';
     try{
       // Master Data creation happens before the transaction. New names do not overwrite existing Product defaults.
