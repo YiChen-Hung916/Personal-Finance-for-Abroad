@@ -208,15 +208,7 @@ export function openReceiptAmountEditor({
       alert(error.message);
       return;
     }
-
-    const confirmed = window.confirm(
-      zh
-        ? '確定更新這張 Receipt 的金額摘要嗎？'
-        : 'Save these receipt amount changes?'
-    );
-
-    if (!confirmed) return;
-
+    
     saveButton.disabled = true;
     cancelButton.disabled = true;
     errorOutput.textContent = '';
