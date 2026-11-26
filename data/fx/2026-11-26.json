@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "archiveDate": "2026-11-26",
+  "homeCurrency": "TWD",
+  "fetchedAt": "2026-11-26T11:20:37Z",
+  "rates": {
+    "USD": {
+      "firstBank": {
+        "rate": null,
+        "buyRate": null,
+        "sellRate": null,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-11-26T11:20:37Z"
+      },
+      "visa": {
+        "rate": 33.28,
+        "source": "Visa",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 33.3195822,
+        "source": "Mastercard",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      }
+    },
+    "JPY": {
+      "firstBank": {
+        "rate": null,
+        "buyRate": null,
+        "sellRate": null,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-11-26T11:20:37Z"
+      },
+      "visa": {
+        "rate": 0.2097829471,
+        "source": "Visa",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 0.2100327,
+        "source": "Mastercard",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      }
+    },
+    "EUR": {
+      "firstBank": {
+        "rate": null,
+        "buyRate": null,
+        "sellRate": null,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-11-26T11:20:37Z"
+      },
+      "visa": {
+        "rate": 36.5879954253,
+        "source": "Visa",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 36.5848937,
+        "source": "Mastercard",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      }
+    },
+    "GBP": {
+      "firstBank": {
+        "rate": null,
+        "buyRate": null,
+        "sellRate": null,
+        "source": "First Bank",
+        "rateType": "spot-sell",
+        "fetchedAt": "2026-11-26T11:20:37Z"
+      },
+      "visa": {
+        "rate": 43.7165642701,
+        "source": "Visa",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "mastercard": {
+        "rate": 43.7652543,
+        "source": "Mastercard",
+        "rateDate": "2026-11-26",
+        "fallbackUsed": false
+      },
+      "jcb": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      },
+      "other": {
+        "rate": null,
+        "source": null,
+        "rateDate": null,
+        "fallbackUsed": true
+      }
+    }
+  }
+}
