@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "archiveDate": "2026-11-26",
+  "archiveDate": "2026-11-27",
   "homeCurrency": "TWD",
-  "fetchedAt": "2026-11-26T11:20:37Z",
+  "fetchedAt": "2026-11-27T11:13:32Z",
   "rates": {
     "USD": {
       "firstBank": {
@@ -11,18 +11,18 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-11-26T11:20:37Z"
+        "fetchedAt": "2026-11-27T11:13:32Z"
       },
       "visa": {
-        "rate": 33.28,
+        "rate": 32.976,
         "source": "Visa",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "mastercard": {
-        "rate": 33.3195822,
+        "rate": 32.998,
         "source": "Mastercard",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "jcb": {
@@ -45,18 +45,18 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-11-26T11:20:37Z"
+        "fetchedAt": "2026-11-27T11:13:32Z"
       },
       "visa": {
-        "rate": 0.2097829471,
+        "rate": 0.2074873657,
         "source": "Visa",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "mastercard": {
-        "rate": 0.2100327,
+        "rate": 0.2079924,
         "source": "Mastercard",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "jcb": {
@@ -79,18 +79,18 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-11-26T11:20:37Z"
+        "fetchedAt": "2026-11-27T11:13:32Z"
       },
       "visa": {
-        "rate": 36.5879954253,
+        "rate": 36.2405877594,
         "source": "Visa",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "mastercard": {
-        "rate": 36.5848937,
+        "rate": 36.2779632,
         "source": "Mastercard",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "jcb": {
@@ -113,18 +113,18 @@
         "sellRate": null,
         "source": "First Bank",
         "rateType": "spot-sell",
-        "fetchedAt": "2026-11-26T11:20:37Z"
+        "fetchedAt": "2026-11-27T11:13:32Z"
       },
       "visa": {
-        "rate": 43.7165642701,
+        "rate": 43.2974447025,
         "source": "Visa",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "mastercard": {
-        "rate": 43.7652543,
+        "rate": 43.3461584,
         "source": "Mastercard",
-        "rateDate": "2026-11-26",
+        "rateDate": "2026-11-27",
         "fallbackUsed": false
       },
       "jcb": {
